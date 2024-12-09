@@ -19,7 +19,7 @@ func Init() {
 		log.Fatal("failed to create LMDB environment:", err)
 	}
 
-	err = env.SetMaxDBs(1)
+	err = env.SetMaxDBs(2 ^ 32 - 1)
 	if err != nil {
 		log.Fatal("failed to set max DBs:", err)
 	}
@@ -29,7 +29,8 @@ func Init() {
 		log.Fatal("failed to set map size:", err)
 	}
 
-	err = env.Open(_env.GetEnv("LMDB_PATH", "/tmp/wiredshield.lmdb"), lmdb.Create|lmdb.NoSubdir, 0644)
+	lmdbPath := _env.GetEnv("LMDB_PATH", "./wiredshield.lmdb")
+	err = env.Open(lmdbPath, lmdb.Create|lmdb.NoSubdir, 0644)
 	if err != nil {
 		log.Fatal("failed to open LMDB environment:", err)
 	}

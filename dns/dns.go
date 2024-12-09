@@ -3,6 +3,7 @@ package wireddns
 import (
 	"net"
 	"time"
+	"wiredshield/modules/db"
 	"wiredshield/services"
 
 	"github.com/miekg/dns"
@@ -14,24 +15,24 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := dns.Msg{}
 	m.SetReply(r)
 
-	hostname := "northernsi.de"
-	ip := "69.69.69.69"
-
 	if len(r.Question) > 0 {
 		question := r.Question[0]
-		if question.Qtype == dns.TypeA && question.Name == hostname+"." {
-			rr := &dns.A{
-				Hdr: dns.RR_Header{
-					Name:   question.Name,
-					Rrtype: dns.TypeA,
-					Class:  dns.ClassINET,
-					Ttl:    300,
-				},
-				A: net.ParseIP(ip),
-			}
-
-			m.Answer = append(m.Answer, rr)
+		result, err := db.GetRecord("A", question.Name[:len(question.Name)-1])
+		if err != nil {
+			service.ErrorLog("Failed to get record: " + err.Error())
 		}
+
+		rr := &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   question.Name,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    300,
+			},
+			A: net.ParseIP(result),
+		}
+
+		m.Answer = append(m.Answer, rr)
 	}
 
 	err := w.WriteMsg(&m)

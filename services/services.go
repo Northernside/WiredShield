@@ -1,5 +1,7 @@
 package services
 
+import "sync"
+
 type networkInfo struct {
 	Ip   string
 	Port int
@@ -8,17 +10,32 @@ type networkInfo struct {
 type Service struct {
 	Name        string
 	DisplayName string
-	State       bool
 	OnlineSince int64
 	NetworkInfo networkInfo
 	Boot        func()
 }
 
-var Services []Service
+var (
+	ServiceRegistry = map[string]*Service{}
+	registryLock    sync.Mutex
+)
 
-func RegisterService(name string, displayName string) *Service {
-	Services = append(Services, Service{Name: name, DisplayName: displayName})
-	return &Services[len(Services)-1]
+func RegisterService(name, displayName string) *Service {
+	registryLock.Lock()
+	defer registryLock.Unlock()
+
+	if existingService, ok := ServiceRegistry[name]; ok {
+		return existingService
+	}
+
+	newService := &Service{
+		Name:        name,
+		DisplayName: displayName,
+		OnlineSince: 0,
+	}
+
+	ServiceRegistry[name] = newService
+	return newService
 }
 
 func (s *Service) InfoLog(message string) {
@@ -34,9 +51,5 @@ func (s *Service) ErrorLog(message string) {
 }
 
 func PrintToModel(serviceName string, message string) {
-	for i := range Services {
-		if Services[i].DisplayName == serviceName {
-			// commands.Model.Output += message
-		}
-	}
+
 }

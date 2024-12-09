@@ -36,7 +36,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyEnter:
 			for _, c := range Commands {
-				if m.TextInput.Value() == c.Key {
+				parts := strings.Split(m.TextInput.Value(), " ")
+				if parts[0] == c.Key {
 					// exec the cmd & clear input
 					c.Fn(&m)
 					m.TextInput.SetValue("")
