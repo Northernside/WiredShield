@@ -81,9 +81,9 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 
 	// register ACME account if needed
 	err = registerACMEAccount(client)
-	if err != nil {
+	/*if err != nil {
 		return fmt.Errorf("failed to register ACME account: %v", err)
-	}
+	}*/
 
 	// start the ACME order
 	model.Output += fmt.Sprintf("Starting ACME authorization for %s...\n", domain)
