@@ -28,8 +28,8 @@ func (d *DNSProvider) Present(domain, token, keyAuth string) error {
 }
 
 func (d *DNSProvider) CleanUp(domain, token, keyAuth string) error {
-	txtDomain := "_acme-challenge." + domain
-	return db.DeleteRecord("TXT", txtDomain)
+	// none
+	return nil
 }
 
 func (d *DNSProvider) Timeout() (timeout, interval time.Duration) {
@@ -93,7 +93,7 @@ func generateCertWithDNS(domain string, model *Model) error {
 
 	// dns prov handling
 	provider := &DNSProvider{}
-	err = client.Challenge.SetDNS01Provider(provider, dns01.AddRecursiveNameservers(dns01.ParseNameservers([]string{"woof.ns.wired.rip", "meow.ns.wired.rip"})))
+	err = client.Challenge.SetDNS01Provider(provider, dns01.AddRecursiveNameservers(dns01.ParseNameservers([]string{"45.157.11.82"})))
 	if err != nil {
 		return fmt.Errorf("failed to set DNS-01 challenge provider: %v", err)
 	}

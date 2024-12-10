@@ -59,8 +59,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		} else {
 			var err error
 			stringResult, _, err = db.GetRecord(recordTypeMap[question.Qtype], lookupName)
-			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
+			if question.Qtype != dns.TypeSOA {
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
+				}
 			}
 		}
 
@@ -97,6 +99,17 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				Flag:  0,
 				Tag:   "issue",
 				Value: stringResult,
+			}
+		case dns.TypeSOA:
+			rr = &dns.SOA{
+				Hdr:     dns.RR_Header{Name: name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
+				Ns:      "woof.ns.wired.rip",
+				Mbox:    "ssl.northernsi.de",
+				Serial:  1111111111,
+				Refresh: 86400,
+				Retry:   7200,
+				Expire:  4000000,
+				Minttl:  11200,
 			}
 		default:
 			service.WarnLog("unsupported record: " + question.String())
