@@ -52,11 +52,18 @@ func Ssl(model *Model) {
 	switch action {
 	case "generate":
 		model.Output += "Generating certificate for " + split[2] + "...\n"
-		if err := generateCertWithDNS(split[2], model); err != nil {
-			model.Output += "Failed to generate certificate: " + err.Error() + "\n"
-		} else {
-			model.Output += "Certificate generated successfully.\n"
-		}
+
+		resultCh := make(chan string)
+		go func() {
+			err := generateCertWithDNS(split[2], model)
+			if err != nil {
+				resultCh <- fmt.Sprintf("Failed to generate certificate: %s", err.Error())
+			} else {
+				resultCh <- "Certificate generated successfully."
+			}
+		}()
+
+		model.Output += <-resultCh
 
 	case "renew":
 		model.Output += "Renew certificate\n"
@@ -93,7 +100,7 @@ func generateCertWithDNS(domain string, model *Model) error {
 
 	// dns prov handling
 	provider := &DNSProvider{}
-	err = client.Challenge.SetDNS01Provider(provider, dns01.AddRecursiveNameservers(dns01.ParseNameservers([]string{"45.157.11.82"})))
+	err = client.Challenge.SetDNS01Provider(provider, dns01.AddRecursiveNameservers(dns01.ParseNameservers([]string{"woof.ns.wired.rip", "meow.ns.wired.rip"})))
 	if err != nil {
 		return fmt.Errorf("failed to set DNS-01 challenge provider: %v", err)
 	}
