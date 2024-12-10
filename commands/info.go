@@ -19,7 +19,7 @@ func Info(model *Model) {
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("    \033[1;34mOnline Since:\033[0m %s \033[1;36m(%s)\033[0m\n",
+		sb.WriteString(fmt.Sprintf("    \033[1;34mOnline Since:\033[0m %s \033[1;36m(%s\033[1;36m)\n",
 			time.Unix(service.OnlineSince, 0).Format("2006-01-02 15:04:05 MST"),
 			onlineSince(time.Unix(service.OnlineSince, 0))))
 		sb.WriteString("\n")
