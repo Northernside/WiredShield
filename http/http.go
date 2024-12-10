@@ -2,18 +2,17 @@ package http
 
 import (
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
 	"sync"
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/services"
+
+	"github.com/valyala/fasthttp"
 )
 
 var (
-	requestsChannel = make(chan *http.Request)
+	requestsChannel = make(chan *fasthttp.Request)
 	requestsMade    = new(uint64)
 	clientPool      sync.Pool
 	service         *services.Service
@@ -25,76 +24,71 @@ func Prepare(_service *services.Service) func() {
 	return func() {
 		addr := "0.0.0.0:80"
 		clientPool.New = func() interface{} {
-			return &http.Client{
-				Timeout: 30 * time.Second,
+			return &fasthttp.Client{
+				ReadTimeout:  30 * time.Second,
+				WriteTimeout: 30 * time.Second,
 			}
 		}
 
-		http.HandleFunc("/", ProxyHandler)
 		port := env.GetEnv("PORT", "80")
 		service.InfoLog(fmt.Sprintf("Starting proxy on :%s", port))
 
 		go requestsHandler()
 		service.InfoLog("Starting HTTP proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
-		err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
+		err := fasthttp.ListenAndServe(fmt.Sprintf(":%s", port), ProxyHandler)
 		if err != nil {
 			service.FatalLog(err.Error())
 		}
 	}
 }
 
-func ProxyHandler(w http.ResponseWriter, r *http.Request) {
-	targetAddress, _, err := db.GetRecord("A", r.Host)
+func ProxyHandler(ctx *fasthttp.RequestCtx) {
+	targetAddress, _, err := db.GetRecord("A", string(ctx.Host()))
 	if err != nil {
-		http.Error(w, "could not resolve target", http.StatusBadGateway)
+		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
 		return
 	}
 
-	targetURL := "http://" + targetAddress + r.URL.Path
+	targetURL := "http://" + targetAddress + string(ctx.Path())
 
-	req, err := http.NewRequest(r.Method, targetURL+r.RequestURI, r.Body)
-	if err != nil {
-		http.Error(w, "could not create request", http.StatusInternalServerError)
-		return
-	}
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
 
-	req.Header = r.Header
-	req.Header.Set("wired-origin-ip", r.RemoteAddr)
-	req.Header.Set("host", r.Host)
+	req.SetRequestURI(targetURL + string(ctx.URI().String()))
+	req.Header.SetMethodBytes(ctx.Method())
+	req.Header.Set("wired-origin-ip", ctx.RemoteAddr().String())
+	req.Header.Set("host", string(ctx.Host()))
 
-	client := clientPool.Get().(*http.Client)
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		req.Header.SetBytesKV(key, value)
+	})
+
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
+
+	client := clientPool.Get().(*fasthttp.Client)
 	defer clientPool.Put(client)
 
-	resp, err := client.Do(req)
+	err = client.Do(req, resp)
 	if err != nil {
-		http.Error(w, "error contacting backend", http.StatusBadGateway)
+		ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
 
-	for k, v := range resp.Header {
-		w.Header()[k] = v
-	}
+	resp.Header.VisitAll(func(key, value []byte) {
+		ctx.Response.Header.SetBytesKV(key, value)
+	})
 
-	w.Header().Set("server", "wiredshield")
-
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	ctx.Response.Header.Set("server", "wiredshield")
+	ctx.SetStatusCode(resp.StatusCode())
+	ctx.SetBody(resp.Body())
 
 	requestsChannel <- req
 }
 
 func requestsHandler() {
-	for _ = range requestsChannel {
+	for range requestsChannel {
 		*requestsMade++
 	}
-}
-
-func formatHost(host string) string {
-	if !strings.Contains(host, ":") {
-		host += ":80"
-	}
-
-	return host
 }
