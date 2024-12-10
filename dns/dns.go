@@ -23,6 +23,7 @@ var recordTypeMap = map[uint16]string{
 	dns.TypeNS:    "NS",
 	dns.TypeMX:    "MX",
 	dns.TypeTXT:   "TXT",
+	dns.TypeCAA:   "CAA",
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -95,7 +96,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				Hdr:   dns.RR_Header{Name: name, Rrtype: dns.TypeCAA, Class: dns.ClassINET, Ttl: 300},
 				Flag:  0,
 				Tag:   "issue",
-				Value: "letsencrypt.org",
+				Value: stringResult,
 			}
 		default:
 			service.WarnLog("unsupported record: " + question.String())
