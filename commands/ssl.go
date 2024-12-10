@@ -19,6 +19,10 @@ import (
 	"golang.org/x/crypto/acme"
 )
 
+var (
+	accountKey *ecdsa.PrivateKey
+)
+
 func Ssl(model *Model) {
 	split := strings.Split(model.TextInput.Value(), " ")
 	if len(split) < 3 {
@@ -63,9 +67,14 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 		return fmt.Errorf("failed to generate private key for ACME client: %v", err)
 	}
 
+	accountKey, err := getAccountKey()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve account key: %v", err)
+	}
+
 	client := &acme.Client{
 		DirectoryURL: acme.LetsEncryptURL,
-		Key:          privateKey,
+		Key:          accountKey,
 	}
 
 	err = registerACMEAccount(client)
@@ -163,7 +172,12 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 
 	// finalize the order
 	model.Output += fmt.Sprintf("Finalizing certificate order for %s...\n", domain)
-	csrDER, err := generateCSR(domain, privateKey)
+	certKey, err := generatePrivateKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate certificate private key: %v", err)
+	}
+
+	csrDER, err := generateCSR(domain, certKey)
 	if err != nil {
 		return fmt.Errorf("failed to generate CSR: %v", err)
 	}
@@ -176,9 +190,9 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 	// save the certificate
 	certFile := fmt.Sprintf("%s/%s.crt", certDir, domain)
 	keyFile := fmt.Sprintf("%s/%s.key", certDir, domain)
-	err = saveCertAndKey(certFile, keyFile, certDER)
+	err = saveCertAndKey(certFile, keyFile, certDER, certKey)
 	if err != nil {
-		return fmt.Errorf("failed to save certificate: %v", err)
+		return fmt.Errorf("failed to save certificate and key: %v", err)
 	}
 
 	model.Output += fmt.Sprintf("Certificate for %s successfully created and stored at %s and %s.\n", domain, certFile, keyFile)
@@ -218,15 +232,10 @@ func generateCSR(domain string, privateKey *ecdsa.PrivateKey) ([]byte, error) {
 	return csrDER, nil
 }
 
-func saveCertAndKey(certFile, keyFile string, certDER [][]byte) error {
+func saveCertAndKey(certFile, keyFile string, certDER [][]byte, privateKey *ecdsa.PrivateKey) error {
 	cert, err := x509.ParseCertificate(certDER[0])
 	if err != nil {
 		return fmt.Errorf("failed to parse certificate: %v", err)
-	}
-
-	privateKey, err := generatePrivateKey()
-	if err != nil {
-		return fmt.Errorf("failed to generate private key: %v", err)
 	}
 
 	certOut, err := os.Create(certFile)
@@ -250,9 +259,14 @@ func saveCertAndKey(certFile, keyFile string, certDER [][]byte) error {
 	}
 	defer keyOut.Close()
 
+	privateKeyBytes, err := x509.MarshalECPrivateKey(privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to marshal EC private key: %v", err)
+	}
+
 	err = pem.Encode(keyOut, &pem.Block{
 		Type:  "PRIVATE KEY",
-		Bytes: privateKey,
+		Bytes: privateKeyBytes,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to encode private key to PEM: %v", err)
@@ -261,10 +275,19 @@ func saveCertAndKey(certFile, keyFile string, certDER [][]byte) error {
 	return nil
 }
 
-func generatePrivateKey() ([]byte, error) {
+func generatePrivateKey() (*ecdsa.PrivateKey, error) {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate EC private key: %v", err)
+		return nil, fmt.Errorf("failed to generate private key: %v", err)
+	}
+
+	return privateKey, nil
+}
+
+func generatePrivateKeyWithPem() ([]byte, error) {
+	privateKey, err := generatePrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %v", err)
 	}
 
 	privateKeyPEM, err := x509.MarshalECPrivateKey(privateKey)
@@ -273,6 +296,20 @@ func generatePrivateKey() ([]byte, error) {
 	}
 
 	return privateKeyPEM, nil
+}
+
+func getAccountKey() (*ecdsa.PrivateKey, error) {
+	if accountKey != nil {
+		return accountKey, nil
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate account key: %v", err)
+	}
+
+	accountKey = key
+	return key, nil
 }
 
 func computeDNS01Response(token string, clientKey *ecdsa.PrivateKey) (string, error) {
