@@ -43,13 +43,14 @@ func Ssl(model *Model) {
 		return
 	}
 
-	switch split[1] {
-	case "generate":
-		if len(split) < 3 {
-			model.Output += "Usage: ssl generate <domain>\n"
-			break
-		}
+	action := split[1]
+	if len(split) < 3 && action == "generate" {
+		model.Output += "Usage: ssl generate <domain>\n"
+		return
+	}
 
+	switch action {
+	case "generate":
 		model.Output += "Generating certificate for " + split[2] + "...\n"
 		if err := generateCertWithDNS(split[2], model); err != nil {
 			model.Output += "Failed to generate certificate: " + err.Error() + "\n"
