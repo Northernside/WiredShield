@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v4/challenge/dns01"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/registration"
 )
@@ -91,7 +92,7 @@ func generateCertWithDNS(domain string, model *Model) error {
 
 	// dns prov handling
 	provider := &DNSProvider{}
-	err = client.Challenge.SetDNS01Provider(provider)
+	err = client.Challenge.SetDNS01Provider(provider, dns01.AddRecursiveNameservers(dns01.ParseNameservers([]string{"woof.ns.wired.rip", "meow.ns.wired.rip"})))
 	if err != nil {
 		return fmt.Errorf("failed to set DNS-01 challenge provider: %v", err)
 	}
