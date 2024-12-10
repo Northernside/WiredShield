@@ -73,6 +73,11 @@ func generateCertWithDNS(domain string, model *Model) error {
 		Key:          accountKey,
 	}
 
+	// register acme account
+	if err := registerACMEAccount(client); err != nil {
+		// skip err for now
+	}
+
 	// start the ACME order
 	model.Output += fmt.Sprintf("Starting ACME authorization for %s...\n", domain)
 	ctx := context.Background()
@@ -192,6 +197,19 @@ func generateCertWithDNS(domain string, model *Model) error {
 	}
 
 	model.Output += fmt.Sprintf("Certificate for %s successfully created and stored at %s and %s.\n", domain, certFile, keyFile)
+	return nil
+}
+
+// registerACMEAccount ensures the account is registered with the ACME provider
+func registerACMEAccount(client *acme.Client) error {
+	account := &acme.Account{
+		Contact: []string{"mailto:ssl@northernsi.de"}, // update with the actual contact email
+	}
+
+	if _, err := client.Register(context.Background(), account, acme.AcceptTOS); err != nil {
+		return fmt.Errorf("failed to register ACME account: %v", err)
+	}
+
 	return nil
 }
 
@@ -345,21 +363,19 @@ func getDomainPrivateKey(domain string) (*ecdsa.PrivateKey, error) {
 	}
 
 	// gen new key
-	fmt.Printf("Domain private key not found for %s, generating a new one...\n", domain)
-
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate domain private key: %v", err)
 	}
 
-	// -> pem encode
+	// save the new key
 	privateKeyBytes, err := x509.MarshalECPrivateKey(privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal private key: %v", err)
+		return nil, fmt.Errorf("failed to marshal domain private key: %v", err)
 	}
 
 	keyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
+		Type:  "EC PRIVATE KEY",
 		Bytes: privateKeyBytes,
 	})
 
@@ -372,17 +388,16 @@ func getDomainPrivateKey(domain string) (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to save domain private key: %v", err)
 	}
 
-	fmt.Printf("Generated and saved new private key for %s\n", domain)
 	return privateKey, nil
 }
 
 // computeDNS01Response computes the DNS-01 challenge response based on the token
 func computeDNS01Response(token string, privateKey *ecdsa.PrivateKey) (string, error) {
-	hash := sha256.Sum256([]byte(token))
-	sig, err := privateKey.Sign(rand.Reader, hash[:], nil)
+	digest := sha256.Sum256([]byte(token))
+	signature, err := ecdsa.SignASN1(rand.Reader, privateKey, digest[:])
 	if err != nil {
 		return "", fmt.Errorf("failed to sign DNS-01 challenge: %v", err)
 	}
 
-	return base64.RawURLEncoding.EncodeToString(sig), nil
+	return base64.RawURLEncoding.EncodeToString(signature), nil
 }
