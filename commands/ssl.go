@@ -100,7 +100,7 @@ func generateCertWithDNS(domain string, model *Model) error {
 
 	// dns prov handling
 	provider := &DNSProvider{}
-	err = client.Challenge.SetDNS01Provider(provider, dns01.AddRecursiveNameservers(dns01.ParseNameservers([]string{"woof.ns.wired.rip", "meow.ns.wired.rip"})))
+	err = client.Challenge.SetDNS01Provider(provider, dns01.AddRecursiveNameservers(dns01.ParseNameservers([]string{"1.1.1.1", "1.0.0.1"})))
 	if err != nil {
 		return fmt.Errorf("failed to set DNS-01 challenge provider: %v", err)
 	}
