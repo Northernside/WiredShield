@@ -90,6 +90,13 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
 				Txt: []string{stringResult},
 			}
+		case dns.TypeCAA:
+			rr = &dns.CAA{
+				Hdr:   dns.RR_Header{Name: name, Rrtype: dns.TypeCAA, Class: dns.ClassINET, Ttl: 300},
+				Flag:  0,
+				Tag:   "issue",
+				Value: "letsencrypt.org",
+			}
 		default:
 			service.WarnLog("unsupported record: " + question.String())
 			rr = &dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300}
