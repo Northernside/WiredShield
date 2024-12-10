@@ -319,10 +319,13 @@ func getAccountKey() (*ecdsa.PrivateKey, error) {
 	return accountKey, nil
 }
 
-// getDomainPrivateKey retrieves the domain private key
+// getDomainPrivateKey retrieves the domain private key, creating one if it doesn't exist
 func getDomainPrivateKey(domain string) (*ecdsa.PrivateKey, error) {
 	keyFile := fmt.Sprintf("./certs/%s.key", domain)
+
+	// check if key exists
 	if _, err := os.Stat(keyFile); err == nil {
+		// use existing key
 		keyPEM, err := os.ReadFile(keyFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read domain private key file: %v", err)
@@ -333,10 +336,44 @@ func getDomainPrivateKey(domain string) (*ecdsa.PrivateKey, error) {
 			return nil, fmt.Errorf("invalid PEM block in domain private key file")
 		}
 
-		return x509.ParseECPrivateKey(block.Bytes)
+		privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse domain private key: %v", err)
+		}
+
+		return privateKey, nil
 	}
 
-	return nil, fmt.Errorf("domain private key not found")
+	// gen new key
+	fmt.Printf("Domain private key not found for %s, generating a new one...\n", domain)
+
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate domain private key: %v", err)
+	}
+
+	// -> pem encode
+	privateKeyBytes, err := x509.MarshalECPrivateKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal private key: %v", err)
+	}
+
+	keyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	})
+
+	// save to disk
+	if err := os.MkdirAll("./certs", 0755); err != nil {
+		return nil, fmt.Errorf("failed to create certs directory: %v", err)
+	}
+
+	if err := os.WriteFile(keyFile, keyPEM, 0600); err != nil {
+		return nil, fmt.Errorf("failed to save domain private key: %v", err)
+	}
+
+	fmt.Printf("Generated and saved new private key for %s\n", domain)
+	return privateKey, nil
 }
 
 // computeDNS01Response computes the DNS-01 challenge response based on the token
