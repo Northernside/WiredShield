@@ -4,6 +4,7 @@ import (
 	"log"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
+	"wiredshield/http"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/services"
@@ -25,6 +26,9 @@ func main() {
 
 	dnsService := services.RegisterService("dns", "DNS Server")
 	dnsService.Boot = wireddns.Prepare(dnsService)
+
+	httpProxyService := services.RegisterService("http", "HTTP Proxy")
+	httpProxyService.Boot = http.Prepare(httpProxyService)
 
 	model := commands.InitialModel()
 	p := tea.NewProgram(model)

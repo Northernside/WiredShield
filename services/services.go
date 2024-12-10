@@ -50,6 +50,11 @@ func (s *Service) ErrorLog(message string) {
 	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m←\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
 }
 
+func (s *Service) FatalLog(message string) {
+	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m←\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
+	panic(message)
+}
+
 func PrintToModel(serviceName string, message string) {
 
 }

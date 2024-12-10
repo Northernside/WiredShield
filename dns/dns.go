@@ -41,22 +41,18 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	}
 }
 
-var (
-	Server *dns.Server
-)
-
 func Prepare(_service *services.Service) func() {
 	service = _service
 
 	return func() {
 		addr := "0.0.0.0:53"
-		Server := &dns.Server{Addr: addr, Net: "udp"}
+		server := &dns.Server{Addr: addr, Net: "udp"}
 
 		dns.HandleFunc(".", handleRequest)
 
 		service.InfoLog("Starting DNS server on " + addr)
 		service.OnlineSince = time.Now().Unix()
-		err := Server.ListenAndServe()
+		err := server.ListenAndServe()
 		if err != nil {
 			service.ErrorLog("Failed to start DNS server: " + err.Error())
 		}
