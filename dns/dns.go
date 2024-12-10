@@ -38,7 +38,17 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		// if A, then check if protected, if protected, return shield ip, else return result and if not A, return result
 		var responseIp net.IP
 		var stringResult string
-		if question.Qtype == dns.TypeA {
+
+		var rr dns.RR
+		if question.Qtype == dns.TypeAAAA {
+			// return nothing
+			rr = &dns.AAAA{
+				Hdr:  dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
+				AAAA: net.ParseIP(""),
+			}
+
+			m.Answer = append(m.Answer, rr)
+		} else if question.Qtype == dns.TypeA {
 			result, protected, err := db.GetRecord("A", lookupName)
 			if err != nil {
 				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
@@ -66,17 +76,11 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		}
 
-		var rr dns.RR
 		switch question.Qtype {
 		case dns.TypeA:
 			rr = &dns.A{
 				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
 				A:   responseIp,
-			}
-		case dns.TypeAAAA:
-			rr = &dns.AAAA{
-				Hdr:  dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
-				AAAA: responseIp,
 			}
 		case dns.TypeCNAME:
 			rr = &dns.CNAME{
