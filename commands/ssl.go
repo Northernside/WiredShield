@@ -31,7 +31,8 @@ func Ssl(model *Model) {
 			break
 		}
 
-		go func() {
+		func() {
+			model.Output += "Generating certificate for " + split[2] + "...\n"
 			err := GenerateCertWithDNS(split[2], model)
 			if err != nil {
 				model.Output += "Failed to generate certificate: " + err.Error() + "\n"
@@ -39,8 +40,6 @@ func Ssl(model *Model) {
 				model.Output += "Certificate generated successfully.\n"
 			}
 		}()
-
-		model.Output += "Generating certificate for " + split[2] + "...\n"
 	case "renew":
 		model.Output += "Renew certificate\n"
 		model.Output += "Not implemented yet.\n"
