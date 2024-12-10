@@ -17,54 +17,50 @@ import (
 	"golang.org/x/crypto/acme"
 )
 
-var _model *Model
-
 func Ssl(model *Model) {
-	_model = model
-
 	split := strings.Split(model.TextInput.Value(), " ")
 	if len(split) < 3 {
-		_model.Output += "Usage: ssl <generate|renew> <domain>\n"
+		model.Output += "Usage: ssl <generate|renew> <domain>\n"
 		return
 	}
 
 	switch split[1] {
 	case "generate":
 		if len(split) < 3 {
-			_model.Output += "Usage: ssl generate <domain>\n"
+			model.Output += "Usage: ssl generate <domain>\n"
 			break
 		}
 
 		go func() {
-			err := GenerateCertWithDNS(split[2])
+			err := GenerateCertWithDNS(split[2], model)
 			if err != nil {
-				_model.Output += "Failed to generate certificate: " + err.Error() + "\n"
+				model.Output += "Failed to generate certificate: " + err.Error() + "\n"
 			} else {
-				_model.Output += "Certificate generated successfully.\n"
+				model.Output += "Certificate generated successfully.\n"
 			}
 		}()
 
-		_model.Output += "Generating certificate for " + split[2] + "...\n"
+		model.Output += "Generating certificate for " + split[2] + "...\n"
 	case "renew":
-		_model.Output += "Renew certificate\n"
-		_model.Output += "Not implemented yet.\n"
+		model.Output += "Renew certificate\n"
+		model.Output += "Not implemented yet.\n"
 	default:
-		_model.Output += "Invalid command.\n"
+		model.Output += "Invalid command.\n"
 	}
 }
 
-func GenerateCertWithDNS(domain string) error {
+func GenerateCertWithDNS(domain string, model *Model) error {
 	if domain == "" {
 		return fmt.Errorf("domain name cannot be empty")
 	}
 
 	certDir := "./certs"
-
 	client := &acme.Client{
 		DirectoryURL: acme.LetsEncryptURL,
 	}
 
 	// start the ACME order for the domain
+	model.Output += fmt.Sprintf("Starting ACME authorization for %s...\n", domain)
 	ctx := context.Background()
 	order, err := client.AuthorizeOrder(ctx, []acme.AuthzID{
 		{Type: "dns", Value: domain},
@@ -74,6 +70,7 @@ func GenerateCertWithDNS(domain string) error {
 	}
 
 	// process DNS challenges
+	model.Output += fmt.Sprintf("Processing DNS challenges for %s...\n", domain)
 	for _, authzURL := range order.AuthzURLs {
 		auth, err := client.GetAuthorization(ctx, authzURL)
 		if err != nil {
@@ -85,6 +82,7 @@ func GenerateCertWithDNS(domain string) error {
 		}
 
 		// grab the dns01 challenge
+		model.Output += fmt.Sprintf("Processing DNS challenge for %s...\n", domain)
 		var challenge *acme.Challenge
 		for _, c := range auth.Challenges {
 			if c.Type == "dns-01" {
@@ -102,15 +100,16 @@ func GenerateCertWithDNS(domain string) error {
 		txtDomain := "_acme-challenge." + domain
 
 		// set the DNS TXT record
-		_model.Output += fmt.Sprintf("Setting DNS TXT record for validation: %s -> %s\n", txtDomain, txtRecord)
+		model.Output += fmt.Sprintf("Setting DNS TXT record for validation: %s -> %s\n", txtDomain, txtRecord)
 		err = db.SetRecord("TXT", txtDomain, txtRecord, false)
 		if err != nil {
 			return fmt.Errorf("failed to set TXT record: %v", err)
 		}
 
 		// DNS propagation
-		_model.Output += fmt.Sprintf("Waiting for DNS propagation for %s...\n", txtDomain)
+		model.Output += fmt.Sprintf("Waiting for DNS propagation for %s...\n", txtDomain)
 		time.Sleep(30 * time.Second)
+		model.Output += "DNS propagated.\n"
 
 		// notify LE to validate the challenge
 		_, err = client.Accept(ctx, challenge)
@@ -119,6 +118,7 @@ func GenerateCertWithDNS(domain string) error {
 		}
 
 		// poll the auth status
+		model.Output += fmt.Sprintf("Polling authorization status for %s...\n", domain)
 		for {
 			auth, err := client.GetAuthorization(ctx, auth.URI)
 			if err != nil {
@@ -132,11 +132,12 @@ func GenerateCertWithDNS(domain string) error {
 				return fmt.Errorf("authorization failed for %s", domain)
 			}
 
+			model.Output += "Waiting for authorization...\n"
 			time.Sleep(5 * time.Second)
 		}
 
 		// clean up the TXT record
-		_model.Output += fmt.Sprintf("Deleting DNS TXT record: %s\n", txtDomain)
+		model.Output += fmt.Sprintf("Deleting DNS TXT record: %s\n", txtDomain)
 		err = db.DeleteRecord("TXT", txtDomain)
 		if err != nil {
 			return fmt.Errorf("failed to delete TXT record: %v", err)
@@ -144,6 +145,7 @@ func GenerateCertWithDNS(domain string) error {
 	}
 
 	// finalize the order
+	model.Output += fmt.Sprintf("Finalizing certificate order for %s...\n", domain)
 	certDER, _, err := client.CreateOrderCert(ctx, order.FinalizeURL, nil, true)
 	if err != nil {
 		return fmt.Errorf("failed to finalize certificate order: %v", err)
