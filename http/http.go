@@ -45,7 +45,8 @@ func Prepare(_service *services.Service) func() {
 }
 
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
-	targetAddress, err := db.GetRecord("A", r.Host)
+	fmt.Println(r.Host)
+	targetAddress, _, err := db.GetRecord("A", r.Host)
 	if err != nil {
 		http.Error(w, "could not resolve target", http.StatusBadGateway)
 		return
