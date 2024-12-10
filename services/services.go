@@ -1,6 +1,8 @@
 package services
 
-import "sync"
+import (
+	"sync"
+)
 
 type networkInfo struct {
 	Ip   string
@@ -55,6 +57,8 @@ func (s *Service) FatalLog(message string) {
 	panic(message)
 }
 
-func PrintToModel(serviceName string, message string) {
+var LogsChannel = make(chan string)
 
+func PrintToModel(serviceName string, message string) {
+	LogsChannel <- message
 }

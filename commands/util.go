@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"strings"
+	"wiredshield/services"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,7 +25,11 @@ type Command struct {
 	Fn   func(*Model)
 }
 
-var Commands []Command
+var (
+	Commands            []Command
+	CommandHistory      []string
+	CommandHistoryIndex int = 0
+)
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -40,6 +45,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if parts[0] == c.Key {
 					// exec the cmd & clear input
 					c.Fn(&m)
+
+					CommandHistory = append(CommandHistory, m.TextInput.Value())
+					CommandHistoryIndex = len(CommandHistory)
 					m.TextInput.SetValue("")
 					return m, nil
 				}
@@ -48,12 +56,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// cmd not found
 			m.Output += fmt.Sprintf("Unknown command: %s\n", m.TextInput.Value())
 			m.TextInput.SetValue("")
-		}
+		case tea.KeyUp:
+			if len(CommandHistory) == 0 {
+				break
+			}
 
+			if CommandHistoryIndex > 0 {
+				CommandHistoryIndex--
+			}
+			m.TextInput.SetValue(CommandHistory[CommandHistoryIndex])
+
+		case tea.KeyDown:
+			if len(CommandHistory) == 0 {
+				break
+			}
+
+			if CommandHistoryIndex < len(CommandHistory)-1 {
+				CommandHistoryIndex++
+				m.TextInput.SetValue(CommandHistory[CommandHistoryIndex])
+			} else {
+				CommandHistoryIndex = len(CommandHistory)
+				m.TextInput.SetValue("")
+			}
+		}
 	case ErrMsg:
 		m.Err = msg
 		return m, nil
 	}
+
+	for {
+		select {
+		case log := <-services.LogsChannel:
+			m.Output += log
+		default:
+			goto done
+		}
+	}
+done:
 
 	m.TextInput, cmd = m.TextInput.Update(msg)
 	return m, cmd

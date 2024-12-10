@@ -32,7 +32,7 @@ func Prepare(_service *services.Service) func() {
 
 		http.HandleFunc("/", ProxyHandler)
 		port := env.GetEnv("PORT", "80")
-		service.InfoLog(fmt.Sprintf("Starting proxy on :%s\n", port))
+		service.InfoLog(fmt.Sprintf("Starting proxy on :%s", port))
 
 		go requestsHandler()
 		service.InfoLog("Starting HTTP proxy on " + addr)
