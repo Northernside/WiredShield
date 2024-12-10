@@ -393,7 +393,8 @@ func getDomainPrivateKey(domain string) (*ecdsa.PrivateKey, error) {
 
 // computeDNS01Response computes the DNS-01 challenge response based on the token
 func computeDNS01Response(token string, privateKey *ecdsa.PrivateKey) (string, error) {
-	digest := sha256.Sum256([]byte(token))
+	keyAuthorization := token + "." + base64.RawURLEncoding.EncodeToString(sha256.New().Sum([]byte(token)))
+	digest := sha256.Sum256([]byte(keyAuthorization))
 	signature, err := ecdsa.SignASN1(rand.Reader, privateKey, digest[:])
 	if err != nil {
 		return "", fmt.Errorf("failed to sign DNS-01 challenge: %v", err)
