@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -124,7 +125,7 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 
 		// wait for DNS propagation
 		model.Output += fmt.Sprintf("Waiting for DNS propagation for %s...\n", txtDomain)
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 		model.Output += "DNS propagated.\n"
 
 		// notify LE to validate the challenge
@@ -162,7 +163,12 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 
 	// finalize the order
 	model.Output += fmt.Sprintf("Finalizing certificate order for %s...\n", domain)
-	certDER, _, err := client.CreateOrderCert(ctx, order.FinalizeURL, nil, true)
+	csrDER, err := generateCSR(domain, privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to generate CSR: %v", err)
+	}
+
+	certDER, _, err := client.CreateOrderCert(ctx, order.FinalizeURL, csrDER, true)
 	if err != nil {
 		return fmt.Errorf("failed to finalize certificate order: %v", err)
 	}
@@ -194,6 +200,22 @@ func registerACMEAccount(client *acme.Client) error {
 
 	// log.Printf("ACME account registered: %+v\n", acct)
 	return nil
+}
+
+func generateCSR(domain string, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	csrTemplate := x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName: domain,
+		},
+		DNSNames: []string{domain},
+	}
+
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &csrTemplate, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create CSR: %v", err)
+	}
+
+	return csrDER, nil
 }
 
 func saveCertAndKey(certFile, keyFile string, certDER [][]byte) error {
