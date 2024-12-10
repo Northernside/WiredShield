@@ -135,14 +135,21 @@ func generateCertWithDNS(domain string, model *Model) error {
 		for {
 			auth, err := client.GetAuthorization(ctx, auth.URI)
 			if err != nil {
-				return fmt.Errorf("failed to get authorization status: %v", err)
+				return fmt.Errorf("failed to retrieve failed authorization: %v", err)
+			}
+
+			// check for invalid challenges
+			for _, challenge := range auth.Challenges {
+				if challenge.Status == acme.StatusInvalid {
+					return fmt.Errorf("challenge failed for %s: %s", challenge.Type, challenge.Error.Error())
+				}
 			}
 
 			if auth.Status == acme.StatusValid {
 				model.Output += fmt.Sprintf("Authorization for %s completed successfully.\n", domain)
 				break
 			} else if auth.Status == acme.StatusInvalid {
-				return fmt.Errorf("authorization failed for %s", domain)
+				return fmt.Errorf("authorization failed for %s. Status: %s", domain, auth.Status)
 			}
 
 			model.Output += "Waiting for authorization...\n"
