@@ -41,7 +41,7 @@ func RegisterService(name, displayName string) *Service {
 }
 
 func (s *Service) InfoLog(message string) {
-	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;34mINFO\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m←\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
+	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;34mINFO\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
 }
 
 func (s *Service) WarnLog(message string) {
