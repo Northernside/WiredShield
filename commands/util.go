@@ -54,6 +54,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// cmd not found
+			m.Output += fmt.Sprintf(" → " + m.TextInput.Value() + "\n")
 			m.Output += fmt.Sprintf("Unknown command: %s\n", m.TextInput.Value())
 			m.TextInput.SetValue("")
 		case tea.KeyUp:
