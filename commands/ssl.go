@@ -33,7 +33,7 @@ func (d *DNSProvider) CleanUp(domain, token, keyAuth string) error {
 }
 
 func (d *DNSProvider) Timeout() (timeout, interval time.Duration) {
-	return 10 * time.Minute, 15 * time.Second
+	return 2 * time.Second, 1 * time.Second
 }
 
 func Ssl(model *Model) {
