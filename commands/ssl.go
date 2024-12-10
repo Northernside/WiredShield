@@ -5,10 +5,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -54,11 +55,24 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 	}
 
 	certDir := "./certs"
-	client := &acme.Client{
-		DirectoryURL: acme.LetsEncryptURL,
+
+	// generate a priv key for the ACME client
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return fmt.Errorf("failed to generate private key for ACME client: %v", err)
 	}
 
-	// start the ACME order for the domain
+	client := &acme.Client{
+		DirectoryURL: acme.LetsEncryptURL,
+		Key:          privateKey,
+	}
+
+	err = registerACMEAccount(client)
+	if err != nil {
+		return fmt.Errorf("failed to register ACME account: %v", err)
+	}
+
+	// start the ACME order
 	model.Output += fmt.Sprintf("Starting ACME authorization for %s...\n", domain)
 	ctx := context.Background()
 	order, err := client.AuthorizeOrder(ctx, []acme.AuthzID{
@@ -77,10 +91,10 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 		}
 
 		if auth.Status == acme.StatusValid {
-			continue // already valid
+			continue
 		}
 
-		// grab the dns01 challenge
+		// grab the DNS-01 challenge
 		model.Output += fmt.Sprintf("Processing DNS challenge for %s...\n", domain)
 		var challenge *acme.Challenge
 		for _, c := range auth.Challenges {
@@ -95,17 +109,20 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 		}
 
 		// prepare the TXT record
-		txtRecord := challenge.Token
+		txtRecord, err := computeDNS01Response(challenge.Token, privateKey)
+		if err != nil {
+			return fmt.Errorf("failed to compute DNS-01 challenge response: %v", err)
+		}
 		txtDomain := "_acme-challenge." + domain
 
-		// set the DNS TXT record
+		// set the TXT record
 		model.Output += fmt.Sprintf("Setting DNS TXT record for validation: %s -> %s\n", txtDomain, txtRecord)
 		err = db.SetRecord("TXT", txtDomain, txtRecord, false)
 		if err != nil {
 			return fmt.Errorf("failed to set TXT record: %v", err)
 		}
 
-		// DNS propagation
+		// wait for DNS propagation
 		model.Output += fmt.Sprintf("Waiting for DNS propagation for %s...\n", txtDomain)
 		time.Sleep(30 * time.Second)
 		model.Output += "DNS propagated.\n"
@@ -125,7 +142,7 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 			}
 
 			if auth.Status == acme.StatusValid {
-				log.Printf("Authorization for %s completed successfully.\n", domain)
+				model.Output += fmt.Sprintf("Authorization for %s completed successfully.\n", domain)
 				break
 			} else if auth.Status == acme.StatusInvalid {
 				return fmt.Errorf("authorization failed for %s", domain)
@@ -158,7 +175,24 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 		return fmt.Errorf("failed to save certificate: %v", err)
 	}
 
-	log.Printf("Certificate for %s successfully created and stored at %s and %s.\n", domain, certFile, keyFile)
+	model.Output += fmt.Sprintf("Certificate for %s successfully created and stored at %s and %s.\n", domain, certFile, keyFile)
+	return nil
+}
+
+func registerACMEAccount(client *acme.Client) error {
+	ctx := context.Background()
+
+	account := &acme.Account{
+		Contact: []string{"mailto:ssl@northernsi.de"},
+	}
+	_, err := client.Register(ctx, account, func(tosURL string) bool {
+		return true
+	})
+	if err != nil {
+		return fmt.Errorf("failed to register ACME account: %v", err)
+	}
+
+	// log.Printf("ACME account registered: %+v\n", acct)
 	return nil
 }
 
@@ -217,4 +251,25 @@ func generatePrivateKey() ([]byte, error) {
 	}
 
 	return privateKeyPEM, nil
+}
+
+func computeDNS01Response(token string, clientKey *ecdsa.PrivateKey) (string, error) {
+	keyAuth := token + "." + keyThumbprint(clientKey)
+	hash := sha256.Sum256([]byte(keyAuth))
+
+	return base64.RawURLEncoding.EncodeToString(hash[:]), nil
+}
+
+func keyThumbprint(key *ecdsa.PrivateKey) string {
+	jwk := map[string]string{
+		"crv": "P-256",
+		"kty": "EC",
+		"x":   base64.RawURLEncoding.EncodeToString(key.X.Bytes()),
+		"y":   base64.RawURLEncoding.EncodeToString(key.Y.Bytes()),
+	}
+
+	jsonThumbprint := `{"crv":"P-256","kty":"EC","x":"` + jwk["x"] + `","y":"` + jwk["y"] + `"}`
+
+	hash := sha256.Sum256([]byte(jsonThumbprint))
+	return base64.RawURLEncoding.EncodeToString(hash[:])
 }
