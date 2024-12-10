@@ -3,6 +3,7 @@ package wireddns
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/services"
@@ -21,9 +22,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 	if len(r.Question) > 0 {
 		question := r.Question[0]
-		result, protected, err := db.GetRecord("A", question.Name[:len(question.Name)-1])
+		name := strings.ToLower(question.Name)
+		result, protected, err := db.GetRecord("A", name[:len(name)-1])
 		if err != nil {
-			service.ErrorLog(fmt.Sprintf("Failed to get record for %s: %s", question.Name, err.Error()))
+			service.ErrorLog(fmt.Sprintf("Failed to get record for %s: %s", name, err.Error()))
 		}
 
 		var responseIp net.IP
