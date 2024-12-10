@@ -113,7 +113,7 @@ func generateCertWithDNS(domain string, model *Model) error {
 		}
 
 		// prepare TXT record
-		txtRecord, err := computeDNS01Response(challenge.Token, privateKey, model)
+		txtRecord, err := computeDNS01Response(challenge.Token, privateKey)
 		if err != nil {
 			return fmt.Errorf("failed to compute DNS-01 challenge response: %v", err)
 		}
