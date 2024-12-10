@@ -124,7 +124,7 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 
 		// wait for DNS propagation
 		model.Output += fmt.Sprintf("Waiting for DNS propagation for %s...\n", txtDomain)
-		time.Sleep(30 * time.Second)
+		time.Sleep(10 * time.Second)
 		model.Output += "DNS propagated.\n"
 
 		// notify LE to validate the challenge
