@@ -37,31 +37,25 @@ func Ssl(model *Model) {
 			break
 		}
 
-		func() {
-			model.Output += "Generating certificate for " + split[2] + "...\n"
-			err := GenerateCertWithDNS(split[2], model)
-			if err != nil {
-				model.Output += "Failed to generate certificate: " + err.Error() + "\n"
-			} else {
-				model.Output += "Certificate generated successfully.\n"
-			}
-		}()
+		model.Output += "Generating certificate for " + split[2] + "...\n"
+		if err := generateCertWithDNS(split[2], model); err != nil {
+			model.Output += "Failed to generate certificate: " + err.Error() + "\n"
+		} else {
+			model.Output += "Certificate generated successfully.\n"
+		}
+
 	case "renew":
 		model.Output += "Renew certificate\n"
 		model.Output += "Not implemented yet.\n"
+
 	default:
 		model.Output += "Invalid command.\n"
 	}
 }
 
-func GenerateCertWithDNS(domain string, model *Model) error {
-	existingCert, err := getCertificate(domain)
-	if err == nil && existingCert != nil {
-		// -> reusing existing cert
-		model.Output += fmt.Sprintf("Certificate for %s already exists and will be reused.\n", domain)
-		return nil
-	}
-
+// generateCertWithDNS handles the ACME certificate generation process with DNS validation
+func generateCertWithDNS(domain string, model *Model) error {
+	// check if the cert already exists
 	model.Output += fmt.Sprintf("Generating certificate for %s...\n", domain)
 
 	privateKey, err := getDomainPrivateKey(domain)
@@ -78,12 +72,6 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 		DirectoryURL: acme.LetsEncryptURL,
 		Key:          accountKey,
 	}
-
-	// register ACME account if needed
-	err = registerACMEAccount(client)
-	/*if err != nil {
-		return fmt.Errorf("failed to register ACME account: %v", err)
-	}*/
 
 	// start the ACME order
 	model.Output += fmt.Sprintf("Starting ACME authorization for %s...\n", domain)
@@ -107,8 +95,6 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 			continue
 		}
 
-		// grab the DNS-01 challenge
-		model.Output += fmt.Sprintf("Processing DNS challenge for %s...\n", domain)
 		var challenge *acme.Challenge
 		for _, c := range auth.Challenges {
 			if c.Type == "dns-01" {
@@ -121,32 +107,30 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 			return fmt.Errorf("no DNS-01 challenge found for %s", domain)
 		}
 
-		// prepare TXT
+		// prepare TXT record
 		txtRecord, err := computeDNS01Response(challenge.Token, privateKey)
 		if err != nil {
 			return fmt.Errorf("failed to compute DNS-01 challenge response: %v", err)
 		}
 		txtDomain := "_acme-challenge." + domain
 
-		// set TXT
+		// set DNS TXT record
 		model.Output += fmt.Sprintf("Setting DNS TXT record for validation: %s -> %s\n", txtDomain, txtRecord)
-		err = db.SetRecord("TXT", txtDomain, txtRecord, false)
-		if err != nil {
+		if err := db.SetRecord("TXT", txtDomain, txtRecord, false); err != nil {
 			return fmt.Errorf("failed to set TXT record: %v", err)
 		}
 
-		// propagation
+		// wait for DNS propagation
 		model.Output += fmt.Sprintf("Waiting for DNS propagation for %s...\n", txtDomain)
 		time.Sleep(60 * time.Second)
 		model.Output += "DNS propagated.\n"
 
 		// notify LE to validate the challenge
-		_, err = client.Accept(ctx, challenge)
-		if err != nil {
+		if _, err := client.Accept(ctx, challenge); err != nil {
 			return fmt.Errorf("failed to accept challenge: %v", err)
 		}
 
-		// poll auth status
+		// poll authorization status
 		model.Output += fmt.Sprintf("Polling authorization status for %s...\n", domain)
 		for {
 			auth, err := client.GetAuthorization(ctx, auth.URI)
@@ -165,15 +149,14 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 			time.Sleep(5 * time.Second)
 		}
 
-		// cleanup TXT
+		// clean up TXT record
 		model.Output += fmt.Sprintf("Deleting DNS TXT record: %s\n", txtDomain)
-		err = db.DeleteRecord("TXT", txtDomain)
-		if err != nil {
+		if err := db.DeleteRecord("TXT", txtDomain); err != nil {
 			return fmt.Errorf("failed to delete TXT record: %v", err)
 		}
 	}
 
-	// finalize cert check order
+	// generate and save the certificate
 	model.Output += fmt.Sprintf("Finalizing certificate order for %s...\n", domain)
 	csrKey, err := generatePrivateKey()
 	if err != nil {
@@ -190,17 +173,14 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 		return fmt.Errorf("failed to finalize certificate order: %v", err)
 	}
 
-	// save the cert
+	// save certificate and key
 	certFile := fmt.Sprintf("./certs/%s.crt", domain)
-	err = saveCert(certFile, certDER)
-	if err != nil {
+	if err := saveCert(certFile, certDER); err != nil {
 		return fmt.Errorf("failed to save certificate: %v", err)
 	}
 
-	// save the cert and priv key
 	keyFile := fmt.Sprintf("./certs/%s.key", domain)
-	err = saveCertAndKey(certFile, keyFile, certDER, csrKey)
-	if err != nil {
+	if err := saveCertAndKey(certFile, keyFile, certDER, csrKey); err != nil {
 		return fmt.Errorf("failed to save certificate and key: %v", err)
 	}
 
@@ -208,23 +188,12 @@ func GenerateCertWithDNS(domain string, model *Model) error {
 	return nil
 }
 
-func registerACMEAccount(client *acme.Client) error {
-	ctx := context.Background()
-
-	account := &acme.Account{
-		Contact: []string{"mailto:ssl@northernsi.de"},
-	}
-	_, err := client.Register(ctx, account, func(tosURL string) bool {
-		return true
-	})
-	if err != nil {
-		return fmt.Errorf("failed to register ACME account: %v", err)
-	}
-
-	// log.Printf("ACME account registered: %+v\n", acct)
-	return nil
+// generatePrivateKey creates a new ECDSA private key
+func generatePrivateKey() (*ecdsa.PrivateKey, error) {
+	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }
 
+// generateCSR generates a CSR (Certificate Signing Request)
 func generateCSR(domain string, privateKey *ecdsa.PrivateKey) ([]byte, error) {
 	csrTemplate := x509.CertificateRequest{
 		Subject: pkix.Name{
@@ -233,14 +202,10 @@ func generateCSR(domain string, privateKey *ecdsa.PrivateKey) ([]byte, error) {
 		DNSNames: []string{domain},
 	}
 
-	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &csrTemplate, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create CSR: %v", err)
-	}
-
-	return csrDER, nil
+	return x509.CreateCertificateRequest(rand.Reader, &csrTemplate, privateKey)
 }
 
+// saveCert saves the certificate in PEM format
 func saveCert(certFile string, certDER [][]byte) error {
 	certOut, err := os.Create(certFile)
 	if err != nil {
@@ -248,7 +213,6 @@ func saveCert(certFile string, certDER [][]byte) error {
 	}
 	defer certOut.Close()
 
-	// -> pem format
 	err = pem.Encode(certOut, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certDER[0],
@@ -260,12 +224,9 @@ func saveCert(certFile string, certDER [][]byte) error {
 	return nil
 }
 
+// saveCertAndKey saves both the certificate and private key
 func saveCertAndKey(certFile, keyFile string, certDER [][]byte, privateKey *ecdsa.PrivateKey) error {
-	cert, err := x509.ParseCertificate(certDER[0])
-	if err != nil {
-		return fmt.Errorf("failed to parse certificate: %v", err)
-	}
-
+	// save certificate
 	certOut, err := os.Create(certFile)
 	if err != nil {
 		return fmt.Errorf("failed to create certificate file: %v", err)
@@ -274,13 +235,13 @@ func saveCertAndKey(certFile, keyFile string, certDER [][]byte, privateKey *ecds
 
 	err = pem.Encode(certOut, &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: cert.Raw,
+		Bytes: certDER[0],
 	})
 	if err != nil {
 		return fmt.Errorf("failed to encode certificate to PEM: %v", err)
 	}
 
-	// -> pem format
+	// save private key
 	keyOut, err := os.Create(keyFile)
 	if err != nil {
 		return fmt.Errorf("failed to create key file: %v", err)
@@ -303,29 +264,7 @@ func saveCertAndKey(certFile, keyFile string, certDER [][]byte, privateKey *ecds
 	return nil
 }
 
-func generatePrivateKey() (*ecdsa.PrivateKey, error) {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %v", err)
-	}
-
-	return privateKey, nil
-}
-
-func generatePrivateKeyWithPem() ([]byte, error) {
-	privateKey, err := generatePrivateKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %v", err)
-	}
-
-	privateKeyPEM, err := x509.MarshalECPrivateKey(privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal EC private key: %v", err)
-	}
-
-	return privateKeyPEM, nil
-}
-
+// getAccountKey retrieves or generates the account key
 func getAccountKey() (*ecdsa.PrivateKey, error) {
 	if accountKey != nil {
 		return accountKey, nil
@@ -333,7 +272,6 @@ func getAccountKey() (*ecdsa.PrivateKey, error) {
 
 	const keyFile = "./certs/account.key"
 	if _, err := os.Stat(keyFile); err == nil {
-		// -> load from disk
 		keyPEM, err := os.ReadFile(keyFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read account key file: %v", err)
@@ -344,24 +282,21 @@ func getAccountKey() (*ecdsa.PrivateKey, error) {
 			return nil, fmt.Errorf("invalid PEM block in account key file")
 		}
 
-		key, err := x509.ParseECPrivateKey(block.Bytes)
+		accountKey, err = x509.ParseECPrivateKey(block.Bytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse EC private key: %v", err)
 		}
-		accountKey = key
-		return key, nil
+
+		return accountKey, nil
 	}
 
-	// -> generate new key if not exists
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	// generate new key if not exists
+	accountKey, err := generatePrivateKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate account key: %v", err)
 	}
 
-	accountKey = key
-
-	// -> save on disk
-	privateKeyBytes, err := x509.MarshalECPrivateKey(key)
+	privateKeyBytes, err := x509.MarshalECPrivateKey(accountKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal EC private key: %v", err)
 	}
@@ -374,27 +309,13 @@ func getAccountKey() (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to save account key: %v", err)
 	}
 
-	return key, nil
+	return accountKey, nil
 }
 
-func getCertificate(domain string) ([]byte, error) {
-	certFile := "./certs/" + domain + ".crt"
-	if _, err := os.Stat(certFile); err == nil {
-		// -> load from disk
-		certPEM, err := os.ReadFile(certFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read certificate file: %v", err)
-		}
-
-		return certPEM, nil
-	}
-	return nil, nil
-}
-
+// getDomainPrivateKey retrieves the domain private key
 func getDomainPrivateKey(domain string) (*ecdsa.PrivateKey, error) {
-	keyFile := "./certs/" + domain + ".key"
+	keyFile := fmt.Sprintf("./certs/%s.key", domain)
 	if _, err := os.Stat(keyFile); err == nil {
-		// -> load from disk
 		keyPEM, err := os.ReadFile(keyFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read domain private key file: %v", err)
@@ -405,73 +326,19 @@ func getDomainPrivateKey(domain string) (*ecdsa.PrivateKey, error) {
 			return nil, fmt.Errorf("invalid PEM block in domain private key file")
 		}
 
-		key, err := x509.ParseECPrivateKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse domain EC private key: %v", err)
-		}
-		return key, nil
+		return x509.ParseECPrivateKey(block.Bytes)
 	}
 
-	// -> generate new key if not exists
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate domain private key: %v", err)
-	}
-
-	// -> save on disk
-	privateKeyBytes, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal EC private key: %v", err)
-	}
-
-	keyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: privateKeyBytes,
-	})
-	if err := os.WriteFile(keyFile, keyPEM, 0600); err != nil {
-		return nil, fmt.Errorf("failed to save domain private key: %v", err)
-	}
-
-	return key, nil
+	return nil, fmt.Errorf("domain private key not found")
 }
 
-func isCertificateExpiring(certFile string) (bool, error) {
-	certPEM, err := os.ReadFile(certFile)
+// computeDNS01Response computes the DNS-01 challenge response based on the token
+func computeDNS01Response(token string, privateKey *ecdsa.PrivateKey) (string, error) {
+	hash := sha256.Sum256([]byte(token))
+	sig, err := privateKey.Sign(rand.Reader, hash[:], nil)
 	if err != nil {
-		return false, fmt.Errorf("failed to read certificate file: %v", err)
+		return "", fmt.Errorf("failed to sign DNS-01 challenge: %v", err)
 	}
 
-	block, _ := pem.Decode(certPEM)
-	if block == nil || block.Type != "CERTIFICATE" {
-		return false, fmt.Errorf("invalid PEM block in certificate file")
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse certificate: %v", err)
-	}
-
-	expiryThreshold := time.Now().Add(30 * 24 * time.Hour) // 30 days
-	return cert.NotAfter.Before(expiryThreshold), nil
-}
-
-func computeDNS01Response(token string, clientKey *ecdsa.PrivateKey) (string, error) {
-	keyAuth := token + "." + keyThumbprint(clientKey)
-	hash := sha256.Sum256([]byte(keyAuth))
-
-	return base64.RawURLEncoding.EncodeToString(hash[:]), nil
-}
-
-func keyThumbprint(key *ecdsa.PrivateKey) string {
-	jwk := map[string]string{
-		"crv": "P-256",
-		"kty": "EC",
-		"x":   base64.RawURLEncoding.EncodeToString(key.X.Bytes()),
-		"y":   base64.RawURLEncoding.EncodeToString(key.Y.Bytes()),
-	}
-
-	jsonThumbprint := `{"crv":"P-256","kty":"EC","x":"` + jwk["x"] + `","y":"` + jwk["y"] + `"}`
-
-	hash := sha256.Sum256([]byte(jsonThumbprint))
-	return base64.RawURLEncoding.EncodeToString(hash[:])
+	return base64.RawURLEncoding.EncodeToString(sig), nil
 }
