@@ -40,7 +40,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		if question.Qtype == dns.TypeA {
 			result, protected, err := db.GetRecord("A", lookupName)
 			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get %s record for %s: %s", recordTypeMap[question.Qtype], lookupName, err.Error()))
+				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
 			}
 
 			if protected {
@@ -51,7 +51,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		} else if question.Qtype == dns.TypeAAAA {
 			result, _, err := db.GetRecord("AAAA", lookupName)
 			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get %s record for %s: %s", recordTypeMap[question.Qtype], lookupName, err.Error()))
+				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
 			}
 
 			responseIp = net.ParseIP(result)
@@ -59,7 +59,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			var err error
 			stringResult, _, err = db.GetRecord(recordTypeMap[question.Qtype], lookupName)
 			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get %s record for %s: %s", recordTypeMap[question.Qtype], lookupName, err.Error()))
+				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
 			}
 		}
 
