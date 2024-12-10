@@ -16,6 +16,15 @@ var (
 	shieldIp *net.IP
 )
 
+var recordTypeMap = map[uint16]string{
+	dns.TypeA:     "A",
+	dns.TypeAAAA:  "AAAA",
+	dns.TypeCNAME: "CNAME",
+	dns.TypeNS:    "NS",
+	dns.TypeMX:    "MX",
+	dns.TypeTXT:   "TXT",
+}
+
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := dns.Msg{}
 	m.SetReply(r)
@@ -23,26 +32,67 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	if len(r.Question) > 0 {
 		question := r.Question[0]
 		name := strings.ToLower(question.Name)
-		result, protected, err := db.GetRecord("A", name[:len(name)-1])
-		if err != nil {
-			service.ErrorLog(fmt.Sprintf("Failed to get record for %s: %s", name, err.Error()))
-		}
+		lookupName := name[:len(name)-1]
 
+		// if A, then check if protected, if protected, return shield ip, else return result and if not A, return result
 		var responseIp net.IP
-		if protected {
-			responseIp = *shieldIp
-		} else {
+		var stringResult string
+		if question.Qtype == dns.TypeA {
+			result, protected, err := db.GetRecord("A", lookupName)
+			if err != nil {
+				service.ErrorLog(fmt.Sprintf("failed to get record for %s: %s", lookupName, err.Error()))
+			}
+
+			if protected {
+				responseIp = *shieldIp
+			} else {
+				responseIp = net.ParseIP(result)
+			}
+		} else if question.Qtype == dns.TypeAAAA {
+			result, _, err := db.GetRecord("AAAA", lookupName)
+			if err != nil {
+				service.ErrorLog(fmt.Sprintf("failed to get record for %s: %s", lookupName, err.Error()))
+			}
+
 			responseIp = net.ParseIP(result)
+		} else {
+			var err error
+			stringResult, _, err = db.GetRecord(recordTypeMap[question.Qtype], lookupName)
+			if err != nil {
+				service.ErrorLog(fmt.Sprintf("failed to get record for %s: %s", lookupName, err.Error()))
+			}
 		}
 
-		rr := &dns.A{
-			Hdr: dns.RR_Header{
-				Name:   question.Name,
-				Rrtype: dns.TypeA,
-				Class:  dns.ClassINET,
-				Ttl:    300,
-			},
-			A: responseIp,
+		var rr dns.RR
+		switch question.Qtype {
+		case dns.TypeA:
+			rr = &dns.A{
+				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
+				A:   responseIp,
+			}
+		case dns.TypeAAAA:
+			rr = &dns.AAAA{
+				Hdr:  dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
+				AAAA: responseIp,
+			}
+		case dns.TypeCNAME:
+			rr = &dns.CNAME{
+				Hdr:    dns.RR_Header{Name: name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
+				Target: stringResult,
+			}
+		case dns.TypeNS:
+			rr = &dns.NS{
+				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+				Ns:  stringResult,
+			}
+		case dns.TypeTXT:
+			rr = &dns.TXT{
+				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
+				Txt: []string{stringResult},
+			}
+		default:
+			service.WarnLog("unsupported record type: " + recordTypeMap[question.Qtype])
+			rr = &dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300}
 		}
 
 		m.Answer = append(m.Answer, rr)
@@ -50,7 +100,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 	err := w.WriteMsg(&m)
 	if err != nil {
-		service.ErrorLog("Failed to write message: " + err.Error())
+		service.ErrorLog("failed to write message: " + err.Error())
 	}
 }
 

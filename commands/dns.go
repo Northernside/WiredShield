@@ -39,21 +39,22 @@ func Dns(model *Model) {
 					}
 
 					return "🔓"
-				}() + key + " => " + record.Target)
+				}() + key + " => " + record.Target + "\n")
 			}
 		}
 	case "set":
 		sb.WriteString("Set DNS record\n")
-		if len(split) < 5 {
-			sb.WriteString("Usage: dns set <host> <target> <protected>\n")
+		if len(split) < 6 {
+			sb.WriteString("Usage: dns set <recordtype> <host> <target> <protected>\n")
 			break
 		}
 
-		err := db.SetRecord("A", split[2], split[3], split[4] == "true")
+		split[2] = strings.ToUpper(split[2])
+		err := db.SetRecord(split[2], split[3], split[4], split[5] == "true")
 		if err != nil {
 			sb.WriteString("Failed to set target: " + err.Error() + "\n")
 		} else {
-			sb.WriteString("Successfully set DNS record for " + split[2] + " to " + split[3] + "\n")
+			sb.WriteString("Successfully set DNS record for " + split[3] + " to " + split[4] + "\n")
 		}
 	case "get":
 		sb.WriteString("Get DNS record\n")
