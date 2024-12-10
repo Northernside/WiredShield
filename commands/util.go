@@ -48,14 +48,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					CommandHistory = append(CommandHistory, m.TextInput.Value())
 					CommandHistoryIndex = len(CommandHistory)
+					m.Output += "→ " + m.TextInput.Value() + "\n"
 					m.TextInput.SetValue("")
 					return m, nil
 				}
 			}
 
 			// cmd not found
-			m.Output += fmt.Sprintf(" → " + m.TextInput.Value() + "\n")
-			m.Output += fmt.Sprintf("Unknown command: %s\n", m.TextInput.Value())
+			m.Output += fmt.Sprintf("Command not found: %s\n", m.TextInput.Value()[0:strings.Index(m.TextInput.Value(), " ")])
 			m.TextInput.SetValue("")
 		case tea.KeyUp:
 			if len(CommandHistory) == 0 {
