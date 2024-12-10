@@ -121,11 +121,13 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		m.Answer = append(m.Answer, rr)
+
+		service.InfoLog(fmt.Sprintf("DNS query for %s (%s) => %s", lookupName, dns.TypeToString[question.Qtype], responseIp.String()))
 	}
 
 	err := w.WriteMsg(&m)
 	if err != nil {
-		service.ErrorLog("failed to write message: " + err.Error())
+		service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
 	}
 }
 

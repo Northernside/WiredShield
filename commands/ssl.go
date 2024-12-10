@@ -28,8 +28,8 @@ func (d *DNSProvider) Present(domain, token, keyAuth string) error {
 }
 
 func (d *DNSProvider) CleanUp(domain, token, keyAuth string) error {
-	// none
-	return nil
+	txtDomain := "_acme-challenge." + domain
+	return db.DeleteRecord("TXT", txtDomain)
 }
 
 func (d *DNSProvider) Timeout() (timeout, interval time.Duration) {
