@@ -37,7 +37,7 @@ func Dns(model *Model) {
 			for _, record := range list {
 				switch r := record.(type) {
 				case db.ARecord:
-					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
@@ -45,7 +45,7 @@ func Dns(model *Model) {
 					}()+" A %s %s\n", index, r.Domain, r.IP))
 					index++
 				case db.AAAARecord:
-					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
@@ -55,15 +55,15 @@ func Dns(model *Model) {
 				case db.SOARecord:
 					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n", index, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
 				case db.TXTRecord:
-					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}()+" TXT %s %s\n", index, r.Domain, r.Text))
+					}()+" TXT %s \"%s\"\n", index, r.Domain, r.Text))
 					index++
 				case db.NSRecord:
-					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
@@ -71,14 +71,14 @@ func Dns(model *Model) {
 					}()+" NS %s %s\n", index, r.Domain, r.NS))
 					index++
 				case db.MXRecord:
-					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
 					}()+" MX %s %s %d\n", index, r.Domain, r.Target, r.Priority))
 				case db.CNAMERecord:
-					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
