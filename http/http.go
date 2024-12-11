@@ -44,6 +44,7 @@ func Prepare(_service *services.Service) func() {
 }
 
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
+	timeStart := time.Now()
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
 	if err != nil || len(targetRecords) == 0 {
 		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
@@ -84,6 +85,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	})
 
 	ctx.Response.Header.Set("server", "wiredshield")
+	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
 	ctx.SetStatusCode(resp.StatusCode())
 	ctx.SetBody(resp.Body())
 
