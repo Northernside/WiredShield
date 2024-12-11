@@ -25,7 +25,7 @@ func main() {
 		{Key: "boot", Desc: "Boot all services", Fn: commands.Boot},
 		{Key: "info", Desc: "Show service info", Fn: commands.Info},
 		{Key: "dns", Desc: "DNS server", Fn: commands.Dns},
-		{Key: "ssl", Desc: "SSL service", Fn: func(model *commands.Model) { go commands.Ssl(model) }},
+		{Key: "ssl", Desc: "SSL service", Fn: commands.Ssl},
 	}
 
 	dnsService := services.RegisterService("dns", "DNS Server")
