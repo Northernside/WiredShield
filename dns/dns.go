@@ -97,6 +97,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
 				Txt: []string{stringResult},
 			}
+
+			service.InfoLog(fmt.Sprintf("DNS query for %s (%s) => %s", lookupName, dns.TypeToString[question.Qtype], stringResult))
 		case dns.TypeCAA:
 			rr = &dns.CAA{
 				Hdr:   dns.RR_Header{Name: name, Rrtype: dns.TypeCAA, Class: dns.ClassINET, Ttl: 300},
