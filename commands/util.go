@@ -43,12 +43,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for _, c := range Commands {
 				parts := strings.Split(m.TextInput.Value(), " ")
 				if parts[0] == c.Key {
+					m.Output += "\n→ " + m.TextInput.Value() + "\n"
 					// exec the cmd & clear input
 					c.Fn(&m)
 
 					CommandHistory = append(CommandHistory, m.TextInput.Value())
 					CommandHistoryIndex = len(CommandHistory)
-					m.Output += "→ " + m.TextInput.Value() + "\n"
 					m.TextInput.SetValue("")
 					return m, nil
 				}
