@@ -1,13 +1,9 @@
 package main
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
+	"io"
 	"log"
-	"os"
 	"wiredshield/commands"
-	ssl "wiredshield/commands/e"
-	"wiredshield/commands/e/fmt"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
 	"wiredshield/modules/db"
@@ -18,9 +14,7 @@ import (
 )
 
 func main() {
-	// disable log output
-	dummyWriter, _ := os.Open(os.DevNull)
-	log.SetOutput(dummyWriter)
+	log.SetOutput(io.Discard)
 
 	env.LoadEnvFile()
 	db.Init()
@@ -36,25 +30,6 @@ func main() {
 
 	dnsService := services.RegisterService("dns", "DNS Server")
 	dnsService.Boot = wireddns.Prepare(dnsService)
-
-	go func() {
-		//commands.Boot(nil)
-		fmt.Println("Generating account key and certificate for dawg.pics")
-		accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			fmt.Printf("failed to generate account key: %v", err)
-			return
-		}
-
-		dnsProvider := &ssl.ExampleDNSProvider{}
-		domain := "dawg.pics"
-
-		err = ssl.GenerateCertificate(dnsProvider, domain, accountKey)
-		if err != nil {
-			fmt.Printf("failed to generate certificate: %v", err)
-			return
-		}
-	}()
 
 	httpProxyService := services.RegisterService("http", "HTTP Proxy")
 	httpProxyService.Boot = http.Prepare(httpProxyService)

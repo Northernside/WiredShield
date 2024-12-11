@@ -1,7 +1,10 @@
 package commands
 
 import (
+	"fmt"
+	"os"
 	"strings"
+	ssl "wiredshield/commands/libs"
 )
 
 func Ssl(model *Model) {
@@ -20,6 +23,34 @@ func Ssl(model *Model) {
 	switch action {
 	case "generate":
 		model.Output += "Generating certificate for " + split[2] + "...\n"
+
+		certPEM, keyPEM, err := ssl.GenerateCertificate("dawg.pics")
+		if err != nil {
+			fmt.Printf("failed to generate certificate: %v", err)
+			return
+		}
+
+		//s ave to certs/<domain>
+		certFile := fmt.Sprintf("certs/%s.crt", split[2])
+		keyFile := fmt.Sprintf("certs/%s.key", split[2])
+
+		writer, err := os.Create(certFile)
+		if err != nil {
+			fmt.Printf("failed to create cert file: %v", err)
+			return
+		}
+		defer writer.Close()
+		writer.Write(certPEM)
+
+		writer, err = os.Create(keyFile)
+		if err != nil {
+			fmt.Printf("failed to create key file: %v", err)
+			return
+		}
+		defer writer.Close()
+		writer.Write(keyPEM)
+
+		model.Output += "Certificate generated.\n"
 
 	case "renew":
 		model.Output += "Renew certificate\n"
