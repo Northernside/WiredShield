@@ -39,12 +39,12 @@ func getClient() *acme.Client {
 		return nil
 	}
 
-	client = &acme.Client{
+	_client := &acme.Client{
 		Key:          accountKey,
 		DirectoryURL: acme.LetsEncryptURL,
 	}
 
-	return client
+	return _client
 }
 
 func getAccount(_client *acme.Client) *acme.Account {
@@ -52,7 +52,7 @@ func getAccount(_client *acme.Client) *acme.Account {
 		Contact: []string{"mailto:ssl@northernsi.de"},
 	}
 
-	_, err := _client.Register(ctx, account, acme.AcceptTOS)
+	_, err := _client.Register(ctx, _account, acme.AcceptTOS)
 	if err != nil {
 		if err != acme.ErrAccountAlreadyExists {
 			fmt.Printf("failed to register account: %v", err)
