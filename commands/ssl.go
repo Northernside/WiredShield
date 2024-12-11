@@ -17,6 +17,23 @@ import (
 	"golang.org/x/crypto/acme"
 )
 
+func main() {
+	accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		fmt.Printf("failed to generate account key: %v", err)
+		return
+	}
+
+	dnsProvider := &ExampleDNSProvider{}
+	domain := "dawg.pics"
+
+	err = GenerateCertificate(dnsProvider, domain, accountKey)
+	if err != nil {
+		fmt.Printf("failed to generate certificate: %v", err)
+		return
+	}
+}
+
 func Ssl(model *Model) {
 	split := strings.Split(model.TextInput.Value(), " ")
 	if len(split) < 3 {
@@ -35,22 +52,20 @@ func Ssl(model *Model) {
 		model.Output += "Generating certificate for " + split[2] + "...\n"
 
 		resultCh := make(chan string)
-		go func() {
-			accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
-			if err != nil {
-				resultCh <- fmt.Sprintf("failed to generate account key: %v", err)
-				return
-			}
+		accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			resultCh <- fmt.Sprintf("failed to generate account key: %v", err)
+			return
+		}
 
-			dnsProvider := &ExampleDNSProvider{}
-			domain := split[2]
+		dnsProvider := &ExampleDNSProvider{}
+		domain := split[2]
 
-			err = GenerateCertificate(dnsProvider, domain, accountKey)
-			if err != nil {
-				resultCh <- fmt.Sprintf("failed to generate certificate: %v", err)
-				return
-			}
-		}()
+		err = GenerateCertificate(dnsProvider, domain, accountKey)
+		if err != nil {
+			resultCh <- fmt.Sprintf("failed to generate certificate: %v", err)
+			return
+		}
 
 		//model.Output += <-resultCh
 
