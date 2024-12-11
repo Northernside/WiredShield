@@ -13,6 +13,8 @@ import (
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/services"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
@@ -36,7 +38,7 @@ func main() {
 	dnsService.Boot = wireddns.Prepare(dnsService)
 
 	go func() {
-		commands.Boot(nil)
+		//commands.Boot(nil)
 		fmt.Println("Generating account key and certificate for dawg.pics")
 		accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
@@ -57,11 +59,9 @@ func main() {
 	httpProxyService := services.RegisterService("http", "HTTP Proxy")
 	httpProxyService.Boot = http.Prepare(httpProxyService)
 
-	/*model := commands.InitialModel()
+	model := commands.InitialModel()
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
-	}*/
-
-	select {}
+	}
 }
