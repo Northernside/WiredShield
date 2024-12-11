@@ -52,7 +52,21 @@ func Ssl(model *Model) {
 			}
 		}()
 
-		model.Output += <-resultCh
+		//model.Output += <-resultCh
+
+		// write resultCh to file meow.txt
+		file, err := os.Create("meow.txt")
+		if err != nil {
+			model.Output += fmt.Sprintf("failed to create file: %v", err)
+			return
+		}
+		defer file.Close()
+
+		_, err = file.WriteString(<-resultCh)
+		if err != nil {
+			model.Output += fmt.Sprintf("failed to write to file: %v", err)
+			return
+		}
 
 	case "renew":
 		model.Output += "Renew certificate\n"
