@@ -54,14 +54,28 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				var rr dns.RR
 				switch r := record.(type) {
 				case db.ARecord:
+					var ip net.IP
+					if r.Protected {
+						ip = *shieldIp
+					} else {
+						ip = net.ParseIP(r.IP)
+					}
+
 					rr = &dns.A{
 						Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
-						A:   net.ParseIP(r.IP),
+						A:   ip,
 					}
 				case db.AAAARecord:
+					var ip net.IP
+					if r.Protected {
+						ip = *shieldIp
+					} else {
+						ip = net.ParseIP(r.IP)
+					}
+
 					rr = &dns.AAAA{
 						Hdr:  dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
-						AAAA: net.ParseIP(r.IP),
+						AAAA: ip,
 					}
 				case db.SOARecord:
 					rr = &dns.SOA{
