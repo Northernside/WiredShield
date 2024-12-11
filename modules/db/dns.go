@@ -339,5 +339,5 @@ func getSecondLevelDomain(domain string) (string, error) {
 		return "", fmt.Errorf("invalid domain: %s", domain)
 	}
 
-	return strings.Join(parts[len(parts)-2:], "."), nil
+	return parts[len(parts)-2], nil
 }
