@@ -17,6 +17,21 @@ func Dns(model *Model) {
 	}
 
 	switch split[1] {
+	case "domains":
+		sb.WriteString("List DNS domains\n")
+		domains, err := db.GetAllDomains()
+		if err != nil {
+			sb.WriteString("failed to get domains: " + err.Error() + "\n")
+			break
+		}
+
+		if len(domains) == 0 {
+			sb.WriteString("No domains found\n")
+		} else {
+			for _, domain := range domains {
+				sb.WriteString(domain + "\n")
+			}
+		}
 	case "list":
 		sb.WriteString("List DNS records\n")
 		if len(split) < 3 {

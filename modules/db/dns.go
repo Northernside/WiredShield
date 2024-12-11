@@ -15,9 +15,59 @@ func UpdateRecord(recordType, domain string, record interface{}) error {
 			return fmt.Errorf("failed to get second level domain: %v", err)
 		}
 
-		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, lmdb.Create)
+		var generalDb lmdb.DBI
+		generalDb, err = txn.OpenDBI("wiredshield_general", lmdb.Create)
 		if err != nil {
-			return fmt.Errorf("failed to open db: %v", err)
+			return fmt.Errorf("failed to open general db: %v", err)
+		}
+
+		var db lmdb.DBI
+		db, err = txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
+		if err != nil {
+			if strings.Contains(err.Error(), "MDB_NOTFOUND") {
+				// create new db
+				db, err = txn.OpenDBI("wireddns_"+secondLevelDomain, lmdb.Create)
+				if err != nil {
+					return fmt.Errorf("failed to create db: %v", err)
+				}
+
+				domainsKey := []byte("dns_domains")
+				existingDomains := []string{}
+
+				value, err := txn.Get(generalDb, domainsKey)
+				if err != nil && !strings.Contains(err.Error(), "MDB_NOTFOUND") {
+					return fmt.Errorf("failed to get domains list: %v", err)
+				}
+
+				if value != nil {
+					if err := json.Unmarshal(value, &existingDomains); err != nil {
+						return fmt.Errorf("failed to unmarshal domains list: %v", err)
+					}
+				}
+
+				// check if domain already exists
+				exists := false
+				for _, d := range existingDomains {
+					if d == secondLevelDomain {
+						exists = true
+						break
+					}
+				}
+
+				if !exists {
+					existingDomains = append(existingDomains, secondLevelDomain)
+					serialized, err := json.Marshal(existingDomains)
+					if err != nil {
+						return fmt.Errorf("failed to serialize domains list: %v", err)
+					}
+
+					if err := txn.Put(generalDb, domainsKey, serialized, 0); err != nil {
+						return fmt.Errorf("failed to update domains list: %v", err)
+					}
+				}
+			} else {
+				return fmt.Errorf("failed to open db: %v", err)
+			}
 		}
 
 		key := []byte(recordType + ":" + domain)
@@ -331,6 +381,36 @@ func GetAllRecords(domain string) ([]interface{}, error) {
 	})
 
 	return records, err
+}
+
+func GetAllDomains() ([]string, error) {
+	var domains []string
+	err := env.View(func(txn *lmdb.Txn) error {
+		generalDb, err := txn.OpenDBI("wiredshield_general", 0)
+		if err != nil {
+			return fmt.Errorf("failed to open general db: %v", err)
+		}
+
+		domainsKey := []byte("dns_domains")
+		value, err := txn.Get(generalDb, domainsKey)
+		if err != nil {
+			if strings.Contains(err.Error(), "MDB_NOTFOUND") {
+				return nil
+			}
+
+			return fmt.Errorf("failed to get domains list: %v", err)
+		}
+
+		if value != nil {
+			if err := json.Unmarshal(value, &domains); err != nil {
+				return fmt.Errorf("failed to unmarshal domains list: %v", err)
+			}
+		}
+
+		return nil
+	})
+
+	return domains, err
 }
 
 func getSecondLevelDomain(domain string) (string, error) {
