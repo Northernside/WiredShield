@@ -157,10 +157,22 @@ func dns01Handling(domain string, authzURL string) error {
 		return errors.Errorf("failed to get DNS-01 challenge record: %v", err)
 	}
 
-	db.SetRecord("TXT", "_acme-challenge."+domain, txtRecord, false)
+	dnsRecord := &db.TXTRecord{
+		Domain:    domain,
+		Text:      txtRecord,
+		Protected: false,
+	}
+
+	err = db.UpdateRecord("TXT", domain, dnsRecord)
+	if err != nil {
+		return errors.Errorf("failed to update TXT record: %v", err)
+	}
 
 	defer func() {
-		db.DeleteRecord("TXT", "_acme-challenge."+domain)
+		err = db.DeleteRecord("TXT", domain, dnsRecord)
+		if err != nil {
+			fmt.Printf("failed to delete TXT record: %v", err)
+		}
 	}()
 
 	_, err = client.Accept(ctx, chal)

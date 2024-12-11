@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"log"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
@@ -14,8 +13,6 @@ import (
 )
 
 func main() {
-	log.SetOutput(io.Discard)
-
 	env.LoadEnvFile()
 	db.Init()
 
