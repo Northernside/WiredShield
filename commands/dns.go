@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"wiredshield/modules/db"
@@ -32,52 +33,57 @@ func Dns(model *Model) {
 		if len(list) == 0 {
 			sb.WriteString("No records found for " + split[2] + "\n")
 		} else {
+			var index int = 0
 			for _, record := range list {
 				switch r := record.(type) {
 				case db.ARecord:
-					sb.WriteString(func() string {
+					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}() + " A " + r.Domain + " " + r.IP + "\n")
+					}()+" A %s %s\n", index, r.Domain, r.IP))
+					index++
 				case db.AAAARecord:
-					sb.WriteString(func() string {
+					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}() + " AAAA " + r.Domain + " " + r.IP + "\n")
+					}()+" AAAA %s %s\n", index, r.Domain, r.IP))
+					index++
 				case db.SOARecord:
-					sb.WriteString("SOA " + r.Domain + " " + r.PrimaryNS + " " + r.AdminEmail + " " + strconv.Itoa(int(r.Serial)) + " " + strconv.Itoa(int(r.Refresh)) + " " + strconv.Itoa(int(r.Retry)) + " " + strconv.Itoa(int(r.Expire)) + " " + strconv.FormatUint(uint64(r.MinimumTTL), 10) + "\n")
+					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n", index, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
 				case db.TXTRecord:
-					sb.WriteString(func() string {
+					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}() + " TXT " + r.Domain + " " + r.Text + "\n")
+					}()+" TXT %s %s\n", index, r.Domain, r.Text))
+					index++
 				case db.NSRecord:
-					sb.WriteString(func() string {
+					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}() + " NS " + r.Domain + " " + r.NS + "\n")
+					}()+" NS %s %s\n", index, r.Domain, r.NS))
+					index++
 				case db.MXRecord:
-					sb.WriteString(func() string {
+					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}() + " MX " + r.Domain + " " + r.Target + " " + strconv.Itoa(int(r.Priority)) + "\n")
+					}()+" MX %s %s %d\n", index, r.Domain, r.Target, r.Priority))
 				case db.CNAMERecord:
-					sb.WriteString(func() string {
+					sb.WriteString(fmt.Sprintf("[%d]"+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}() + " CNAME " + r.Domain + " " + r.Target + "\n")
+					}()+" CNAME %s %s\n", index, r.Domain, r.Target))
 				default:
 					sb.WriteString("Unknown record type\n")
 				}
