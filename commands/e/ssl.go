@@ -1,4 +1,4 @@
-package main
+package ssl
 
 import (
 	"context"
@@ -11,31 +11,10 @@ import (
 	"fmt"
 	"os"
 	"wiredshield/modules/db"
-	"wiredshield/modules/env"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/acme"
 )
-
-func main() {
-	env.LoadEnvFile()
-	db.Init()
-
-	accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		fmt.Printf("failed to generate account key: %v", err)
-		return
-	}
-
-	dnsProvider := &ExampleDNSProvider{}
-	domain := "dawg.pics"
-
-	err = GenerateCertificate(dnsProvider, domain, accountKey)
-	if err != nil {
-		fmt.Printf("failed to generate certificate: %v", err)
-		return
-	}
-}
 
 type DNSProvider interface {
 	SetTXTRecord(ctx context.Context, domain, value string) error
