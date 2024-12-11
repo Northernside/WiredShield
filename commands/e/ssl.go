@@ -119,7 +119,12 @@ func GenerateCertificate(dnsProvider DNSProvider, domain string, accountKey *rsa
 		return fmt.Errorf("order status '%s' not ready", order.Status)
 	}
 
-	csr, err := createCSR(domain, accountKey)
+	certKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return errors.Errorf("failed to generate certificate key: %v", err)
+	}
+
+	csr, err := createCSR(domain, certKey)
 	if err != nil {
 		return errors.Errorf("failed to create CSR: %v", err)
 	}
@@ -143,7 +148,17 @@ func GenerateCertificate(dnsProvider DNSProvider, domain string, accountKey *rsa
 		return errors.Errorf("failed to save certificate: %v", err)
 	}
 
-	fmt.Println("Certificate obtained and saved to cert.pem")
+	privKeyPem := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(certKey),
+	})
+
+	err = os.WriteFile("cert.key", privKeyPem, 0600)
+	if err != nil {
+		return errors.Errorf("failed to save private key: %v", err)
+	}
+
+	fmt.Println("Certificate obtained and saved to cert.pem with private key saved to cert.key")
 	return nil
 }
 
