@@ -109,8 +109,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		case dns.TypeSOA:
 			rr = &dns.SOA{
 				Hdr:     dns.RR_Header{Name: name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
-				Ns:      "woof.ns.wired.rip",
-				Mbox:    "ssl.northernsi.de",
+				Ns:      "woof.ns.wired.rip.",
+				Mbox:    "ssl.northernsi.de.",
 				Serial:  1111111111,
 				Refresh: 86400,
 				Retry:   7200,
