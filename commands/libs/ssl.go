@@ -21,7 +21,15 @@ var ctx = context.Background()
 
 func init() {
 	client = getClient()
-	account = getAccount()
+	if client == nil {
+		fmt.Println("Failed to initialize ACME client")
+		return
+	}
+
+	account = getAccount(client)
+	if account == nil {
+		fmt.Println("Failed to initialize ACME account")
+	}
 }
 
 func getClient() *acme.Client {
@@ -39,12 +47,12 @@ func getClient() *acme.Client {
 	return client
 }
 
-func getAccount() *acme.Account {
+func getAccount(_client *acme.Client) *acme.Account {
 	_account := &acme.Account{
 		Contact: []string{"mailto:ssl@northernsi.de"},
 	}
 
-	_, err := client.Register(ctx, account, acme.AcceptTOS)
+	_, err := _client.Register(ctx, account, acme.AcceptTOS)
 	if err != nil {
 		if err != acme.ErrAccountAlreadyExists {
 			fmt.Printf("failed to register account: %v", err)
