@@ -11,12 +11,16 @@ import (
 	"fmt"
 	"os"
 	"wiredshield/modules/db"
+	"wiredshield/modules/env"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/acme"
 )
 
 func main() {
+	env.LoadEnvFile()
+	db.Init()
+
 	accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		fmt.Printf("failed to generate account key: %v", err)
