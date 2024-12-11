@@ -1,10 +1,11 @@
 package commands
 
 import (
-	"fmt"
+	fmtfmt "fmt"
 	"os"
 	"strings"
 	ssl "wiredshield/commands/libs"
+	"wiredshield/commands/libs/fmt"
 )
 
 func Ssl(model *Model) {
@@ -31,8 +32,8 @@ func Ssl(model *Model) {
 		}
 
 		//s ave to certs/<domain>
-		certFile := fmt.Sprintf("certs/%s.crt", split[2])
-		keyFile := fmt.Sprintf("certs/%s.key", split[2])
+		certFile := fmtfmt.Sprintf("certs/%s.crt", split[2])
+		keyFile := fmtfmt.Sprintf("certs/%s.key", split[2])
 
 		writer, err := os.Create(certFile)
 		if err != nil {

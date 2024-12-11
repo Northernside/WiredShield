@@ -8,7 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"fmt"
+	"wiredshield/commands/libs/fmt"
 	"wiredshield/modules/db"
 
 	"github.com/pkg/errors"
