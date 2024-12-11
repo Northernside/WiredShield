@@ -22,8 +22,7 @@ func UpdateRecord(recordType, domain string, record interface{}) error {
 		}
 
 		var db lmdb.DBI
-		safeSLD := strings.ReplaceAll(secondLevelDomain, ".", "__")
-		db, err = txn.OpenDBI("wireddns_"+safeSLD, 0)
+		db, err = txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
 		if err != nil {
 			if strings.Contains(err.Error(), "MDB_NOTFOUND") {
 				// create new db
@@ -122,8 +121,7 @@ func DeleteRecord(recordType, domain string, record interface{}) error {
 			return fmt.Errorf("failed to get second level domain: %v", err)
 		}
 
-		safeSLD := strings.ReplaceAll(secondLevelDomain, ".", "__")
-		db, err := txn.OpenDBI("wireddns_"+safeSLD, 0)
+		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
 		}
@@ -169,8 +167,7 @@ func GetRecords(recordType, domain string) ([]interface{}, error) {
 			return fmt.Errorf("failed to get second level domain: %v", err)
 		}
 
-		safeSLD := strings.ReplaceAll(secondLevelDomain, ".", "__")
-		db, err := txn.OpenDBI("wireddns_"+safeSLD, 0)
+		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
 		}
@@ -271,8 +268,7 @@ func GetAllRecords(domain string) ([]interface{}, error) {
 			return fmt.Errorf("failed to get second level domain: %v", err)
 		}
 
-		safeSLD := strings.ReplaceAll(secondLevelDomain, ".", "__")
-		db, err := txn.OpenDBI("wireddns_"+safeSLD, 0)
+		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
 		}
