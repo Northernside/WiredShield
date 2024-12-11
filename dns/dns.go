@@ -37,7 +37,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 		// if A, then check if protected, if protected, return shield ip, else return result and if not A, return result
 		var responseIp net.IP
-		var stringResult string
+		var stringResult string = ""
 
 		var rr dns.RR
 		if question.Qtype == dns.TypeAAAA {
@@ -50,7 +50,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			m.Answer = append(m.Answer, rr)
 		} else if question.Qtype == dns.TypeA {
 			result, protected, err := db.GetRecord("A", lookupName)
-			if err != nil {
+			if !strings.Contains(err.Error(), "MDB_NOTFOUND:") {
 				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
 			}
 
@@ -59,13 +59,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			} else {
 				responseIp = net.ParseIP(result)
 			}
-		} else if question.Qtype == dns.TypeAAAA {
-			result, _, err := db.GetRecord("AAAA", lookupName)
-			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
-			}
-
-			responseIp = net.ParseIP(result)
 		} else {
 			var err error
 			stringResult, _, err = db.GetRecord(recordTypeMap[question.Qtype], lookupName)
