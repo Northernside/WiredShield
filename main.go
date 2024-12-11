@@ -3,11 +3,11 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"fmt"
 	"log"
 	"os"
 	"wiredshield/commands"
 	ssl "wiredshield/commands/e"
+	"wiredshield/commands/e/fmt"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
 	"wiredshield/modules/db"
