@@ -62,4 +62,6 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}*/
+
+	select {}
 }
