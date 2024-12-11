@@ -33,9 +33,8 @@ func Dns(model *Model) {
 			sb.WriteString("No records found for " + split[2] + "\n")
 		} else {
 			for _, record := range list {
-				switch record.(type) {
+				switch r := record.(type) {
 				case db.ARecord:
-					r := record.(db.ARecord)
 					sb.WriteString(func() string {
 						if r.Protected {
 							return "🔒"
@@ -43,7 +42,6 @@ func Dns(model *Model) {
 						return "🔓"
 					}() + " A " + r.Domain + " " + r.IP + "\n")
 				case db.AAAARecord:
-					r := record.(db.AAAARecord)
 					sb.WriteString(func() string {
 						if r.Protected {
 							return "🔒"
@@ -51,10 +49,8 @@ func Dns(model *Model) {
 						return "🔓"
 					}() + " AAAA " + r.Domain + " " + r.IP + "\n")
 				case db.SOARecord:
-					r := record.(db.SOARecord)
 					sb.WriteString("SOA " + r.Domain + " " + r.PrimaryNS + " " + r.AdminEmail + " " + strconv.Itoa(int(r.Serial)) + " " + strconv.Itoa(int(r.Refresh)) + " " + strconv.Itoa(int(r.Retry)) + " " + strconv.Itoa(int(r.Expire)) + " " + strconv.FormatUint(uint64(r.MinimumTTL), 10) + "\n")
 				case db.TXTRecord:
-					r := record.(db.TXTRecord)
 					sb.WriteString(func() string {
 						if r.Protected {
 							return "🔒"
@@ -62,7 +58,6 @@ func Dns(model *Model) {
 						return "🔓"
 					}() + " TXT " + r.Domain + " " + r.Text + "\n")
 				case db.NSRecord:
-					r := record.(db.NSRecord)
 					sb.WriteString(func() string {
 						if r.Protected {
 							return "🔒"
@@ -70,7 +65,6 @@ func Dns(model *Model) {
 						return "🔓"
 					}() + " NS " + r.Domain + " " + r.NS + "\n")
 				case db.MXRecord:
-					r := record.(db.MXRecord)
 					sb.WriteString(func() string {
 						if r.Protected {
 							return "🔒"
@@ -78,7 +72,6 @@ func Dns(model *Model) {
 						return "🔓"
 					}() + " MX " + r.Domain + " " + r.Target + " " + strconv.Itoa(int(r.Priority)) + "\n")
 				case db.CNAMERecord:
-					r := record.(db.CNAMERecord)
 					sb.WriteString(func() string {
 						if r.Protected {
 							return "🔒"
@@ -100,28 +93,21 @@ func Dns(model *Model) {
 		split[2] = strings.ToUpper(split[2])
 
 		protected := split[5] == "true"
+		var err error
+		var record any
+
 		switch split[2] {
 		case "A":
-			record := db.ARecord{
+			record = db.ARecord{
 				Domain:    split[3],
 				IP:        split[4],
 				Protected: protected,
-			}
-
-			err := db.UpdateRecord("A", split[3], record)
-			if err != nil {
-				sb.WriteString("Failed to update record: " + err.Error() + "\n")
 			}
 		case "AAAA":
-			record := db.AAAARecord{
+			record = db.AAAARecord{
 				Domain:    split[3],
 				IP:        split[4],
 				Protected: protected,
-			}
-
-			err := db.UpdateRecord("AAAA", split[3], record)
-			if err != nil {
-				sb.WriteString("Failed to update record: " + err.Error() + "\n")
 			}
 		case "SOA":
 			if len(split) < 11 {
@@ -159,7 +145,7 @@ func Dns(model *Model) {
 				break
 			}
 
-			record := db.SOARecord{
+			record = db.SOARecord{
 				Domain:     split[3],
 				PrimaryNS:  split[4],
 				AdminEmail: split[5],
@@ -169,33 +155,18 @@ func Dns(model *Model) {
 				Expire:     uint32(expire),
 				MinimumTTL: uint32(minimum),
 			}
-
-			err = db.UpdateRecord("SOA", split[3], record)
-			if err != nil {
-				sb.WriteString("Failed to update record: " + err.Error() + "\n")
-			}
 		case "TXT":
 			text := strings.Join(split[4:], " ")
-			record := db.TXTRecord{
+			record = db.TXTRecord{
 				Domain:    split[3],
 				Text:      text,
 				Protected: protected,
 			}
-
-			err := db.UpdateRecord("TXT", split[3], record)
-			if err != nil {
-				sb.WriteString("Failed to update record: " + err.Error() + "\n")
-			}
 		case "NS":
-			record := db.NSRecord{
+			record = db.NSRecord{
 				Domain:    split[3],
 				NS:        split[4],
 				Protected: protected,
-			}
-
-			err := db.UpdateRecord("NS", split[3], record)
-			if err != nil {
-				sb.WriteString("Failed to update record: " + err.Error() + "\n")
 			}
 		case "MX":
 			prio, err := strconv.Atoi(split[5])
@@ -204,30 +175,27 @@ func Dns(model *Model) {
 				break
 			}
 
-			record := db.MXRecord{
+			record = db.MXRecord{
 				Domain:    split[3],
 				Target:    split[4],
 				Priority:  uint16(prio),
 				Protected: protected,
 			}
-
-			err = db.UpdateRecord("MX", split[3], record)
-			if err != nil {
-				sb.WriteString("Failed to update record: " + err.Error() + "\n")
-			}
 		case "CNAME":
-			record := db.CNAMERecord{
+			record = db.CNAMERecord{
 				Domain:    split[3],
 				Target:    split[4],
 				Protected: protected,
 			}
+		default:
+			sb.WriteString("Unsupported record type: " + split[2] + "\n")
+		}
 
-			err := db.UpdateRecord("CNAME", split[3], record)
+		if record != nil {
+			err = db.UpdateRecord(split[2], split[3], record)
 			if err != nil {
 				sb.WriteString("Failed to update record: " + err.Error() + "\n")
 			}
-		default:
-			sb.WriteString("Unsupported record type: " + split[2] + "\n")
 		}
 	case "get":
 		sb.WriteString("Get DNS record\n")
