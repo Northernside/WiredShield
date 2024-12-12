@@ -1,13 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/services"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
@@ -20,7 +22,7 @@ func main() {
 		{Key: "boot", Desc: "Boot all services", Fn: commands.Boot},
 		{Key: "info", Desc: "Show service info", Fn: commands.Info},
 		{Key: "dns", Desc: "DNS server", Fn: commands.Dns},
-		{Key: "ssl", Desc: "SSL service", Fn: func(m *commands.Model) { go commands.Ssl(m) }},
+		{Key: "ssl", Desc: "SSL service", Fn: commands.Ssl},
 	}
 
 	dnsService := services.RegisterService("dns", "DNS Server")
@@ -29,17 +31,11 @@ func main() {
 	httpProxyService := services.RegisterService("http", "HTTP Proxy")
 	httpProxyService.Boot = http.Prepare(httpProxyService)
 
-	commands.Boot(nil)
-	go func() {
-		fmt.Println("Starting SSL service...")
-		commands.Ssl(nil)
-	}()
-
-	select {}
-
-	/*model := commands.InitialModel()
+	model := commands.InitialModel()
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
-	}*/
+	}
+
+	model.Output += "Goodbye!\n"
 }
