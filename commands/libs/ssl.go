@@ -159,12 +159,12 @@ func dns01Handling(domain string, authzURL string) error {
 	}
 
 	dnsRecord := &db.TXTRecord{
-		Domain:    domain,
+		Domain:    "_acme-challenge." + domain,
 		Text:      txtRecord,
 		Protected: false,
 	}
 
-	err = db.UpdateRecord("TXT", domain, dnsRecord)
+	err = db.UpdateRecord("TXT", "_acme-challenge."+domain, dnsRecord)
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
