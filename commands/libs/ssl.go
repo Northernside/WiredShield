@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"time"
 	"wiredshield/commands/libs/fmt"
 	"wiredshield/modules/db"
 
@@ -167,6 +168,8 @@ func dns01Handling(domain string, authzURL string) error {
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
+
+	time.Sleep(10 * time.Second)
 
 	defer func() {
 		err = db.DeleteRecord("TXT", domain, dnsRecord)
