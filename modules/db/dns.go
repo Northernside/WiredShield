@@ -133,77 +133,87 @@ func DeleteRecord(recordType, domain string, id uint64) error {
 		}
 
 		if value != nil {
-			var records []interface{}
-			if err := json.Unmarshal(value, &records); err != nil {
+			var rawRecords []map[string]interface{}
+			if err := json.Unmarshal(value, &rawRecords); err != nil {
 				return fmt.Errorf("failed to unmarshal existing records: %v", err)
 			}
 
 			var newRecords []interface{}
-			for _, record := range records {
+			for _, rawRecord := range rawRecords {
 				switch recordType {
 				case string(A):
-					r := record.(ARecord)
-					if r.ID == id {
-						continue
+					var r ARecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to ARecord: %v", err)
 					}
-
-					newRecords = append(newRecords, r)
-				case string(AAAA):
-					r := record.(AAAARecord)
-					if r.ID == id {
-						continue
+					if r.ID != id {
+						newRecords = append(newRecords, r)
 					}
-
-					newRecords = append(newRecords, r)
-				case string(SRV):
-					r := record.(SRVRecord)
-					if r.ID == id {
-						continue
-					}
-
-					newRecords = append(newRecords, r)
-				case string(CNAME):
-					r := record.(CNAMERecord)
-					if r.ID == id {
-						continue
-					}
-
-					newRecords = append(newRecords, r)
-				case string(SOA):
-					r := record.(SOARecord)
-					if r.ID == id {
-						continue
-					}
-
-					newRecords = append(newRecords, r)
 				case string(TXT):
-					r := record.(TXTRecord)
-					if r.ID == id {
-						continue
+					var r TXTRecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to TXTRecord: %v", err)
 					}
-
-					newRecords = append(newRecords, r)
-				case string(NS):
-					r := record.(NSRecord)
-					if r.ID == id {
-						continue
+					if r.ID != id {
+						newRecords = append(newRecords, r)
 					}
-
-					newRecords = append(newRecords, r)
-				case string(MX):
-					r := record.(MXRecord)
-					if r.ID == id {
-						continue
+					// add aaaa, caa, ns, mx, srv, soa, cname
+				case string(AAAA):
+					var r AAAARecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to AAAARecord: %v", err)
 					}
-
-					newRecords = append(newRecords, r)
+					if r.ID != id {
+						newRecords = append(newRecords, r)
+					}
 				case string(CAA):
-					r := record.(CAARecord)
-					if r.ID == id {
-						continue
+					var r CAARecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to CAARecord: %v", err)
 					}
-
-					newRecords = append(newRecords, r)
+					if r.ID != id {
+						newRecords = append(newRecords, r)
+					}
+				case string(NS):
+					var r NSRecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to NSRecord: %v", err)
+					}
+					if r.ID != id {
+						newRecords = append(newRecords, r)
+					}
+				case string(MX):
+					var r MXRecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to MXRecord: %v", err)
+					}
+					if r.ID != id {
+						newRecords = append(newRecords, r)
+					}
+				case string(SRV):
+					var r SRVRecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to SRVRecord: %v", err)
+					}
+					if r.ID != id {
+						newRecords = append(newRecords, r)
+					}
+				case string(SOA):
+					var r SOARecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to SOARecord: %v", err)
+					}
+					if r.ID != id {
+						newRecords = append(newRecords, r)
+					}
+				case string(CNAME):
+					var r CNAMERecord
+					if err := mapToStruct(rawRecord, &r); err != nil {
+						return fmt.Errorf("failed to convert to CNAMERecord: %v", err)
+					}
+					if r.ID != id {
+						newRecords = append(newRecords, r)
+					}
 				default:
 					return fmt.Errorf("unsupported record type: %v", recordType)
 				}
@@ -227,6 +237,18 @@ func DeleteRecord(recordType, domain string, id uint64) error {
 
 		return nil
 	})
+}
+
+// Helper function to convert map[string]interface{} to a struct
+func mapToStruct(data map[string]interface{}, result interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal map to JSON: %v", err)
+	}
+	if err := json.Unmarshal(jsonData, result); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON to struct: %v", err)
+	}
+	return nil
 }
 
 func GetRecords(recordType, domain string) ([]interface{}, error) {
