@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 	"wiredshield/modules/db"
 )
@@ -15,6 +17,21 @@ func Dns(model *Model) {
 	}
 
 	switch split[1] {
+	case "domains":
+		sb.WriteString("List DNS domains\n")
+		domains, err := db.GetAllDomains()
+		if err != nil {
+			sb.WriteString("failed to get domains: " + err.Error() + "\n")
+			break
+		}
+
+		if len(domains) == 0 {
+			sb.WriteString("No domains found\n")
+		} else {
+			for _, domain := range domains {
+				sb.WriteString(domain + "\n")
+			}
+		}
 	case "list":
 		sb.WriteString("List DNS records\n")
 		if len(split) < 3 {
@@ -24,22 +41,67 @@ func Dns(model *Model) {
 
 		list, err := db.GetAllRecords(split[2])
 		if err != nil {
-			sb.WriteString("Failed to get records: " + err.Error() + "\n")
+			sb.WriteString("failed to get (meow) records: " + err.Error() + "\n")
 			break
 		}
 
 		if len(list) == 0 {
 			sb.WriteString("No records found for " + split[2] + "\n")
 		} else {
-			for key, record := range list {
-				// 🔒 & 🔓
-				sb.WriteString(func() string {
-					if record.Protected {
-						return "🔒"
-					}
-
-					return "🔓"
-				}() + key + " => " + record.Target + "\n")
+			var index int = 0
+			for _, record := range list {
+				switch r := record.(type) {
+				case db.ARecord:
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
+						if r.Protected {
+							return "🔒"
+						}
+						return "🔓"
+					}()+" A %s %s\n", index, r.Domain, r.IP))
+					index++
+				case db.AAAARecord:
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
+						if r.Protected {
+							return "🔒"
+						}
+						return "🔓"
+					}()+" AAAA %s %s\n", index, r.Domain, r.IP))
+					index++
+				case db.SOARecord:
+					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n", index, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
+				case db.TXTRecord:
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
+						if r.Protected {
+							return "🔒"
+						}
+						return "🔓"
+					}()+" TXT %s \"%s\"\n", index, r.Domain, r.Text))
+					index++
+				case db.NSRecord:
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
+						if r.Protected {
+							return "🔒"
+						}
+						return "🔓"
+					}()+" NS %s %s\n", index, r.Domain, r.NS))
+					index++
+				case db.MXRecord:
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
+						if r.Protected {
+							return "🔒"
+						}
+						return "🔓"
+					}()+" MX %s %s %d\n", index, r.Domain, r.Target, r.Priority))
+				case db.CNAMERecord:
+					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
+						if r.Protected {
+							return "🔒"
+						}
+						return "🔓"
+					}()+" CNAME %s %s\n", index, r.Domain, r.Target))
+				default:
+					sb.WriteString("Unknown record type\n")
+				}
 			}
 		}
 	case "set":
@@ -50,11 +112,111 @@ func Dns(model *Model) {
 		}
 
 		split[2] = strings.ToUpper(split[2])
-		err := db.SetRecord(split[2], split[3], split[4], split[5] == "true")
-		if err != nil {
-			sb.WriteString("Failed to set target: " + err.Error() + "\n")
-		} else {
-			sb.WriteString("Successfully set DNS record for " + split[3] + " to " + split[4] + "\n")
+
+		protected := split[5] == "true"
+		var err error
+		var record any
+
+		switch split[2] {
+		case "A":
+			record = db.ARecord{
+				Domain:    split[3],
+				IP:        split[4],
+				Protected: protected,
+			}
+		case "AAAA":
+			record = db.AAAARecord{
+				Domain:    split[3],
+				IP:        split[4],
+				Protected: protected,
+			}
+		case "SOA":
+			if len(split) < 11 {
+				sb.WriteString("Usage: dns set SOA <host> <primary> <admin> <serial> <refresh> <retry> <expire> <minimum> <protected>\n")
+				break
+			}
+
+			serial, err := strconv.Atoi(split[6])
+			if err != nil {
+				sb.WriteString("Failed to parse serial: " + err.Error() + "\n")
+				break
+			}
+
+			refresh, err := strconv.Atoi(split[7])
+			if err != nil {
+				sb.WriteString("Failed to parse refresh: " + err.Error() + "\n")
+				break
+			}
+
+			retry, err := strconv.Atoi(split[8])
+			if err != nil {
+				sb.WriteString("Failed to parse retry: " + err.Error() + "\n")
+				break
+			}
+
+			expire, err := strconv.Atoi(split[9])
+			if err != nil {
+				sb.WriteString("Failed to parse expire: " + err.Error() + "\n")
+				break
+			}
+
+			minimum, err := strconv.Atoi(split[10])
+			if err != nil {
+				sb.WriteString("Failed to parse minimum: " + err.Error() + "\n")
+				break
+			}
+
+			record = db.SOARecord{
+				Domain:     split[3],
+				PrimaryNS:  split[4],
+				AdminEmail: split[5],
+				Serial:     uint32(serial),
+				Refresh:    uint32(refresh),
+				Retry:      uint32(retry),
+				Expire:     uint32(expire),
+				MinimumTTL: uint32(minimum),
+			}
+		case "TXT":
+			text := strings.Join(split[4:], " ")
+			record = db.TXTRecord{
+				Domain:    split[3],
+				Text:      text,
+				Protected: protected,
+			}
+		case "NS":
+			record = db.NSRecord{
+				Domain:    split[3],
+				NS:        split[4],
+				Protected: protected,
+			}
+		case "MX":
+			prio, err := strconv.Atoi(split[5])
+			if err != nil {
+				sb.WriteString("Failed to parse priority: " + err.Error() + "\n")
+				break
+			}
+
+			record = db.MXRecord{
+				Domain:    split[3],
+				Target:    split[4],
+				Priority:  uint16(prio),
+				Protected: protected,
+			}
+		case "CNAME":
+			record = db.CNAMERecord{
+				Domain:    split[3],
+				Target:    split[4],
+				Protected: protected,
+			}
+		default:
+			sb.WriteString("Unsupported record type: " + split[2] + "\n")
+		}
+
+		if record != nil {
+			err = db.UpdateRecord(split[2], split[3], record)
+			if err != nil {
+				sb.WriteString("Failed to update record: " + err.Error() + "\n")
+			}
 		}
 	case "get":
 		sb.WriteString("Get DNS record\n")
@@ -63,18 +225,6 @@ func Dns(model *Model) {
 			break
 		}
 
-		target, protected, err := db.GetRecord("A", split[2])
-		if err != nil {
-			sb.WriteString("Failed to get target: " + err.Error() + "\n")
-		} else {
-			sb.WriteString("Target for " + split[2] + " is " + target + " " + func() string {
-				if protected {
-					return "🔒"
-				}
-
-				return "🔓"
-			}())
-		}
 	case "del":
 		sb.WriteString("Delete DNS record\n")
 	default:

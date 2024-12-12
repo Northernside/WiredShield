@@ -9,5 +9,5 @@ func Boot(model *Model) {
 		}
 	}
 
-	model.Output = "All services started\n"
+	//model.Output = "All services started\n"
 }

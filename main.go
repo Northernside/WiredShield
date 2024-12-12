@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
@@ -14,10 +13,6 @@ import (
 )
 
 func main() {
-	// disable log output
-	dummyWriter, _ := os.Open(os.DevNull)
-	log.SetOutput(dummyWriter)
-
 	env.LoadEnvFile()
 	db.Init()
 
@@ -41,4 +36,6 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
+
+	model.Output += "Goodbye!\n"
 }

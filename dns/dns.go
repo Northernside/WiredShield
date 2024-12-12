@@ -16,119 +16,126 @@ var (
 	shieldIp *net.IP
 )
 
-var recordTypeMap = map[uint16]string{
-	dns.TypeA:     "A",
-	dns.TypeAAAA:  "AAAA",
-	dns.TypeCNAME: "CNAME",
-	dns.TypeNS:    "NS",
-	dns.TypeMX:    "MX",
-	dns.TypeTXT:   "TXT",
-	dns.TypeCAA:   "CAA",
-}
-
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := dns.Msg{}
 	m.SetReply(r)
 
 	if len(r.Question) > 0 {
-		question := r.Question[0]
-		name := strings.ToLower(question.Name)
-		lookupName := name[:len(name)-1]
+		for _, question := range r.Question {
+			// prepare
+			name := strings.ToLower(question.Name)
+			lookupName := name[:len(name)-1]
 
-		// if A, then check if protected, if protected, return shield ip, else return result and if not A, return result
-		var responseIp net.IP
-		var stringResult string
-
-		var rr dns.RR
-		if question.Qtype == dns.TypeAAAA {
-			// return nothing
-			rr = &dns.AAAA{
-				Hdr:  dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
-				AAAA: net.ParseIP(""),
+			// check if record is supported
+			var supported bool = false
+			for _, recordType := range db.SupportedRecordTypes {
+				if dns.TypeToString[question.Qtype] == string(recordType) {
+					supported = true
+					break
+				}
 			}
 
-			m.Answer = append(m.Answer, rr)
-		} else if question.Qtype == dns.TypeA {
-			result, protected, err := db.GetRecord("A", lookupName)
+			if !supported {
+				service.WarnLog(fmt.Sprintf("unsupported record type: %s", dns.TypeToString[question.Qtype]))
+				emptyReply(w, &m)
+				return
+			}
+
+			// get record(s) from db
+			records, err := db.GetRecords(dns.TypeToString[question.Qtype], lookupName)
 			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
+				service.ErrorLog(fmt.Sprintf("failed to get records: %s", err.Error()))
+				emptyReply(w, &m)
+				return
 			}
 
-			if protected {
-				responseIp = *shieldIp
-			} else {
-				responseIp = net.ParseIP(result)
-			}
-		} else if question.Qtype == dns.TypeAAAA {
-			result, _, err := db.GetRecord("AAAA", lookupName)
-			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
-			}
+			// append records to response
+			for _, record := range records {
+				var rr dns.RR
+				switch r := record.(type) {
+				case db.ARecord:
+					var ip net.IP
+					if r.Protected {
+						ip = *shieldIp
+					} else {
+						ip = net.ParseIP(r.IP)
+					}
 
-			responseIp = net.ParseIP(result)
-		} else {
-			var err error
-			stringResult, _, err = db.GetRecord(recordTypeMap[question.Qtype], lookupName)
-			if question.Qtype != dns.TypeSOA {
-				if err != nil {
-					service.ErrorLog(fmt.Sprintf("failed to get %d record for %s: %s", question.Qtype, lookupName, err.Error()))
+					rr = &dns.A{
+						Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
+						A:   ip,
+					}
+				case db.AAAARecord:
+					var ip net.IP
+					if r.Protected {
+						ip = *shieldIp
+					} else {
+						ip = net.ParseIP(r.IP)
+					}
+
+					rr = &dns.AAAA{
+						Hdr:  dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
+						AAAA: ip,
+					}
+				case db.SOARecord:
+					rr = &dns.SOA{
+						Hdr:     dns.RR_Header{Name: name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
+						Ns:      r.PrimaryNS,
+						Mbox:    r.AdminEmail,
+						Serial:  r.Serial,
+						Refresh: r.Refresh,
+						Retry:   r.Retry,
+						Expire:  r.Expire,
+						Minttl:  r.MinimumTTL,
+					}
+				case db.CNAMERecord:
+					rr = &dns.CNAME{
+						Hdr:    dns.RR_Header{Name: name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
+						Target: r.Target,
+					}
+				case db.NSRecord:
+					rr = &dns.NS{
+						Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+						Ns:  r.NS,
+					}
+				case db.MXRecord:
+					rr = &dns.MX{
+						Hdr:        dns.RR_Header{Name: name, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: 300},
+						Preference: r.Priority,
+						Mx:         r.Target,
+					}
+				case db.TXTRecord:
+					rr = &dns.TXT{
+						Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
+						Txt: []string{r.Text},
+					}
+				case db.SRVRecord:
+					rr = &dns.SRV{
+						Hdr:      dns.RR_Header{Name: name, Rrtype: dns.TypeSRV, Class: dns.ClassINET, Ttl: 300},
+						Priority: uint16(r.Priority),
+						Weight:   uint16(r.Weight),
+						Port:     uint16(r.Port),
+						Target:   r.Target,
+					}
+				}
+
+				if rr != nil {
+					m.Answer = append(m.Answer, rr)
 				}
 			}
 		}
 
-		switch question.Qtype {
-		case dns.TypeA:
-			rr = &dns.A{
-				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
-				A:   responseIp,
-			}
-		case dns.TypeCNAME:
-			rr = &dns.CNAME{
-				Hdr:    dns.RR_Header{Name: name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
-				Target: stringResult,
-			}
-		case dns.TypeNS:
-			rr = &dns.NS{
-				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
-				Ns:  stringResult,
-			}
-		case dns.TypeTXT:
-			rr = &dns.TXT{
-				Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
-				Txt: []string{stringResult},
-			}
-		case dns.TypeCAA:
-			rr = &dns.CAA{
-				Hdr:   dns.RR_Header{Name: name, Rrtype: dns.TypeCAA, Class: dns.ClassINET, Ttl: 300},
-				Flag:  0,
-				Tag:   "issue",
-				Value: stringResult,
-			}
-		case dns.TypeSOA:
-			rr = &dns.SOA{
-				Hdr:     dns.RR_Header{Name: name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
-				Ns:      "woof.ns.wired.rip",
-				Mbox:    "ssl.northernsi.de",
-				Serial:  1111111111,
-				Refresh: 86400,
-				Retry:   7200,
-				Expire:  4000000,
-				Minttl:  11200,
-			}
-		default:
-			service.WarnLog("unsupported record: " + question.String())
-			rr = &dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300}
+		err := w.WriteMsg(&m)
+		if err != nil {
+			service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
 		}
-
-		m.Answer = append(m.Answer, rr)
-
-		service.InfoLog(fmt.Sprintf("DNS query for %s (%s) => %s", lookupName, dns.TypeToString[question.Qtype], responseIp.String()))
 	}
+}
 
-	err := w.WriteMsg(&m)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
-	}
+func emptyReply(w dns.ResponseWriter, m *dns.Msg) {
+	m.SetReply(m)
+	m.Rcode = dns.RcodeNameError
+	w.WriteMsg(m)
 }
 
 func Prepare(_service *services.Service) func() {
