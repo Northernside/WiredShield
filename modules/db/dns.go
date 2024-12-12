@@ -132,105 +132,91 @@ func DeleteRecord(recordType, domain string, id uint64) error {
 			return fmt.Errorf("failed to get record: %v", err)
 		}
 
-		if value != nil { // remove from array
+		if value != nil {
 			var records []interface{}
 			if err := json.Unmarshal(value, &records); err != nil {
 				return fmt.Errorf("failed to unmarshal existing records: %v", err)
 			}
 
-			// remove record
+			// Remove record based on recordType
 			var newRecords []interface{}
 			for _, record := range records {
+				var match bool
+
+				// Type assertion based on record type
 				switch recordType {
 				case string(A):
-					r, ok := record.(ARecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(ARecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				case string(AAAA):
-					r, ok := record.(AAAARecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(AAAARecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				case string(SRV):
-					r, ok := record.(SRVRecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(SRVRecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				case string(CNAME):
-					r, ok := record.(CNAMERecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(CNAMERecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				case string(SOA):
-					r, ok := record.(SOARecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(SOARecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				case string(TXT):
-					r, ok := record.(TXTRecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(TXTRecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				case string(NS):
-					r, ok := record.(NSRecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(NSRecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				case string(MX):
-					r, ok := record.(MXRecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(MXRecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				case string(CAA):
-					r, ok := record.(CAARecord)
-					if !ok {
-						return fmt.Errorf("unexpected record type: %T", record)
-					}
-					if r.ID != id {
-						newRecords = append(newRecords, record)
+					if r, ok := record.(CAARecord); ok && r.ID != id {
+						newRecords = append(newRecords, r)
+					} else {
+						match = true
 					}
 				default:
 					return fmt.Errorf("unsupported record type: %v", recordType)
 				}
 
-				// Serialize the updated records
-				serialized, err := json.Marshal(newRecords)
-				if err != nil {
-					return fmt.Errorf("failed to serialize records: %v", err)
-				}
+				if !match {
+					// Serialize and update only if a record has been removed
+					serialized, err := json.Marshal(newRecords)
+					if err != nil {
+						return fmt.Errorf("failed to serialize records: %v", err)
+					}
 
-				// Update the database
-				if err := txn.Put(db, key, serialized, 0); err != nil {
-					return fmt.Errorf("failed to update records: %v", err)
+					// Update the database
+					if err := txn.Put(db, key, serialized, 0); err != nil {
+						return fmt.Errorf("failed to update records: %v", err)
+					}
 				}
 			}
 		}
-
 		return nil
 	})
 }
