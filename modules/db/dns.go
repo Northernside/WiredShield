@@ -141,23 +141,64 @@ func DeleteRecord(recordType, domain string, id uint64) error {
 			// remove record
 			var newRecords []interface{}
 			for _, record := range records {
-				recordMap, ok := record.(map[string]interface{})
-				if !ok {
-					return fmt.Errorf("failed to convert record to map")
+				switch recordType {
+				case string(A):
+					r := record.(ARecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				case string(AAAA):
+					r := record.(AAAARecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				case string(SRV):
+					r := record.(SRVRecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				case string(CNAME):
+					r := record.(CNAMERecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				case string(SOA):
+					r := record.(SOARecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				case string(TXT):
+					r := record.(TXTRecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				case string(NS):
+					r := record.(NSRecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				case string(MX):
+					r := record.(MXRecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				case string(CAA):
+					r := record.(CAARecord)
+					if r.ID != id {
+						newRecords = append(newRecords, record)
+					}
+				default:
+					return fmt.Errorf("unsupported record type: %v", recordType)
 				}
 
-				if recordMap["ID"] != id {
-					newRecords = append(newRecords, record)
+				serialized, err := json.Marshal(newRecords)
+				if err != nil {
+					return fmt.Errorf("failed to serialize records: %v", err)
 				}
-			}
 
-			serialized, err := json.Marshal(newRecords)
-			if err != nil {
-				return fmt.Errorf("failed to serialize records: %v", err)
-			}
-
-			if err := txn.Put(db, key, serialized, 0); err != nil {
-				return fmt.Errorf("failed to update records: %v", err)
+				if err := txn.Put(db, key, serialized, 0); err != nil {
+					return fmt.Errorf("failed to update records: %v", err)
+				}
 			}
 		}
 

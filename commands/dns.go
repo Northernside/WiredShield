@@ -256,6 +256,7 @@ func Dns(model *Model) {
 		}
 
 		recordType := strings.ToUpper(split[3])
+		sb.WriteString(fmt.Sprintf("Deleting record %s %s %d\n", recordType, split[2], index))
 		err = db.DeleteRecord(recordType, split[2], uint64(index))
 		if err != nil {
 			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
