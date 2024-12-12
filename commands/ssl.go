@@ -9,21 +9,23 @@ import (
 )
 
 func Ssl(model *Model) {
-	split := strings.Split(model.TextInput.Value(), " ")
+	//split := strings.Split(model.TextInput.Value(), " ")
+	split := strings.Split("ssl generate dawg.pics", " ")
 	if len(split) < 3 {
-		model.Output += "Usage: ssl <generate|renew> <domain>\n"
+		// model.Output += "Usage: ssl <generate|renew> <domain>\n"
 		return
 	}
 
 	action := split[1]
 	if len(split) < 3 && action == "generate" {
-		model.Output += "Usage: ssl generate <domain>\n"
+		// model.Output += "Usage: ssl generate <domain>\n"
 		return
 	}
 
 	switch action {
 	case "generate":
-		model.Output += "Generating certificate for " + split[2] + "...\n"
+		///model.Output += "Generating certificate for " + split[2] + "...\n"
+		fmt.Printf("Generating certificate for %s...\n", split[2])
 
 		certPEM, keyPEM, err := ssl.GenerateCertificate("dawg.pics")
 		if err != nil {
@@ -51,13 +53,13 @@ func Ssl(model *Model) {
 		defer writer.Close()
 		writer.Write(keyPEM)
 
-		model.Output += "Certificate generated.\n"
+		//model.Output += "Certificate generated.\n"
 
 	case "renew":
-		model.Output += "Renew certificate\n"
-		model.Output += "Not implemented yet.\n"
+		//model.Output += "Renew certificate\n"
+		//model.Output += "Not implemented yet.\n"
 
 	default:
-		model.Output += "Invalid command.\n"
+		//model.Output += "Invalid command.\n"
 	}
 }

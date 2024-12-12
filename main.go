@@ -1,15 +1,13 @@
 package main
 
 import (
-	"log"
+	"time"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/services"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
@@ -31,9 +29,15 @@ func main() {
 	httpProxyService := services.RegisterService("http", "HTTP Proxy")
 	httpProxyService.Boot = http.Prepare(httpProxyService)
 
-	model := commands.InitialModel()
+	commands.Boot(nil)
+
+	time.Sleep(2 * time.Second)
+
+	commands.Ssl(nil)
+
+	/*model := commands.InitialModel()
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
-	}
+	}*/
 }
