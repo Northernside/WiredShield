@@ -172,7 +172,7 @@ func dns01Handling(domain string, authzURL string) error {
 	time.Sleep(10 * time.Second)
 
 	defer func() {
-		err = db.DeleteRecord("TXT", domain, dnsRecord)
+		err = db.DeleteRecord("TXT", domain, 0)
 		if err != nil {
 			fmt.Printf("failed to delete TXT record: %v", err)
 		}
