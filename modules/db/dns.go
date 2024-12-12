@@ -143,47 +143,74 @@ func DeleteRecord(recordType, domain string, id uint64) error {
 			for _, record := range records {
 				switch recordType {
 				case string(A):
-					r := record.(ARecord)
+					r, ok := record.(ARecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
 				case string(AAAA):
-					r := record.(AAAARecord)
+					r, ok := record.(AAAARecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
 				case string(SRV):
-					r := record.(SRVRecord)
+					r, ok := record.(SRVRecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
 				case string(CNAME):
-					r := record.(CNAMERecord)
+					r, ok := record.(CNAMERecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
 				case string(SOA):
-					r := record.(SOARecord)
+					r, ok := record.(SOARecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
 				case string(TXT):
-					r := record.(TXTRecord)
+					r, ok := record.(TXTRecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
 				case string(NS):
-					r := record.(NSRecord)
+					r, ok := record.(NSRecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
 				case string(MX):
-					r := record.(MXRecord)
+					r, ok := record.(MXRecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
 				case string(CAA):
-					r := record.(CAARecord)
+					r, ok := record.(CAARecord)
+					if !ok {
+						return fmt.Errorf("unexpected record type: %T", record)
+					}
 					if r.ID != id {
 						newRecords = append(newRecords, record)
 					}
@@ -191,11 +218,13 @@ func DeleteRecord(recordType, domain string, id uint64) error {
 					return fmt.Errorf("unsupported record type: %v", recordType)
 				}
 
+				// Serialize the updated records
 				serialized, err := json.Marshal(newRecords)
 				if err != nil {
 					return fmt.Errorf("failed to serialize records: %v", err)
 				}
 
+				// Update the database
 				if err := txn.Put(db, key, serialized, 0); err != nil {
 					return fmt.Errorf("failed to update records: %v", err)
 				}
