@@ -23,16 +23,19 @@ var SupportedRecordTypes = []DNSRecordType{A, AAAA, SOA, CNAME, NS, MX, TXT, CAA
 
 type DNSRecord interface {
 	Type() DNSRecordType
+	GetID() uint64
 	Serialize() (string, error)
 }
 
 type ARecord struct {
+	ID        uint64 `json:"id"`
 	Domain    string `json:"domain"`
 	IP        string `json:"ip"`
 	Protected bool   `json:"protected"`
 }
 
 func (r ARecord) Type() DNSRecordType { return A }
+func (r ARecord) GetID() uint64       { return r.ID }
 func (r ARecord) Serialize() (ARecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -48,12 +51,14 @@ func (r ARecord) Serialize() (ARecord, error) {
 }
 
 type AAAARecord struct {
+	ID        uint64 `json:"id"`
 	Domain    string `json:"domain"`
 	IP        string `json:"ip"`
 	Protected bool   `json:"protected"`
 }
 
 func (r AAAARecord) Type() DNSRecordType { return AAAA }
+func (r AAAARecord) GetID() uint64       { return r.ID }
 func (r AAAARecord) Serialize() (AAAARecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -69,6 +74,7 @@ func (r AAAARecord) Serialize() (AAAARecord, error) {
 }
 
 type SRVRecord struct {
+	ID       uint64 `json:"id"`
 	Domain   string `json:"domain"`
 	Priority int    `json:"priority"`
 	Weight   int    `json:"weight"`
@@ -77,6 +83,7 @@ type SRVRecord struct {
 }
 
 func (r SRVRecord) Type() DNSRecordType { return SRV }
+func (r SRVRecord) GetID() uint64       { return r.ID }
 func (r SRVRecord) Serialize() (SRVRecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -92,6 +99,7 @@ func (r SRVRecord) Serialize() (SRVRecord, error) {
 }
 
 type SOARecord struct {
+	ID         uint64 `json:"id"`
 	Domain     string `json:"domain"`
 	PrimaryNS  string `json:"primary_ns"`
 	AdminEmail string `json:"admin_email"`
@@ -103,6 +111,7 @@ type SOARecord struct {
 }
 
 func (r SOARecord) Type() DNSRecordType { return SOA }
+func (r SOARecord) GetID() uint64       { return r.ID }
 func (r SOARecord) Serialize() (SOARecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -118,12 +127,14 @@ func (r SOARecord) Serialize() (SOARecord, error) {
 }
 
 type CNAMERecord struct {
+	ID        uint64 `json:"id"`
 	Domain    string `json:"domain"`
 	Target    string `json:"target"`
 	Protected bool   `json:"protected"`
 }
 
 func (r CNAMERecord) Type() DNSRecordType { return CNAME }
+func (r CNAMERecord) GetID() uint64       { return r.ID }
 func (r CNAMERecord) Serialize() (CNAMERecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -139,12 +150,14 @@ func (r CNAMERecord) Serialize() (CNAMERecord, error) {
 }
 
 type NSRecord struct {
+	ID        uint64 `json:"id"`
 	Domain    string `json:"domain"`
 	NS        string `json:"ns"`
 	Protected bool   `json:"protected"`
 }
 
 func (r NSRecord) Type() DNSRecordType { return NS }
+func (r NSRecord) GetID() uint64       { return r.ID }
 func (r NSRecord) Serialize() (NSRecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -160,6 +173,7 @@ func (r NSRecord) Serialize() (NSRecord, error) {
 }
 
 type MXRecord struct {
+	ID        uint64 `json:"id"`
 	Domain    string `json:"domain"`
 	Priority  uint16 `json:"priority"`
 	Target    string `json:"target"`
@@ -167,6 +181,7 @@ type MXRecord struct {
 }
 
 func (r MXRecord) Type() DNSRecordType { return MX }
+func (r MXRecord) GetID() uint64       { return r.ID }
 func (r MXRecord) Serialize() (MXRecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -182,12 +197,14 @@ func (r MXRecord) Serialize() (MXRecord, error) {
 }
 
 type TXTRecord struct {
+	ID        uint64 `json:"id"`
 	Domain    string `json:"domain"`
 	Text      string `json:"text"`
 	Protected bool   `json:"protected"`
 }
 
 func (r TXTRecord) Type() DNSRecordType { return TXT }
+func (r TXTRecord) GetID() uint64       { return r.ID }
 func (r TXTRecord) Serialize() (TXTRecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -203,6 +220,7 @@ func (r TXTRecord) Serialize() (TXTRecord, error) {
 }
 
 type CAARecord struct {
+	ID        uint64 `json:"id"`
 	Domain    string `json:"domain"`
 	Flag      int    `json:"flag"`
 	Tag       string `json:"tag"`
@@ -211,6 +229,7 @@ type CAARecord struct {
 }
 
 func (r CAARecord) Type() DNSRecordType { return CAA }
+func (r CAARecord) GetID() uint64       { return r.ID }
 func (r CAARecord) Serialize() (CAARecord, error) {
 	data, err := json.Marshal(r)
 	if err != nil {

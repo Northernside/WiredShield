@@ -114,7 +114,7 @@ func UpdateRecord(recordType, domain string, record interface{}) error {
 	})
 }
 
-func DeleteRecord(recordType, domain string, record interface{}) error {
+func DeleteRecord(recordType, domain string, id uint64) error {
 	return env.Update(func(txn *lmdb.Txn) error {
 		secondLevelDomain, err := getSecondLevelDomain(domain)
 		if err != nil {
@@ -138,14 +138,20 @@ func DeleteRecord(recordType, domain string, record interface{}) error {
 				return fmt.Errorf("failed to unmarshal existing records: %v", err)
 			}
 
-			for i, r := range records {
-				if r == record {
-					records = append(records[:i], records[i+1:]...)
-					break
+			// remove record
+			var newRecords []interface{}
+			for _, record := range records {
+				recordMap, ok := record.(map[string]interface{})
+				if !ok {
+					return fmt.Errorf("failed to convert record to map")
+				}
+
+				if recordMap["ID"] != id {
+					newRecords = append(newRecords, record)
 				}
 			}
 
-			serialized, err := json.Marshal(records)
+			serialized, err := json.Marshal(newRecords)
 			if err != nil {
 				return fmt.Errorf("failed to serialize records: %v", err)
 			}

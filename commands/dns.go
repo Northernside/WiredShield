@@ -228,8 +228,8 @@ func Dns(model *Model) {
 	case "del":
 		sb.WriteString("Delete DNS record\n")
 
-		if len(split) < 4 {
-			sb.WriteString("Usage: dns del <domain> <index>\n")
+		if len(split) < 5 {
+			sb.WriteString("Usage: dns del <domain> <recordtype> <index>\n")
 			break
 		}
 
@@ -244,7 +244,7 @@ func Dns(model *Model) {
 			break
 		}
 
-		index, err := strconv.Atoi(split[3])
+		index, err := strconv.Atoi(split[4])
 		if err != nil {
 			sb.WriteString("Failed to parse index: " + err.Error() + "\n")
 			break
@@ -255,9 +255,8 @@ func Dns(model *Model) {
 			break
 		}
 
-		recordType := list[index]
-		sb.WriteString(fmt.Sprintf("Deleting record: %v\n", recordType))
-		err = db.DeleteRecord("TXT", split[3], list[index])
+		recordType := strings.ToUpper(split[3])
+		err = db.DeleteRecord(recordType, split[2], uint64(index))
 		if err != nil {
 			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
 		}
