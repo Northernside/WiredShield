@@ -10,7 +10,7 @@ import (
 
 func Ssl(model *Model) {
 	//split := strings.Split(model.TextInput.Value(), " ")
-	split := strings.Split("ssl generate dawg.pics", " ")
+	split := strings.Split(model.TextInput.Value(), " ")
 	if len(split) < 3 {
 		// model.Output += "Usage: ssl <generate|renew> <domain>\n"
 		return
@@ -27,7 +27,7 @@ func Ssl(model *Model) {
 		///model.Output += "Generating certificate for " + split[2] + "...\n"
 		fmt.Printf("Generating certificate for %s...\n", split[2])
 
-		certPEM, keyPEM, err := ssl.GenerateCertificate("dawg.pics")
+		certPEM, keyPEM, err := ssl.GenerateCertificate(split[2])
 		if err != nil {
 			fmt.Printf("failed to generate certificate: %v", err)
 			return
