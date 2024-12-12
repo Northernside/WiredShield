@@ -138,85 +138,93 @@ func DeleteRecord(recordType, domain string, id uint64) error {
 				return fmt.Errorf("failed to unmarshal existing records: %v", err)
 			}
 
-			// Remove record based on recordType
 			var newRecords []interface{}
 			for _, record := range records {
-				var match bool
-
-				// Type assertion based on record type
 				switch recordType {
 				case string(A):
-					if r, ok := record.(ARecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(ARecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				case string(AAAA):
-					if r, ok := record.(AAAARecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(AAAARecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				case string(SRV):
-					if r, ok := record.(SRVRecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(SRVRecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				case string(CNAME):
-					if r, ok := record.(CNAMERecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(CNAMERecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				case string(SOA):
-					if r, ok := record.(SOARecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(SOARecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				case string(TXT):
-					if r, ok := record.(TXTRecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(TXTRecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				case string(NS):
-					if r, ok := record.(NSRecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(NSRecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				case string(MX):
-					if r, ok := record.(MXRecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(MXRecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				case string(CAA):
-					if r, ok := record.(CAARecord); ok && r.ID != id {
-						newRecords = append(newRecords, r)
-					} else {
-						match = true
+					r := record.(CAARecord)
+					if r.ID == id {
+						continue
 					}
+
+					newRecords = append(newRecords, r)
 				default:
 					return fmt.Errorf("unsupported record type: %v", recordType)
 				}
+			}
 
-				if !match {
-					// Serialize and update only if a record has been removed
-					serialized, err := json.Marshal(newRecords)
-					if err != nil {
-						return fmt.Errorf("failed to serialize records: %v", err)
-					}
+			if len(newRecords) == 0 {
+				if err := txn.Del(db, key, nil); err != nil {
+					return fmt.Errorf("failed to delete record: %v", err)
+				}
+			} else {
+				serialized, err := json.Marshal(newRecords)
+				if err != nil {
+					return fmt.Errorf("failed to serialize records: %v", err)
+				}
 
-					// Update the database
-					if err := txn.Put(db, key, serialized, 0); err != nil {
-						return fmt.Errorf("failed to update records: %v", err)
-					}
+				if err := txn.Put(db, key, serialized, 0); err != nil {
+					return fmt.Errorf("failed to update records: %v", err)
 				}
 			}
 		}
+
 		return nil
 	})
 }
