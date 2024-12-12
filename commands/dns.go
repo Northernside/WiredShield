@@ -255,7 +255,9 @@ func Dns(model *Model) {
 			break
 		}
 
-		err = db.DeleteRecord(split[2], split[2], list[index])
+		recordType := list[index]
+		sb.WriteString(fmt.Sprintf("Deleting record: %v\n", recordType))
+		err = db.DeleteRecord("TXT", split[3], list[index])
 		if err != nil {
 			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
 		}
