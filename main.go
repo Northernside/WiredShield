@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
@@ -30,10 +31,12 @@ func main() {
 	httpProxyService.Boot = http.Prepare(httpProxyService)
 
 	commands.Boot(nil)
-
-	time.Sleep(2 * time.Second)
-
-	commands.Ssl(nil)
+	go func() {
+		fmt.Println("Starting SSL service...")
+		time.Sleep(2 * time.Second)
+		fmt.Println("SSL service started.")
+		commands.Ssl(nil)
+	}()
 
 	/*model := commands.InitialModel()
 	p := tea.NewProgram(model)
