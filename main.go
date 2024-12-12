@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
@@ -33,10 +32,10 @@ func main() {
 	commands.Boot(nil)
 	go func() {
 		fmt.Println("Starting SSL service...")
-		time.Sleep(2 * time.Second)
-		fmt.Println("SSL service started.")
 		commands.Ssl(nil)
 	}()
+
+	select {}
 
 	/*model := commands.InitialModel()
 	p := tea.NewProgram(model)
