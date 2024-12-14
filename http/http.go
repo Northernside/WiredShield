@@ -50,7 +50,7 @@ func Prepare(_service *services.Service) func() {
 			DisableKeepalive: false,
 		}
 
-		err := server.ListenAndServeTLS(fmt.Sprintf(":%s", port), "", "")
+		err := server.ListenAndServeTLS(addr, "", "")
 		if err != nil {
 			service.FatalLog(err.Error())
 		}
@@ -129,6 +129,10 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		log.Printf("failed to load certificate for domain %s: %v", domain, err)
 		return nil, err
 	}
+
+	service.InfoLog(fmt.Sprintf("Loaded certificate for domain %s", domain))
+	// print the certificate
+	service.InfoLog(fmt.Sprintf("Certificate: %s", cert.Certificate[0]))
 
 	certCache.Store(domain, &cert)
 	return &cert, nil
