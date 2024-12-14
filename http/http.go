@@ -25,7 +25,8 @@ func Prepare(_service *services.Service) func() {
 	service = _service
 
 	return func() {
-		addr := "0.0.0.0:443"
+		port := env.GetEnv("PORT", "443")
+		addr := "0.0.0.0:" + port
 		clientPool.New = func() interface{} {
 			return &fasthttp.Client{
 				ReadTimeout:  30 * time.Second,
@@ -33,7 +34,6 @@ func Prepare(_service *services.Service) func() {
 			}
 		}
 
-		port := env.GetEnv("PORT", "443")
 		service.InfoLog(fmt.Sprintf("Starting proxy on :%s", port))
 
 		go requestsHandler()
@@ -121,7 +121,7 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return cert.(*tls.Certificate), nil
 	}
 
-	certPath := fmt.Sprintf("certs/%s.crt", domain)
+	certPath := fmt.Sprintf("certs/%s.fullchain.crt", domain)
 	keyPath := fmt.Sprintf("certs/%s.key", domain)
 
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
