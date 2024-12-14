@@ -1,7 +1,9 @@
 package http
 
 import (
+	"crypto/tls"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 	"wiredshield/modules/db"
@@ -16,13 +18,14 @@ var (
 	requestsMade    = new(uint64)
 	clientPool      sync.Pool
 	service         *services.Service
+	certCache       sync.Map
 )
 
 func Prepare(_service *services.Service) func() {
 	service = _service
 
 	return func() {
-		addr := "0.0.0.0:80"
+		addr := "0.0.0.0:443"
 		clientPool.New = func() interface{} {
 			return &fasthttp.Client{
 				ReadTimeout:  30 * time.Second,
@@ -30,13 +33,24 @@ func Prepare(_service *services.Service) func() {
 			}
 		}
 
-		port := env.GetEnv("PORT", "80")
+		port := env.GetEnv("PORT", "443")
 		service.InfoLog(fmt.Sprintf("Starting proxy on :%s", port))
 
 		go requestsHandler()
-		service.InfoLog("Starting HTTP proxy on " + addr)
+		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
-		err := fasthttp.ListenAndServe(fmt.Sprintf(":%s", port), ProxyHandler)
+
+		tlsConfig := &tls.Config{
+			GetCertificate: getCertificateForDomain,
+		}
+
+		server := &fasthttp.Server{
+			Handler:          ProxyHandler,
+			TLSConfig:        tlsConfig,
+			DisableKeepalive: false,
+		}
+
+		err := server.ListenAndServeTLS(fmt.Sprintf(":%s", port), "", "")
 		if err != nil {
 			service.FatalLog(err.Error())
 		}
@@ -51,7 +65,6 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// convert to ARecord type
 	targetRecord := targetRecords[0].(db.ARecord)
 
 	targetURL := "http://" + targetRecord.IP + string(ctx.Path())
@@ -96,4 +109,27 @@ func requestsHandler() {
 	for range requestsChannel {
 		*requestsMade++
 	}
+}
+
+func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	domain := hello.ServerName
+	if domain == "" {
+		return nil, fmt.Errorf("no SNI provided by client")
+	}
+
+	if cert, ok := certCache.Load(domain); ok {
+		return cert.(*tls.Certificate), nil
+	}
+
+	certPath := fmt.Sprintf("certs/%s.crt", domain)
+	keyPath := fmt.Sprintf("certs/%s.key", domain)
+
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		log.Printf("failed to load certificate for domain %s: %v", domain, err)
+		return nil, err
+	}
+
+	certCache.Store(domain, &cert)
+	return &cert, nil
 }
