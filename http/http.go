@@ -3,7 +3,6 @@ package http
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 	"wiredshield/modules/db"
@@ -126,7 +125,7 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		log.Printf("failed to load certificate for domain %s: %v", domain, err)
+		service.ErrorLog(fmt.Sprintf("Failed to load certificate for domain %s: %v", domain, err))
 		return nil, err
 	}
 
