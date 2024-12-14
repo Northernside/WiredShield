@@ -33,7 +33,7 @@ func Ssl(model *Model) {
 			return
 		}
 
-		//s ave to certs/<domain>
+		// save to certs/<domain>
 		certFile := fmtfmt.Sprintf("certs/%s.crt", split[2])
 		keyFile := fmtfmt.Sprintf("certs/%s.key", split[2])
 
