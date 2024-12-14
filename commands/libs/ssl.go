@@ -2,7 +2,6 @@ package ssl
 
 import (
 	"context"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -115,19 +114,12 @@ func GenerateCertificate(domain string) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to encode certificate to PEM")
 	}
 
-	privKeyBytes := x509.MarshalPKCS1PrivateKey(certKey)
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privKeyBytes})
-	if keyPEM == nil {
+	privKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(certKey)})
+	if privKeyPEM == nil {
 		return nil, nil, fmt.Errorf("failed to encode private key to PEM")
 	}
 
-	fmt.Println(string(certPEM))
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
-	fmt.Println(string(keyPEM))
-
-	return certPEM, keyPEM, nil
+	return certPEM, privKeyPEM, nil
 }
 
 func dns01Handling(domain string, authzURL string) error {
@@ -188,12 +180,11 @@ func dns01Handling(domain string, authzURL string) error {
 	return nil
 }
 
-func createCSR(domain string, privKey crypto.Signer) ([]byte, error) {
-	tmpl := &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName: domain,
-		},
+func createCSR(domain string, key *rsa.PrivateKey) ([]byte, error) {
+	tmpl := x509.CertificateRequest{
+		DNSNames: []string{domain},
+		Subject:  pkix.Name{CommonName: domain},
 	}
 
-	return x509.CreateCertificateRequest(rand.Reader, tmpl, privKey)
+	return x509.CreateCertificateRequest(rand.Reader, &tmpl, key)
 }
