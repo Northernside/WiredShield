@@ -136,44 +136,47 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 
 	certData, err := os.ReadFile(certPath)
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to read certificate: %v", err))
-		return nil, err
+		service.ErrorLog(fmt.Sprintf("Error reading cert file: %v", err))
 	}
 
-	privateKeyData, err := os.ReadFile(keyPath)
+	keyData, err := os.ReadFile(keyPath)
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to read key: %v", err))
-		return nil, err
+		service.ErrorLog(fmt.Sprintf("Error reading key file: %v", err))
 	}
 
-	service.InfoLog(fmt.Sprintf("Read certificate data (length: %d)", len(certData)))
-	service.InfoLog(fmt.Sprintf("Read private key data (length: %d)", len(privateKeyData)))
+	for {
+		block, rest := pem.Decode(certData)
+		if block == nil {
+			service.ErrorLog(fmt.Sprintf("Failed to decode cert PEM block. Remaining data: %s", string(rest)))
+			break
+		}
 
-	if len(certData) == 0 {
-		service.ErrorLog("Certificate data is empty")
-		return nil, fmt.Errorf("certificate data is empty")
+		service.InfoLog(fmt.Sprintf("Decoded PEM block of type: %s", block.Type))
+		if len(rest) == 0 {
+			break
+		}
+
+		certData = rest
 	}
 
-	if len(privateKeyData) == 0 {
-		service.ErrorLog("Private key data is empty")
-		return nil, fmt.Errorf("private key data is empty")
+	for {
+		block, rest := pem.Decode(keyData)
+		if block == nil {
+			service.ErrorLog(fmt.Sprintf("Failed to decode key PEM block. Remaining data: %s", string(rest)))
+			break
+		}
+
+		service.InfoLog(fmt.Sprintf("Decoded PEM block of type: %s", block.Type))
+		if len(rest) == 0 {
+			break
+		}
+
+		keyData = rest
 	}
 
-	certBlock, _ := pem.Decode(certData)
-	if certBlock == nil {
-		service.ErrorLog("Failed to decode certificate PEM block")
-		return nil, fmt.Errorf("Failed to decode certificate PEM block")
-	}
-
-	keyBlock, _ := pem.Decode(privateKeyData)
-	if keyBlock == nil {
-		service.ErrorLog("Failed to decode private key PEM block")
-		return nil, fmt.Errorf("Failed to decode private key PEM block")
-	}
-
-	cert, err := tls.X509KeyPair(certData, privateKeyData)
+	cert, err := tls.X509KeyPair(certData, keyData)
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to load certificate and private key: %v", err))
+		service.ErrorLog(fmt.Sprintf("Error loading certificate: %v", err))
 		return nil, err
 	}
 
