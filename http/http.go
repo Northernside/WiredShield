@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"sync"
@@ -129,7 +130,7 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 
 	certPath := fmt.Sprintf("certs/%s.crt", domain)
 	keyPath := fmt.Sprintf("certs/%s.key", domain)
-	intermediateCertPath := "certs/lets-encrypt-r3.pem"
+	//intermediateCertPath := "certs/lets-encrypt-r3.pem"
 
 	service.InfoLog(fmt.Sprintf("Loading certificate for domain %s", domain))
 
@@ -158,22 +159,25 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return nil, fmt.Errorf("private key data is empty")
 	}
 
-	intermediateData, err := os.ReadFile(intermediateCertPath)
+	certBlock, _ := pem.Decode(certData)
+	if certBlock == nil {
+		service.ErrorLog("Failed to decode certificate PEM block")
+		return nil, fmt.Errorf("Failed to decode certificate PEM block")
+	}
+
+	keyBlock, _ := pem.Decode(privateKeyData)
+	if keyBlock == nil {
+		service.ErrorLog("Failed to decode private key PEM block")
+		return nil, fmt.Errorf("Failed to decode private key PEM block")
+	}
+
+	cert, err := tls.X509KeyPair(certData, privateKeyData)
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to read intermediate cert: %v", err))
+		service.ErrorLog(fmt.Sprintf("Failed to load certificate and private key: %v", err))
 		return nil, err
 	}
 
-	certData = cleanCertificateData(certData)
-	intermediateData = cleanCertificateData(intermediateData)
-
-	fullChain := append(certData, intermediateData...)
-	cert, err := tls.X509KeyPair(fullChain, privateKeyData)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to load certificate for domain %s: %v", domain, err))
-		return nil, err
-	}
-
+	service.InfoLog(fmt.Sprintf("Successfully loaded certificate for domain %s", domain))
 	certCache.Store(domain, &cert)
 	return &cert, nil
 }
