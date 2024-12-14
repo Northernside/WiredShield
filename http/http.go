@@ -123,14 +123,13 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 	certPath := fmt.Sprintf("certs/%s.fullchain.crt", domain)
 	keyPath := fmt.Sprintf("certs/%s.key", domain)
 
+	service.InfoLog(fmt.Sprintf("Loading certificate for domain %s", domain))
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		service.ErrorLog(fmt.Sprintf("Failed to load certificate for domain %s: %v", domain, err))
 		return nil, err
 	}
 
-	service.InfoLog(fmt.Sprintf("Loaded certificate for domain %s", domain))
-	// print the certificate
 	service.InfoLog(fmt.Sprintf("Certificate: %s", cert.Certificate[0]))
 
 	certCache.Store(domain, &cert)
