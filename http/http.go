@@ -145,6 +145,19 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return nil, err
 	}
 
+	service.InfoLog(fmt.Sprintf("Read certificate data (length: %d)", len(certData)))
+	service.InfoLog(fmt.Sprintf("Read private key data (length: %d)", len(privateKeyData)))
+
+	if len(certData) == 0 {
+		service.ErrorLog("Certificate data is empty")
+		return nil, fmt.Errorf("certificate data is empty")
+	}
+
+	if len(privateKeyData) == 0 {
+		service.ErrorLog("Private key data is empty")
+		return nil, fmt.Errorf("private key data is empty")
+	}
+
 	intermediateData, err := os.ReadFile(intermediateCertPath)
 	if err != nil {
 		service.ErrorLog(fmt.Sprintf("Failed to read intermediate cert: %v", err))
@@ -166,9 +179,17 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 }
 
 func cleanCertificateData(certData []byte) []byte {
-	endCertIdx := bytes.LastIndex(certData, []byte("-----END CERTIFICATE-----"))
-	if endCertIdx != -1 {
-		return certData[:endCertIdx+len("-----END CERTIFICATE-----")]
+	certData = bytes.TrimSpace(certData)
+	if !bytes.HasPrefix(certData, []byte("-----BEGIN CERTIFICATE-----")) {
+		service.ErrorLog("Certificate PEM data does not start with BEGIN CERTIFICATE")
+		return nil
 	}
-	return certData
+
+	endCertIdx := bytes.LastIndex(certData, []byte("-----END CERTIFICATE-----"))
+	if endCertIdx == -1 {
+		service.ErrorLog("No END CERTIFICATE found in PEM data")
+		return nil
+	}
+
+	return certData[:endCertIdx+len("-----END CERTIFICATE-----")]
 }
