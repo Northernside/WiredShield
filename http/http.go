@@ -3,6 +3,7 @@ package http
 import (
 	"crypto/tls"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 	"wiredshield/modules/db"
@@ -40,7 +41,12 @@ func Prepare(_service *services.Service) func() {
 		service.OnlineSince = time.Now().Unix()
 
 		tlsConfig := &tls.Config{
-			GetCertificate: getCertificateForDomain,
+			MinVersion:               tls.VersionTLS10,
+			MaxVersion:               tls.VersionTLS13,
+			GetCertificate:           getCertificateForDomain,
+			InsecureSkipVerify:       false,
+			ClientCAs:                nil,
+			PreferServerCipherSuites: true,
 		}
 
 		server := &fasthttp.Server{
@@ -120,17 +126,36 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return cert.(*tls.Certificate), nil
 	}
 
-	certPath := fmt.Sprintf("certs/%s.fullchain.crt", domain)
+	certPath := fmt.Sprintf("certs/%s.crt", domain)
 	keyPath := fmt.Sprintf("certs/%s.key", domain)
+	intermediateCertPath := "certs/lets-encrypt-r3.pem"
 
 	service.InfoLog(fmt.Sprintf("Loading certificate for domain %s", domain))
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+
+	certData, err := os.ReadFile(certPath)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("Failed to read certificate: %v", err))
+		return nil, err
+	}
+
+	privateKeyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("Failed to read key: %v", err))
+		return nil, err
+	}
+
+	intermediateData, err := os.ReadFile(intermediateCertPath)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("Failed to read intermediate cert: %v", err))
+		return nil, err
+	}
+
+	fullChain := append(certData, intermediateData...)
+	cert, err := tls.X509KeyPair(fullChain, privateKeyData)
 	if err != nil {
 		service.ErrorLog(fmt.Sprintf("Failed to load certificate for domain %s: %v", domain, err))
 		return nil, err
 	}
-
-	service.InfoLog(fmt.Sprintf("Certificate: %s", cert.Certificate[0]))
 
 	certCache.Store(domain, &cert)
 	return &cert, nil
