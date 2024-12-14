@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"os"
@@ -150,6 +151,9 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return nil, err
 	}
 
+	certData = cleanCertificateData(certData)
+	intermediateData = cleanCertificateData(intermediateData)
+
 	fullChain := append(certData, intermediateData...)
 	cert, err := tls.X509KeyPair(fullChain, privateKeyData)
 	if err != nil {
@@ -159,4 +163,12 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 
 	certCache.Store(domain, &cert)
 	return &cert, nil
+}
+
+func cleanCertificateData(certData []byte) []byte {
+	endCertIdx := bytes.LastIndex(certData, []byte("-----END CERTIFICATE-----"))
+	if endCertIdx != -1 {
+		return certData[:endCertIdx+len("-----END CERTIFICATE-----")]
+	}
+	return certData
 }
