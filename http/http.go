@@ -1,7 +1,6 @@
 package http
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
 	"sync"
@@ -15,7 +14,6 @@ import (
 
 var (
 	requestsChannel = make(chan *fasthttp.Request)
-	requestsMade    = new(uint64)
 	clientPool      sync.Pool
 	service         *services.Service
 	certCache       sync.Map
@@ -24,9 +22,13 @@ var (
 func Prepare(_service *services.Service) func() {
 	service = _service
 
+	go handleRequestLogging()
+
 	return func() {
-		port := env.GetEnv("PORT", "443")
-		addr := "0.0.0.0:" + port
+		port := env.GetEnv("HTTP_PORT", "443")
+		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
+		addr := binding + ":" + port
+
 		clientPool.New = func() interface{} {
 			return &fasthttp.Client{
 				ReadTimeout:  30 * time.Second,
@@ -34,9 +36,6 @@ func Prepare(_service *services.Service) func() {
 			}
 		}
 
-		service.InfoLog(fmt.Sprintf("Starting proxy on :%s", port))
-
-		go requestsHandler()
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
@@ -105,12 +104,16 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(resp.StatusCode())
 	ctx.SetBody(resp.Body())
 
-	requestsChannel <- req
+	select {
+	case requestsChannel <- req:
+	default:
+		ctx.Error("service unavailable", fasthttp.StatusServiceUnavailable)
+	}
 }
 
-func requestsHandler() {
-	for range requestsChannel {
-		*requestsMade++
+func handleRequestLogging() {
+	for req := range requestsChannel {
+		service.InfoLog("Request to " + string(req.URI().Host()))
 	}
 }
 
@@ -124,28 +127,11 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return cert.(*tls.Certificate), nil
 	}
 
-	// Log info
-	fmt.Printf("Loading certificate for domain %s\n", domain)
-
+	service.InfoLog("Loading certificate for " + domain)
 	c, err := tls.LoadX509KeyPair(fmt.Sprintf("certs/%s.crt", domain), fmt.Sprintf("certs/%s.key", domain))
 	if err == nil {
 		certCache.Store(domain, &c)
 	}
+
 	return &c, err
-}
-
-func cleanCertificateData(certData []byte) []byte {
-	certData = bytes.TrimSpace(certData)
-	if !bytes.HasPrefix(certData, []byte("-----BEGIN CERTIFICATE-----")) {
-		service.ErrorLog("Certificate PEM data does not start with BEGIN CERTIFICATE")
-		return nil
-	}
-
-	endCertIdx := bytes.LastIndex(certData, []byte("-----END CERTIFICATE-----"))
-	if endCertIdx == -1 {
-		service.ErrorLog("No END CERTIFICATE found in PEM data")
-		return nil
-	}
-
-	return certData[:endCertIdx+len("-----END CERTIFICATE-----")]
 }
