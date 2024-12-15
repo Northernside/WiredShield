@@ -104,17 +104,12 @@ func GenerateCertificate(domain string) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to create certificate: %v", err)
 	}
 
-	certBytes := []byte{}
-	for _, b := range certDER {
-		certBytes = append(certBytes, b...)
+	var certPEM []byte
+	for _, cert := range certDER {
+		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})...)
 	}
 
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	if certPEM == nil {
-		return nil, nil, fmt.Errorf("failed to encode certificate to PEM")
-	}
-
-	privKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(certKey)})
+	privKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(certKey)})
 	if privKeyPEM == nil {
 		return nil, nil, fmt.Errorf("failed to encode private key to PEM")
 	}

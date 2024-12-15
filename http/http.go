@@ -3,9 +3,7 @@ package http
 import (
 	"bytes"
 	"crypto/tls"
-	"encoding/pem"
 	"fmt"
-	"os"
 	"sync"
 	"time"
 	"wiredshield/modules/db"
@@ -42,18 +40,16 @@ func Prepare(_service *services.Service) func() {
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
-		tlsConfig := &tls.Config{
-			MinVersion:               tls.VersionTLS10,
-			MaxVersion:               tls.VersionTLS13,
-			GetCertificate:           getCertificateForDomain,
-			InsecureSkipVerify:       false,
-			ClientCAs:                nil,
-			PreferServerCipherSuites: true,
-		}
-
 		server := &fasthttp.Server{
-			Handler:          ProxyHandler,
-			TLSConfig:        tlsConfig,
+			Handler: ProxyHandler,
+			TLSConfig: &tls.Config{
+				MinVersion:               tls.VersionTLS12,
+				MaxVersion:               tls.VersionTLS13,
+				GetCertificate:           getCertificateForDomain,
+				InsecureSkipVerify:       false,
+				ClientCAs:                nil,
+				PreferServerCipherSuites: true,
+			},
 			DisableKeepalive: false,
 		}
 
@@ -128,61 +124,14 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return cert.(*tls.Certificate), nil
 	}
 
-	certPath := fmt.Sprintf("certs/%s.crt", domain)
-	keyPath := fmt.Sprintf("certs/%s.key", domain)
-	//intermediateCertPath := "certs/lets-encrypt-r3.pem"
+	// Log info
+	fmt.Printf("Loading certificate for domain %s\n", domain)
 
-	service.InfoLog(fmt.Sprintf("Loading certificate for domain %s", domain))
-
-	certData, err := os.ReadFile(certPath)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Error reading cert file: %v", err))
+	c, err := tls.LoadX509KeyPair(fmt.Sprintf("certs/%s.crt", domain), fmt.Sprintf("certs/%s.key", domain))
+	if err == nil {
+		certCache.Store(domain, &c)
 	}
-
-	keyData, err := os.ReadFile(keyPath)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Error reading key file: %v", err))
-	}
-
-	for {
-		block, rest := pem.Decode(certData)
-		if block == nil {
-			service.ErrorLog(fmt.Sprintf("Failed to decode cert PEM block. Remaining data: %s", string(rest)))
-			break
-		}
-
-		service.InfoLog(fmt.Sprintf("Decoded PEM block of type: %s", block.Type))
-		if len(rest) == 0 {
-			break
-		}
-
-		certData = rest
-	}
-
-	for {
-		block, rest := pem.Decode(keyData)
-		if block == nil {
-			service.ErrorLog(fmt.Sprintf("Failed to decode key PEM block. Remaining data: %s", string(rest)))
-			break
-		}
-
-		service.InfoLog(fmt.Sprintf("Decoded PEM block of type: %s", block.Type))
-		if len(rest) == 0 {
-			break
-		}
-
-		keyData = rest
-	}
-
-	cert, err := tls.X509KeyPair(certData, keyData)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Error loading certificate: %v", err))
-		return nil, err
-	}
-
-	service.InfoLog(fmt.Sprintf("Successfully loaded certificate for domain %s", domain))
-	certCache.Store(domain, &cert)
-	return &cert, nil
+	return &c, err
 }
 
 func cleanCertificateData(certData []byte) []byte {
