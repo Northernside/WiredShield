@@ -98,14 +98,24 @@ func Prepare(_service *services.Service) func() {
 
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	timeStart := time.Now()
-	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
-	if err != nil || len(targetRecords) == 0 {
-		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
-		return
-	}
+	host := string(ctx.Host())
+	var targetURL string
+	if targetURL, found := certCache.Load(host); found {
+		targetURL = targetURL.(string)
+	} else {
+		targetRecords, err := db.GetRecords("A", host)
+		if err != nil || len(targetRecords) == 0 {
+			ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
+			return
+		}
 
-	targetRecord := targetRecords[0].(db.ARecord)
-	targetURL := "http://" + targetRecord.IP + string(ctx.Path())
+		targetRecord := targetRecords[0].(db.ARecord)
+		targetURL := "http://" + targetRecord.IP + string(ctx.Path())
+		certCache.Store(host, targetURL)
+		time.AfterFunc(1*time.Hour, func() {
+			certCache.Delete(host)
+		})
+	}
 
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
