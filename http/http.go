@@ -71,7 +71,7 @@ func Prepare(_service *services.Service) func() {
 	return func() {
 		port := env.GetEnv("HTTP_PORT", "443")
 		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
-		addr := binding + port
+		addr := binding + ":" + port
 
 		service.InfoLog(fmt.Sprintf("Starting proxy on %s", addr))
 		service.OnlineSince = time.Now().Unix()
