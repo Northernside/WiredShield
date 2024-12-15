@@ -200,9 +200,16 @@ func buildRequestRow(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, response
 func processRequests() {
 	for req := range requestsChannel {
 		timeStart := time.Now()
-		bufferLock.Lock()
-		requestBuffer = append(requestBuffer, buildRequestRow(req, nil, time.Since(timeStart)))
-		bufferLock.Unlock()
+
+		if req != nil {
+			resp := fasthttp.AcquireResponse()
+			bufferLock.Lock()
+			requestBuffer = append(requestBuffer, buildRequestRow(req, resp, time.Since(timeStart)))
+			bufferLock.Unlock()
+			fasthttp.ReleaseResponse(resp)
+		} else {
+			service.ErrorLog("nil request received")
+		}
 	}
 }
 
