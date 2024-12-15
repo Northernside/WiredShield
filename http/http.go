@@ -21,6 +21,7 @@ var (
 	requestBuffer   = make([][]interface{}, 0, 1000)
 	bufferLock      sync.Mutex
 	certCache       sync.Map
+	targetCache     sync.Map
 	clientPool      sync.Pool
 	service         *services.Service
 	dbConn          *sql.DB
@@ -100,7 +101,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	timeStart := time.Now()
 	host := string(ctx.Host())
 	var targetURL string
-	if targetURL, found := certCache.Load(host); found {
+	if targetURL, found := targetCache.Load(host); found {
 		targetURL = targetURL.(string)
 	} else {
 		targetRecords, err := db.GetRecords("A", host)
@@ -111,9 +112,9 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 
 		targetRecord := targetRecords[0].(db.ARecord)
 		targetURL := "http://" + targetRecord.IP + string(ctx.Path())
-		certCache.Store(host, targetURL)
+		targetCache.Store(host, targetURL)
 		time.AfterFunc(1*time.Hour, func() {
-			certCache.Delete(host)
+			targetCache.Delete(host)
 		})
 	}
 
