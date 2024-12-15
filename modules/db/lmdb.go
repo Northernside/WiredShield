@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/PowerDNS/lmdb-go/lmdb"
 
 	_env "wiredshield/modules/env"
 )
