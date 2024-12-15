@@ -3,7 +3,6 @@ module wiredshield
 go 1.23.1
 
 require (
-	github.com/PowerDNS/lmdb-go v1.9.2
 	github.com/bmatsuo/lmdb-go v1.8.0
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.2.4

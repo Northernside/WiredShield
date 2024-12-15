@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/PowerDNS/lmdb-go/lmdb"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
 func UpdateRecord(recordType, domain string, record interface{}) error {
