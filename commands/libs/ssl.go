@@ -2,7 +2,6 @@ package ssl
 
 import (
 	"context"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -105,29 +104,17 @@ func GenerateCertificate(domain string) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to create certificate: %v", err)
 	}
 
-	certBytes := []byte{}
-	for _, b := range certDER {
-		certBytes = append(certBytes, b...)
+	var certPEM []byte
+	for _, cert := range certDER {
+		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})...)
 	}
 
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	if certPEM == nil {
-		return nil, nil, fmt.Errorf("failed to encode certificate to PEM")
-	}
-
-	privKeyBytes := x509.MarshalPKCS1PrivateKey(certKey)
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privKeyBytes})
-	if keyPEM == nil {
+	privKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(certKey)})
+	if privKeyPEM == nil {
 		return nil, nil, fmt.Errorf("failed to encode private key to PEM")
 	}
 
-	fmt.Println(string(certPEM))
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
-	fmt.Println(string(keyPEM))
-
-	return certPEM, keyPEM, nil
+	return certPEM, privKeyPEM, nil
 }
 
 func dns01Handling(domain string, authzURL string) error {
@@ -158,18 +145,18 @@ func dns01Handling(domain string, authzURL string) error {
 	}
 
 	dnsRecord := &db.TXTRecord{
-		Domain:    domain,
+		Domain:    "_acme-challenge." + domain,
 		Text:      txtRecord,
 		Protected: false,
 	}
 
-	err = db.UpdateRecord("TXT", domain, dnsRecord)
+	err = db.UpdateRecord("TXT", "_acme-challenge."+domain, dnsRecord)
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
 
 	defer func() {
-		err = db.DeleteRecord("TXT", domain, dnsRecord)
+		err = db.DeleteRecord("TXT", "_acme-challenge."+domain, 0)
 		if err != nil {
 			fmt.Printf("failed to delete TXT record: %v", err)
 		}
@@ -188,12 +175,11 @@ func dns01Handling(domain string, authzURL string) error {
 	return nil
 }
 
-func createCSR(domain string, privKey crypto.Signer) ([]byte, error) {
-	tmpl := &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName: domain,
-		},
+func createCSR(domain string, key *rsa.PrivateKey) ([]byte, error) {
+	tmpl := x509.CertificateRequest{
+		DNSNames: []string{domain},
+		Subject:  pkix.Name{CommonName: domain},
 	}
 
-	return x509.CreateCertificateRequest(rand.Reader, tmpl, privKey)
+	return x509.CreateCertificateRequest(rand.Reader, &tmpl, key)
 }

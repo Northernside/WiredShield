@@ -227,6 +227,42 @@ func Dns(model *Model) {
 
 	case "del":
 		sb.WriteString("Delete DNS record\n")
+
+		if len(split) < 5 {
+			sb.WriteString("Usage: dns del <domain> <recordtype> <index>\n")
+			break
+		}
+
+		list, err := db.GetAllRecords(split[2])
+		if err != nil {
+			sb.WriteString("failed to get records: " + err.Error() + "\n")
+			break
+		}
+
+		if len(list) == 0 {
+			sb.WriteString("No records found for " + split[2] + "\n")
+			break
+		}
+
+		index, err := strconv.Atoi(split[4])
+		if err != nil {
+			sb.WriteString("Failed to parse index: " + err.Error() + "\n")
+			break
+		}
+
+		if index < 0 || index >= len(list) {
+			sb.WriteString("Index out of range\n")
+			break
+		}
+
+		recordType := strings.ToUpper(split[3])
+		sb.WriteString(fmt.Sprintf("Deleting record %s %s %d\n", recordType, split[2], index))
+		err = db.DeleteRecord(recordType, split[2], uint64(index))
+		if err != nil {
+			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
+		}
+
+		sb.WriteString("Record deleted\n")
 	default:
 		sb.WriteString("Unknown command: " + split[1] + "\n")
 	}

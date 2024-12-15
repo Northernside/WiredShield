@@ -1,6 +1,8 @@
 package http
 
 import (
+	"bytes"
+	"crypto/tls"
 	"fmt"
 	"sync"
 	"time"
@@ -16,13 +18,15 @@ var (
 	requestsMade    = new(uint64)
 	clientPool      sync.Pool
 	service         *services.Service
+	certCache       sync.Map
 )
 
 func Prepare(_service *services.Service) func() {
 	service = _service
 
 	return func() {
-		addr := "0.0.0.0:80"
+		port := env.GetEnv("PORT", "443")
+		addr := "0.0.0.0:" + port
 		clientPool.New = func() interface{} {
 			return &fasthttp.Client{
 				ReadTimeout:  30 * time.Second,
@@ -30,13 +34,26 @@ func Prepare(_service *services.Service) func() {
 			}
 		}
 
-		port := env.GetEnv("PORT", "80")
 		service.InfoLog(fmt.Sprintf("Starting proxy on :%s", port))
 
 		go requestsHandler()
-		service.InfoLog("Starting HTTP proxy on " + addr)
+		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
-		err := fasthttp.ListenAndServe(fmt.Sprintf(":%s", port), ProxyHandler)
+
+		server := &fasthttp.Server{
+			Handler: ProxyHandler,
+			TLSConfig: &tls.Config{
+				MinVersion:               tls.VersionTLS12,
+				MaxVersion:               tls.VersionTLS13,
+				GetCertificate:           getCertificateForDomain,
+				InsecureSkipVerify:       false,
+				ClientCAs:                nil,
+				PreferServerCipherSuites: true,
+			},
+			DisableKeepalive: false,
+		}
+
+		err := server.ListenAndServeTLS(addr, "", "")
 		if err != nil {
 			service.FatalLog(err.Error())
 		}
@@ -51,7 +68,6 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// convert to ARecord type
 	targetRecord := targetRecords[0].(db.ARecord)
 
 	targetURL := "http://" + targetRecord.IP + string(ctx.Path())
@@ -96,4 +112,40 @@ func requestsHandler() {
 	for range requestsChannel {
 		*requestsMade++
 	}
+}
+
+func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	domain := hello.ServerName
+	if domain == "" {
+		return nil, fmt.Errorf("no SNI provided by client")
+	}
+
+	if cert, ok := certCache.Load(domain); ok {
+		return cert.(*tls.Certificate), nil
+	}
+
+	// Log info
+	fmt.Printf("Loading certificate for domain %s\n", domain)
+
+	c, err := tls.LoadX509KeyPair(fmt.Sprintf("certs/%s.crt", domain), fmt.Sprintf("certs/%s.key", domain))
+	if err == nil {
+		certCache.Store(domain, &c)
+	}
+	return &c, err
+}
+
+func cleanCertificateData(certData []byte) []byte {
+	certData = bytes.TrimSpace(certData)
+	if !bytes.HasPrefix(certData, []byte("-----BEGIN CERTIFICATE-----")) {
+		service.ErrorLog("Certificate PEM data does not start with BEGIN CERTIFICATE")
+		return nil
+	}
+
+	endCertIdx := bytes.LastIndex(certData, []byte("-----END CERTIFICATE-----"))
+	if endCertIdx == -1 {
+		service.ErrorLog("No END CERTIFICATE found in PEM data")
+		return nil
+	}
+
+	return certData[:endCertIdx+len("-----END CERTIFICATE-----")]
 }
