@@ -273,15 +273,23 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return nil, fmt.Errorf("no SNI provided by client")
 	}
 
-	if cert, ok := certCache.Load(domain); ok {
-		return cert.(*tls.Certificate), nil
+	cachedCert, ok := certCache.Load(domain)
+	if ok {
+		cert, ok := cachedCert.(*tls.Certificate)
+		if !ok {
+			return nil, fmt.Errorf("cached certificate for domain '%s' is of incorrect type", domain)
+		}
+
+		return cert, nil
 	}
 
 	service.InfoLog("loading certificate for " + domain)
 	c, err := tls.LoadX509KeyPair(fmt.Sprintf("certs/%s.crt", domain), fmt.Sprintf("certs/%s.key", domain))
-	if err == nil {
-		certCache.Store(domain, &c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load certificate for domain '%s': %v", domain, err)
 	}
+
+	certCache.Store(domain, &c)
 
 	return &c, err
 }
