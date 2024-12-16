@@ -44,6 +44,11 @@ var (
 func init() {
 	env.LoadEnvFile()
 	time.Sleep(500 * time.Millisecond)
+}
+
+func Prepare(_service *services.Service) func() {
+	service = _service
+
 	var err error
 	dbConn, err = sql.Open("postgres", fmt.Sprintf(
 		"postgres://%s:%s@localhost/%s?sslmode=disable",
@@ -61,10 +66,6 @@ func init() {
 	dbConn.SetMaxIdleConns(16)
 
 	go processRequestLogs()
-}
-
-func Prepare(_service *services.Service) func() {
-	service = _service
 
 	return func() {
 		port := env.GetEnv("HTTP_PORT", "443")
