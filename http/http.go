@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
@@ -98,6 +99,48 @@ func Prepare(_service *services.Service) func() {
 
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	timeStart := time.Now()
+	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
+	if err != nil || len(targetRecords) == 0 {
+		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
+		return
+	}
+
+	targetRecord := targetRecords[0].(db.ARecord)
+
+	targetURL := "http://" + targetRecord.IP + string(ctx.Path())
+
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+
+	req.SetRequestURI(targetURL + string(ctx.URI().String()))
+	req.Header.SetMethodBytes(ctx.Method())
+	req.Header.Set("wired-origin-ip", ctx.RemoteAddr().String())
+	req.Header.Set("host", string(ctx.Host()))
+
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		req.Header.SetBytesKV(key, value)
+	})
+
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
+
+	client := clientPool.Get().(*fasthttp.Client)
+	defer clientPool.Put(client)
+
+	err = client.Do(req, resp)
+	if err != nil {
+		ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
+		return
+	}
+
+	resp.Header.VisitAll(func(key, value []byte) {
+		ctx.Response.Header.SetBytesKV(key, value)
+	})
+
+	ctx.Response.Header.Set("server", "wiredshield")
+	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
+	ctx.SetStatusCode(resp.StatusCode())
+	ctx.SetBody(resp.Body())
 
 	reqHeadersMap := make(map[string]string)
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
@@ -158,9 +201,28 @@ INSERT:
 		return
 	}
 
-	_, err := dbConn.Exec(`COPY requests (data) FROM STDIN`, logsBuffer.String())
+	txn, err := dbConn.Begin()
 	if err != nil {
-		service.WarnLog(fmt.Sprintf("Failed to insert logs: %v", err))
+		service.WarnLog(fmt.Sprintf("Failed to begin transaction: %v", err))
+		return
+	}
+	stmt, err := txn.Prepare(`COPY requests (data) FROM STDIN`)
+	if err != nil {
+		service.WarnLog(fmt.Sprintf("Failed to prepare COPY statement: %v", err))
+		_ = txn.Rollback()
+		return
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(logsBuffer.Bytes())
+	if err != nil {
+		service.WarnLog(fmt.Sprintf("Failed to execute COPY statement: %v", err))
+		_ = txn.Rollback()
+		return
+	}
+
+	if err := txn.Commit(); err != nil {
+		service.WarnLog(fmt.Sprintf("Failed to commit transaction: %v", err))
 	}
 }
 
