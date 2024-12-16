@@ -51,6 +51,7 @@ func Prepare(_service *services.Service) func() {
 	service = _service
 
 	log.Println("1")
+	log.Println(fmt.Sprintf("db postgres://%s:%s@localhost/%s?sslmode=disable", env.GetEnv("PSQL_USER", "wiredshield"), env.GetEnv("PSQL_PASSWORD", ""), env.GetEnv("PSQL_DB", "reverseproxy")))
 
 	service.InfoLog(fmt.Sprintf("db postgres://%s:%s@localhost/%s?sslmode=disable", env.GetEnv("PSQL_USER", "wiredshield"), env.GetEnv("PSQL_PASSWORD", ""), env.GetEnv("PSQL_DB", "reverseproxy")))
 
