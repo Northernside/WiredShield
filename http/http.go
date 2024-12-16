@@ -172,7 +172,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func processRequestLogs() {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
