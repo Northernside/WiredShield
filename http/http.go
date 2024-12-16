@@ -69,6 +69,8 @@ func Prepare(_service *services.Service) func() {
 	dbConn.SetMaxOpenConns(512)
 	dbConn.SetMaxIdleConns(16)
 
+	dbConn.Exec("CREATE TABLE IF NOT EXISTS requests (data JSONB)")
+
 	go processRequestLogs()
 
 	return func() {
