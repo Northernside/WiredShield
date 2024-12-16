@@ -46,7 +46,7 @@ func init() {
 	time.Sleep(500 * time.Millisecond)
 	var err error
 	dbConn, err = sql.Open("postgres", fmt.Sprintf(
-		"user=%s password=%s dbname=%s sslmode=disable",
+		"host=localhost port=5432 user=%s password=%s dbname=%s sslmode=disable",
 		env.GetEnv("PSQL_USER", "wiredshield"),
 		env.GetEnv("PSQL_PASSWORD", ""),
 		env.GetEnv("PSQL_DB", "reverseproxy"),
