@@ -106,7 +106,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	} else {
 		targetRecords, err := db.GetRecords("A", host)
 		if err != nil || len(targetRecords) == 0 {
-			ctx.Error(fmt.Sprintf("no records found for %s\ndebug: %v\ntargetRecords: %v\n%s", host, err, targetRecords, host), fasthttp.StatusNotFound)
+			ctx.Error(fmt.Sprintf("no records found for %s\ndebug: %v\ntargetRecords: %v\nhost: %s", host, err, targetRecords, host), fasthttp.StatusNotFound)
 			return
 		}
 
@@ -176,17 +176,21 @@ func buildRequestRow(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, response
 	requestSize := len(ctx.Request.Body())
 	responseSize := len(resp.Body())
 	tlsVersion := "unknown"
-	if tlsConnState := ctx.TLSConnectionState(); tlsConnState != nil {
-		switch tlsConnState.Version {
-		case tls.VersionTLS10:
-			tlsVersion = "TLS 1.0"
-		case tls.VersionTLS11:
-			tlsVersion = "TLS 1.1"
-		case tls.VersionTLS12:
-			tlsVersion = "TLS 1.2"
-		case tls.VersionTLS13:
-			tlsVersion = "TLS 1.3"
+	if ctx.IsTLS() {
+		if tlsConnState := ctx.TLSConnectionState(); tlsConnState != nil {
+			switch tlsConnState.Version {
+			case tls.VersionTLS10:
+				tlsVersion = "TLS 1.0"
+			case tls.VersionTLS11:
+				tlsVersion = "TLS 1.1"
+			case tls.VersionTLS12:
+				tlsVersion = "TLS 1.2"
+			case tls.VersionTLS13:
+				tlsVersion = "TLS 1.3"
+			}
 		}
+	} else {
+		tlsVersion = "none"
 	}
 
 	return []interface{}{
