@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
@@ -35,8 +34,7 @@ type RequestLog struct {
 }
 
 var (
-	requestsChannel    = make(chan *fasthttp.Request)
-	requestLogsChannel = make(chan *RequestLog, 1024*16)
+	requestLogsChannel = make(chan *RequestLog, 1000)
 	clientPool         sync.Pool
 	service            *services.Service
 	certCache          sync.Map
@@ -44,8 +42,6 @@ var (
 )
 
 func init() {
-	env.LoadEnvFile()
-	time.Sleep(500 * time.Millisecond)
 	var err error
 	dbConn, err = sql.Open("postgres", fmt.Sprintf(
 		"user=%s password=%s dbname=%s sslmode=disable",
@@ -62,8 +58,6 @@ func init() {
 
 func Prepare(_service *services.Service) func() {
 	service = _service
-
-	go handleRequestLogging()
 
 	return func() {
 		port := env.GetEnv("HTTP_PORT", "443")
@@ -83,7 +77,7 @@ func Prepare(_service *services.Service) func() {
 		server := &fasthttp.Server{
 			Handler: ProxyHandler,
 			TLSConfig: &tls.Config{
-				MinVersion:               tls.VersionTLS10,
+				MinVersion:               tls.VersionTLS12,
 				MaxVersion:               tls.VersionTLS13,
 				GetCertificate:           getCertificateForDomain,
 				InsecureSkipVerify:       false,
@@ -102,49 +96,18 @@ func Prepare(_service *services.Service) func() {
 
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	timeStart := time.Now()
-	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
-	if err != nil || len(targetRecords) == 0 {
-		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
-		return
-	}
-	targetRecord := targetRecords[0].(db.ARecord)
-	targetURL := "http://" + targetRecord.IP + string(ctx.Path())
 
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
-
-	req.SetRequestURI(targetURL + string(ctx.URI().String()))
-	req.Header.SetMethodBytes(ctx.Method())
-	req.Header.Set("wired-origin-ip", ctx.RemoteAddr().String())
-	req.Header.Set("host", string(ctx.Host()))
-
+	reqHeadersMap := make(map[string]string)
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
-		req.Header.SetBytesKV(key, value)
+		reqHeadersMap[string(key)] = string(value)
 	})
+	reqHeaders, _ := json.Marshal(reqHeadersMap)
 
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
-
-	client := clientPool.Get().(*fasthttp.Client)
-	defer clientPool.Put(client)
-
-	err = client.Do(req, resp)
-	if err != nil {
-		ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
-		return
-	}
-
-	resp.Header.VisitAll(func(key, value []byte) {
-		ctx.Response.Header.SetBytesKV(key, value)
+	respHeadersMap := make(map[string]string)
+	ctx.Response.Header.VisitAll(func(key, value []byte) {
+		respHeadersMap[string(key)] = string(value)
 	})
-
-	ctx.Response.Header.Set("server", "wiredshield")
-	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
-	ctx.SetStatusCode(resp.StatusCode())
-	ctx.SetBody(resp.Body())
-
-	reqHeaders, _ := json.Marshal(convertHeaders(&ctx.Request.Header))
-	respHeaders, _ := json.Marshal(convertHeaders(&resp.Header))
+	respHeaders, _ := json.Marshal(respHeadersMap)
 
 	requestLogsChannel <- &RequestLog{
 		RequestTime:          timeStart,
@@ -155,56 +118,9 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 		QueryParams:          string(ctx.URI().QueryString()),
 		RequestHeaders:       reqHeaders,
 		ResponseHeaders:      respHeaders,
-		ResponseStatusOrigin: resp.StatusCode(),
-		ResponseStatusProxy:  ctx.Response.StatusCode(),
+		ResponseStatusOrigin: ctx.Response.StatusCode(),
+		ResponseStatusProxy:  fasthttp.StatusOK,
 		ResponseTime:         time.Since(timeStart),
-		TLSVersion:           tlsVersionToString(ctx.TLSConnectionState().Version),
-		RequestSize:          int64(ctx.Request.Header.ContentLength()),
-		ResponseSize:         int64(resp.Header.ContentLength()),
-		RequestHTTPVersion:   string(ctx.Request.Header.Protocol()),
-	}
-
-	select {
-	case requestsChannel <- req:
-	default:
-		ctx.Error("service unavailable", fasthttp.StatusServiceUnavailable)
-	}
-}
-
-func convertHeaders(headers interface{}) map[string]string {
-	result := make(map[string]string)
-	switch h := headers.(type) {
-	case *fasthttp.RequestHeader:
-		h.VisitAll(func(key, value []byte) {
-			result[string(key)] = string(value)
-		})
-	case *fasthttp.ResponseHeader:
-		h.VisitAll(func(key, value []byte) {
-			result[string(key)] = string(value)
-		})
-	}
-
-	return result
-}
-
-func tlsVersionToString(version uint16) string {
-	switch version {
-	case tls.VersionTLS10:
-		return "TLS v1.0"
-	case tls.VersionTLS11:
-		return "TLS v1.1"
-	case tls.VersionTLS12:
-		return "TLS v1.2"
-	case tls.VersionTLS13:
-		return "TLS v1.3"
-	default:
-		return "Unknown"
-	}
-}
-
-func handleRequestLogging() {
-	for req := range requestsChannel {
-		service.InfoLog("Request to " + string(req.URI().Host()))
 	}
 }
 
