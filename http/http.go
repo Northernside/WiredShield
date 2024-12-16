@@ -69,7 +69,17 @@ func Prepare(_service *services.Service) func() {
 	dbConn.SetMaxOpenConns(512)
 	dbConn.SetMaxIdleConns(16)
 
-	dbConn.Exec("CREATE TABLE IF NOT EXISTS requests (data JSONB)")
+	err = dbConn.Ping()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to ping database: %v", err))
+	}
+
+	res, err := dbConn.Exec(`CREATE TABLE IF NOT EXISTS test (id serial PRIMARY KEY, data jsonb);`)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create table: %v", err))
+	}
+
+	log.Println(res)
 
 	go processRequestLogs()
 
