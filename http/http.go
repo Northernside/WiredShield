@@ -12,6 +12,7 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
+	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
 )
 
@@ -44,7 +45,7 @@ var (
 
 func init() {
 	env.LoadEnvFile()
-	time.Sleep(1 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 	var err error
 	dbConn, err = sql.Open("postgres", fmt.Sprintf(
 		"user=%s password=%s dbname=%s sslmode=disable",
