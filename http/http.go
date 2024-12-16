@@ -42,6 +42,8 @@ var (
 )
 
 func init() {
+	env.LoadEnvFile()
+	time.Sleep(500 * time.Millisecond)
 	var err error
 	dbConn, err = sql.Open("postgres", fmt.Sprintf(
 		"user=%s password=%s dbname=%s sslmode=disable",
