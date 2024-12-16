@@ -55,6 +55,9 @@ func init() {
 		panic(fmt.Sprintf("Failed to connect to database: %v", err))
 	}
 
+	dbConn.SetMaxOpenConns(0)
+	dbConn.SetMaxIdleConns(16)
+
 	go processRequestLogs()
 }
 
