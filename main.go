@@ -16,8 +16,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func main() {
+func init() {
 	env.LoadEnvFile()
+}
+
+func main() {
 	db.Init()
 
 	commands.Commands = []commands.Command{
