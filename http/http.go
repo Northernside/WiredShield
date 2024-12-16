@@ -106,7 +106,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	} else {
 		targetRecords, err := db.GetRecords("A", host)
 		if err != nil || len(targetRecords) == 0 {
-			ctx.Error(fmt.Sprintf("no records found for %s\ndebug: %v\ntargetRecords: %v", host, err, targetRecords), fasthttp.StatusNotFound)
+			ctx.Error(fmt.Sprintf("no records found for %s\ndebug: %v\ntargetRecords: %v\n%s", host, err, targetRecords, host), fasthttp.StatusNotFound)
 			return
 		}
 
