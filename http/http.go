@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 	"wiredshield/modules/db"
@@ -48,6 +49,8 @@ func init() {
 
 func Prepare(_service *services.Service) func() {
 	service = _service
+
+	log.Println("1")
 
 	var err error
 	dbConn, err = sql.Open("postgres", fmt.Sprintf(
