@@ -1,7 +1,6 @@
 package http
 
 import (
-	"bytes"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -35,7 +34,7 @@ type RequestLog struct {
 }
 
 var (
-	requestLogsChannel = make(chan *RequestLog, 1000)
+	requestLogsChannel = make(chan *RequestLog, 1024^2)
 	clientPool         sync.Pool
 	service            *services.Service
 	certCache          sync.Map
@@ -170,7 +169,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func processRequestLogs() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -179,7 +178,7 @@ func processRequestLogs() {
 }
 
 func flushRequestLogs() {
-	var logsBuffer bytes.Buffer
+	var logsBuffer []string
 
 	for {
 		select {
@@ -189,24 +188,23 @@ func flushRequestLogs() {
 				service.WarnLog(fmt.Sprintf("Failed to marshal log: %v", err))
 				continue
 			}
-			logsBuffer.Write(logLine)
-			logsBuffer.WriteByte('\n')
+			logsBuffer = append(logsBuffer, string(logLine))
 		default:
+			if len(logsBuffer) == 0 {
+				return
+			}
 			goto INSERT
 		}
 	}
 
 INSERT:
-	if logsBuffer.Len() == 0 {
-		return
-	}
-
 	txn, err := dbConn.Begin()
 	if err != nil {
 		service.WarnLog(fmt.Sprintf("Failed to begin transaction: %v", err))
 		return
 	}
-	stmt, err := txn.Prepare(`COPY requests (data) FROM STDIN`)
+
+	stmt, err := txn.Prepare("COPY requests (data) FROM STDIN")
 	if err != nil {
 		service.WarnLog(fmt.Sprintf("Failed to prepare COPY statement: %v", err))
 		_ = txn.Rollback()
@@ -214,11 +212,13 @@ INSERT:
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(logsBuffer.Bytes())
-	if err != nil {
-		service.WarnLog(fmt.Sprintf("Failed to execute COPY statement: %v", err))
-		_ = txn.Rollback()
-		return
+	for _, log := range logsBuffer {
+		_, err = stmt.Exec([]byte(log + "\n"))
+		if err != nil {
+			service.WarnLog(fmt.Sprintf("Failed to execute COPY statement: %v", err))
+			_ = txn.Rollback()
+			return
+		}
 	}
 
 	if err := txn.Commit(); err != nil {
