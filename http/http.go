@@ -52,6 +52,8 @@ func Prepare(_service *services.Service) func() {
 
 	log.Println("1")
 
+	service.InfoLog(fmt.Sprintf("db postgres://%s:%s@localhost/%s?sslmode=disable", env.GetEnv("PSQL_USER", "wiredshield"), env.GetEnv("PSQL_PASSWORD", ""), env.GetEnv("PSQL_DB", "reverseproxy")))
+
 	var err error
 	dbConn, err = sql.Open("postgres", fmt.Sprintf(
 		"postgres://%s:%s@localhost/%s?sslmode=disable",
@@ -62,8 +64,6 @@ func Prepare(_service *services.Service) func() {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to database: %v", err))
 	}
-
-	service.InfoLog(fmt.Sprintf("db postgres://%s:%s@localhost/%s?sslmode=disable", env.GetEnv("PSQL_USER", "wiredshield"), env.GetEnv("PSQL_PASSWORD", ""), env.GetEnv("PSQL_DB", "reverseproxy")))
 
 	dbConn.SetMaxOpenConns(512)
 	dbConn.SetMaxIdleConns(16)
