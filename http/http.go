@@ -191,11 +191,14 @@ func flushRequestLogs() {
 				service.WarnLog(fmt.Sprintf("Failed to marshal log: %v", err))
 				continue
 			}
+
+			service.InfoLog(string(logLine))
 			logsBuffer = append(logsBuffer, string(logLine))
 		default:
 			if len(logsBuffer) == 0 {
 				return
 			}
+
 			goto INSERT
 		}
 	}
@@ -216,6 +219,7 @@ INSERT:
 	defer stmt.Close()
 
 	for _, log := range logsBuffer {
+		service.InfoLog(fmt.Sprintf(">>>>>>> Inserting log: %s", log))
 		_, err = stmt.Exec([]byte(log + "\n"))
 		if err != nil {
 			service.WarnLog(fmt.Sprintf("Failed to execute COPY statement: %v", err))
