@@ -19,7 +19,7 @@ import (
 )
 
 type RequestLog struct {
-	RequestTime          time.Time       `json:"request_time"`
+	RequestTime          int64           `json:"request_time"`
 	ClientIP             string          `json:"client_ip"`
 	Method               string          `json:"method"`
 	Host                 string          `json:"host"`
@@ -170,9 +170,9 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	})
 	respHeaders, _ := json.Marshal(respHeadersMap)
 
-	service.InfoLog(string(ctx.QueryArgs().QueryString()))
+	service.InfoLog(string(ctx.QueryArgs().QueryString())) // -> /?test=aaa&meow=woof -> test=aaa&meow=woof
 	requestLogsChannel <- &RequestLog{
-		RequestTime:          timeStart,
+		RequestTime:          timeStart.Unix(),
 		ClientIP:             getIp(ctx),
 		Method:               string(ctx.Method()),
 		Host:                 string(ctx.Host()),
@@ -194,15 +194,17 @@ type QueryParams map[string]string
 
 func queryParamString(query string) json.RawMessage {
 	params := make(QueryParams)
-	for _, param := range strings.Split(query, "&") {
-		parts := strings.Split(param, "=")
-		if len(parts) == 2 {
-			params[parts[0]] = parts[1]
+	for _, pair := range strings.Split(query, "&") {
+		parts := strings.Split(pair, "=")
+		if len(parts) != 2 {
+			continue
 		}
+
+		params[parts[0]] = parts[1]
 	}
 
 	data, _ := json.Marshal(params)
-	return json.RawMessage(data)
+	return data
 }
 
 func tlsVersionToString(version uint16) string {
