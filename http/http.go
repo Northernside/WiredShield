@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"sync"
@@ -29,7 +28,7 @@ type RequestLog struct {
 	ResponseHeaders      json.RawMessage `json:"response_headers"`
 	ResponseStatusOrigin int             `json:"response_status_origin"`
 	ResponseStatusProxy  int             `json:"response_status_proxy"`
-	ResponseTime         time.Duration   `json:"response_time"`
+	ResponseTime         int64           `json:"response_time"`
 	TLSVersion           string          `json:"tls_version"`
 	RequestSize          int64           `json:"request_size"`
 	ResponseSize         int64           `json:"response_size"`
@@ -52,11 +51,6 @@ func init() {
 func Prepare(_service *services.Service) func() {
 	service = _service
 
-	log.Println("1")
-	log.Println(fmt.Sprintf("db postgres://%s:%s@localhost:5432/%s?sslmode=disable", env.GetEnv("PSQL_USER", "wiredshield"), env.GetEnv("PSQL_PASSWORD", ""), env.GetEnv("PSQL_DB", "reverseproxy")))
-
-	//service.InfoLog(fmt.Sprintf("db postgres://%s:%s@localhost:5432/%s?sslmode=disable", env.GetEnv("PSQL_USER", "wiredshield"), env.GetEnv("PSQL_PASSWORD", ""), env.GetEnv("PSQL_DB", "reverseproxy")))
-
 	var err error
 	dbConn, err = sql.Open("postgres", fmt.Sprintf(
 		"postgres://%s:%s@localhost:5432/%s?sslmode=disable",
@@ -68,8 +62,8 @@ func Prepare(_service *services.Service) func() {
 		panic(fmt.Sprintf("Failed to connect to database: %v", err))
 	}
 
-	dbConn.SetMaxOpenConns(512)
-	dbConn.SetMaxIdleConns(16)
+	dbConn.SetMaxOpenConns(0)
+	dbConn.SetMaxIdleConns(32)
 
 	err = dbConn.Ping()
 	if err != nil {
@@ -170,7 +164,6 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	})
 	respHeaders, _ := json.Marshal(respHeadersMap)
 
-	service.InfoLog(string(ctx.QueryArgs().QueryString())) // -> /?test=aaa&meow=woof -> test=aaa&meow=woof
 	requestLogsChannel <- &RequestLog{
 		RequestTime:          timeStart.Unix(),
 		ClientIP:             getIp(ctx),
@@ -182,7 +175,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 		ResponseHeaders:      json.RawMessage(respHeaders),
 		ResponseStatusOrigin: ctx.Response.StatusCode(),
 		ResponseStatusProxy:  fasthttp.StatusOK,
-		ResponseTime:         time.Since(timeStart),
+		ResponseTime:         time.Since(timeStart).Microseconds(),
 		TLSVersion:           tlsVersionToString(ctx.TLSConnectionState().Version),
 		RequestSize:          int64(ctx.Request.Header.Len()),
 		ResponseSize:         int64(len(ctx.Response.Body())),
