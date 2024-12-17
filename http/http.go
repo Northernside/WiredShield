@@ -63,7 +63,7 @@ func Prepare(_service *services.Service) func() {
 	}
 
 	dbConn.SetMaxOpenConns(0)
-	dbConn.SetMaxIdleConns(32)
+	dbConn.SetMaxIdleConns(128)
 
 	err = dbConn.Ping()
 	if err != nil {
@@ -215,46 +215,35 @@ func tlsVersionToString(version uint16) string {
 	}
 }
 
-/*
-	insertQuery := `INSERT INTO requests
-		(request_time, client_ip, method, host, path, query_params, request_headers, response_headers, response_status_origin,
-		response_status_proxy, response_time, tls_version, request_size, response_size, request_http_version)
-		VALUES %s`
-*/
-
 func processRequestLogs() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			logs := collectLogsFromChannel()
+	for range ticker.C {
+		logs := collectLogsFromChannel()
 
-			if len(logs) > 0 {
+		if len(logs) > 0 {
+			go func() {
 				err := batchInsertRequestLogs(logs)
 				if err != nil {
 					service.ErrorLog(fmt.Sprintf("Failed to insert request logs: %v", err))
 				}
-			}
+			}()
 		}
 	}
 }
 
 func collectLogsFromChannel() []*RequestLog {
-	logs := make([]*RequestLog, 0, 64)
+	logs := make([]*RequestLog, 0, 128)
 
-	for {
-		select {
-		case log := <-requestLogsChannel:
-			logs = append(logs, log)
-			if len(logs) >= 64 {
-				return logs
-			}
-		default:
+	for log := range requestLogsChannel {
+		logs = append(logs, log)
+		if len(logs) >= 128 {
 			return logs
 		}
 	}
+
+	return logs
 }
 
 func batchInsertRequestLogs(logs []*RequestLog) error {
@@ -300,19 +289,10 @@ func batchInsertRequestLogs(logs []*RequestLog) error {
 		) VALUES %s
 	`, strings.Join(placeholders, ","))
 
-	start := time.Now()
 	_, err := dbConn.Exec(query, values...)
-	elapsed := time.Since(start)
-
 	if err != nil {
 		return fmt.Errorf("batch insert failed: %v", err)
 	}
-
-	service.InfoLog(fmt.Sprintf(
-		"Batch inserted %d logs in %v",
-		len(logs),
-		elapsed,
-	))
 
 	return nil
 }
@@ -327,7 +307,6 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return cert.(*tls.Certificate), nil
 	}
 
-	service.InfoLog("Loading certificate for " + domain)
 	c, err := tls.LoadX509KeyPair(fmt.Sprintf("certs/%s.crt", domain), fmt.Sprintf("certs/%s.key", domain))
 	if err == nil {
 		certCache.Store(domain, &c)
@@ -338,7 +317,6 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 
 func getIp(reqCtx *fasthttp.RequestCtx) string {
 	addr := reqCtx.RemoteAddr()
-	service.InfoLog("Client IP ddd: " + addr.String())
 	ipAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
 		return ""
