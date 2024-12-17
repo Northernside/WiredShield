@@ -18,22 +18,21 @@ func init() {
 
 func main() {
 	db.Init()
-	log.Println("LMDB initialized")
 
-	commands.Commands = []commands.Command{}
+	commands.Commands = []commands.Command{
+		{Key: "help", Desc: "Show this help message", Fn: commands.Help},
+		{Key: "clear", Desc: "Clear the output", Fn: commands.Clear},
+		{Key: "boot", Desc: "Boot all services", Fn: commands.Boot},
+		{Key: "info", Desc: "Show service info", Fn: commands.Info},
+		{Key: "dns", Desc: "DNS server", Fn: commands.Dns},
+	}
 
 	dnsService := services.RegisterService("dns", "DNS Server")
 	dnsService.Boot = wireddns.Prepare(dnsService)
 
-	log.Println("DNS service registered")
-
 	httpProxyService := services.RegisterService("http", "HTTP Proxy")
-	log.Println("HTTP service registered 1")
 	httpProxyService.Boot = http.Prepare(httpProxyService)
 
-	log.Println("HTTP service registered 2")
-
-	log.Println("Services registered")
 	model := commands.InitialModel()
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {

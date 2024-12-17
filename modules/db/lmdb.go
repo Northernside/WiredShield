@@ -29,14 +29,12 @@ func Init() {
 		log.Fatal("failed to set map size:", err)
 	}
 
-	log.Println("LMDB environment created")
 	lmdbPath := _env.GetEnv("LMDB_PATH", "./wiredshield.lmdb")
 	err = env.Open(lmdbPath, lmdb.Create|lmdb.NoSubdir, 0644)
 	if err != nil {
 		log.Fatal("failed to open LMDB environment:", err)
 	}
 
-	log.Println("LMDB environment opened")
 	err = env.Update(func(txn *lmdb.Txn) error {
 		db, err = txn.OpenDBI("wiredshield", lmdb.Create)
 		if err != nil {
@@ -46,7 +44,6 @@ func Init() {
 		return nil
 	})
 
-	log.Println("LMDB database opened")
 	if err != nil {
 		log.Fatal("transaction failed:", err)
 	}
