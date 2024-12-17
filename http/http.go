@@ -202,36 +202,38 @@ func processRequestLogs() {
 
 func flushRequestLogs() {
 	var logsBuffer []string
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
-	// psql COPY transactions
-
-	for log := range requestLogsChannel {
-		logsBuffer = append(logsBuffer, fmt.Sprintf(
-			"('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s')",
-			log.RequestTime.Format(time.RFC3339),
-			log.ClientIP,
-			log.Method,
-			log.Host,
-			log.Path,
-			log.QueryParams,
-			log.RequestHeaders,
-			log.ResponseHeaders,
-			log.ResponseStatusOrigin,
-			log.ResponseStatusProxy,
-			log.ResponseTime.String(),
-			log.TLSVersion,
-		))
-
-		if len(logsBuffer) >= 100 {
-			_, err := dbConn.Exec(fmt.Sprintf(
-				"INSERT INTO requests (data) VALUES %s;",
-				strings.Join(logsBuffer, ","),
+	for {
+		select {
+		case log := <-requestLogsChannel:
+			logsBuffer = append(logsBuffer, fmt.Sprintf(
+				"('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s')",
+				log.RequestTime.Format(time.RFC3339),
+				log.ClientIP,
+				log.Method,
+				log.Host,
+				log.Path,
+				log.QueryParams,
+				log.RequestHeaders,
+				log.ResponseHeaders,
+				log.ResponseStatusOrigin,
+				log.ResponseStatusProxy,
+				log.ResponseTime.String(),
+				log.TLSVersion,
 			))
-			if err != nil {
-				service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
+		case <-ticker.C:
+			if len(logsBuffer) > 0 {
+				_, err := dbConn.Exec(fmt.Sprintf(
+					"INSERT INTO requests (data) VALUES %s;",
+					strings.Join(logsBuffer, ","),
+				))
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
+				}
+				logsBuffer = nil
 			}
-
-			logsBuffer = nil
 		}
 	}
 }
