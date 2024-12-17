@@ -129,15 +129,15 @@ func Dns(model *Model) {
 
 			if protected {
 				model.Output += "Generating SSL certificate for " + split[3] + "\n"
-				certPEM, keyPEM, err := ssl.GenerateCertificate(split[2])
+				certPEM, keyPEM, err := ssl.GenerateCertificate(split[3])
 				if err != nil {
 					model.Output += "Failed to generate certificate: " + err.Error() + "\n"
 					return
 				}
 
 				// save to certs/<domain>
-				certFile := fmt.Sprintf("certs/%s.crt", split[2])
-				keyFile := fmt.Sprintf("certs/%s.key", split[2])
+				certFile := fmt.Sprintf("certs/%s.crt", split[3])
+				keyFile := fmt.Sprintf("certs/%s.key", split[3])
 
 				writer, err := os.Create(certFile)
 				if err != nil {
