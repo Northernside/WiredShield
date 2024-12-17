@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"wiredshield/modules/db"
 
 	"github.com/pkg/errors"
@@ -35,6 +36,15 @@ func getClient() *acme.Client {
 	_client := &acme.Client{
 		Key:          accountKey,
 		DirectoryURL: acme.LetsEncryptURL,
+	}
+
+	_, err = client.Register(context.Background(), &acme.Account{
+		Contact: []string{"mailto:ssl@northernsi.de"},
+	}, func(tosURL string) bool {
+		return true
+	})
+	if err != nil {
+		log.Fatalf("Failed to register account: %v", err)
 	}
 
 	return _client
