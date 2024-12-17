@@ -171,7 +171,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	requestLogsChannel <- &RequestLog{
 		RequestTime:          timeStart,
-		ClientIP:             ctx.RemoteAddr().String(),
+		ClientIP:             ctx.RemoteIP().String(),
 		Method:               string(ctx.Method()),
 		Host:                 string(ctx.Host()),
 		Path:                 string(ctx.Path()),
