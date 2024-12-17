@@ -135,7 +135,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	req.SetRequestURI(targetURL)
 	req.Header.SetMethodBytes(ctx.Method())
-	req.Header.Set("wired-origin-ip", ctx.RemoteAddr().String())
+	req.Header.Set("wired-origin-ip", getIp(ctx))
 	req.Header.Set("host", string(ctx.Host()))
 
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
