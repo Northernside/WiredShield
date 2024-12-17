@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -170,8 +171,8 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	respHeaders, _ := json.Marshal(respHeadersMap)
 
 	requestLogsChannel <- &RequestLog{
-		RequestTime:          timeStart,
-		ClientIP:             ctx.RemoteIP().String(),
+		RequestTime:          timeStart, // ip without port
+		ClientIP:             getIp(ctx),
 		Method:               string(ctx.Method()),
 		Host:                 string(ctx.Host()),
 		Path:                 string(ctx.Path()),
@@ -251,4 +252,14 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 	}
 
 	return &c, err
+}
+
+func getIp(reqCtx *fasthttp.RequestCtx) string {
+	addr := reqCtx.RemoteAddr()
+	ipAddr, ok := addr.(*net.TCPAddr)
+	if !ok {
+		return ""
+	}
+
+	return ipAddr.IP.String()
 }
