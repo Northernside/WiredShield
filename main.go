@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"strings"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
@@ -12,7 +9,6 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
