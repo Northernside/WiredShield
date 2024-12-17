@@ -256,19 +256,6 @@ func collectAdditionalLogs(initialLog *RequestLog) []*RequestLog {
 	return logs
 }
 
-func collectLogsFromChannel() []*RequestLog {
-	logs := make([]*RequestLog, 0, 128)
-
-	for log := range requestLogsChannel {
-		logs = append(logs, log)
-		if len(logs) >= 128 {
-			return logs
-		}
-	}
-
-	return logs
-}
-
 func batchInsertRequestLogs(logs []*RequestLog) error {
 	if len(logs) == 0 {
 		return nil
