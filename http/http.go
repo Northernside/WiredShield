@@ -171,17 +171,36 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	respHeaders, _ := json.Marshal(respHeadersMap)
 
 	requestLogsChannel <- &RequestLog{
-		RequestTime:          timeStart, // ip without port
+		RequestTime:          timeStart,
 		ClientIP:             getIp(ctx),
 		Method:               string(ctx.Method()),
 		Host:                 string(ctx.Host()),
 		Path:                 string(ctx.Path()),
 		QueryParams:          string(ctx.URI().QueryString()),
-		RequestHeaders:       reqHeaders,
-		ResponseHeaders:      respHeaders,
+		RequestHeaders:       json.RawMessage(reqHeaders),
+		ResponseHeaders:      json.RawMessage(respHeaders),
 		ResponseStatusOrigin: ctx.Response.StatusCode(),
 		ResponseStatusProxy:  fasthttp.StatusOK,
 		ResponseTime:         time.Since(timeStart),
+		TLSVersion:           tlsVersionToString(ctx.TLSConnectionState().Version),
+		RequestSize:          int64(ctx.Request.Header.Len()),
+		ResponseSize:         int64(len(ctx.Response.Body())),
+		RequestHTTPVersion:   string(ctx.Request.Header.Protocol()),
+	}
+}
+
+func tlsVersionToString(version uint16) string {
+	switch version {
+	case tls.VersionTLS10:
+		return "TLS 1.0"
+	case tls.VersionTLS11:
+		return "TLS 1.1"
+	case tls.VersionTLS12:
+		return "TLS 1.2"
+	case tls.VersionTLS13:
+		return "TLS 1.3"
+	default:
+		return "Unknown"
 	}
 }
 
@@ -203,8 +222,8 @@ func flushRequestLogs() {
 	defer ticker.Stop()
 
 	insertQuery := `INSERT INTO requests 
-		(request_time, client_ip, method, host, path, query_params, request_headers, 
-		response_headers, response_status_origin, response_status_proxy, response_time, tls_version) 
+		(request_time, client_ip, method, host, path, query_params, request_headers, response_headers,response_status_origin,
+		response_status_proxy, response_time, tls_version, request_size, response_size, request_http_version)
 		VALUES %s`
 
 	for {
@@ -231,21 +250,21 @@ func processBatch(logs []*RequestLog, baseQuery string) {
 		return
 	}
 
-	values := make([]interface{}, 0, len(logs)*12)
+	values := make([]interface{}, 0, len(logs)*15)
 	placeholders := make([]string, len(logs))
 
 	for i, log := range logs {
 		start := i * 12
 		placeholders[i] = fmt.Sprintf(
-			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-			start+1, start+2, start+3, start+4, start+5, start+6,
-			start+7, start+8, start+9, start+10, start+11, start+12,
+			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			start+1, start+2, start+3, start+4, start+5, start+6, start+7, start+8, start+9, start+10, start+11,
+			start+12, start+13, start+14, start+15,
 		)
+
 		values = append(values,
-			log.RequestTime.Format(time.RFC3339), log.ClientIP, log.Method, log.Host,
-			log.Path, log.QueryParams, log.RequestHeaders, log.ResponseHeaders,
-			log.ResponseStatusOrigin, log.ResponseStatusProxy, log.ResponseTime.String(),
-			log.TLSVersion,
+			log.RequestTime, log.ClientIP, log.Method, log.Host, log.Path, log.QueryParams, log.RequestHeaders,
+			log.ResponseHeaders, log.ResponseStatusOrigin, log.ResponseStatusProxy, log.ResponseTime, log.TLSVersion,
+			log.RequestSize, log.ResponseSize, log.RequestHTTPVersion,
 		)
 	}
 
