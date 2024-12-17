@@ -227,6 +227,7 @@ func flushRequestLogs() {
 				if err != nil {
 					service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
 				}
+
 				logsBuffer = nil
 			}
 		}
