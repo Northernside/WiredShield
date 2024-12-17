@@ -93,6 +93,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Target: r.Target,
 					}
 				case db.NSRecord:
+					service.InfoLog(fmt.Sprintf("NS record: %v", r))
+					service.InfoLog(fmt.Sprintf("NS record: %v", r.NS))
+					service.InfoLog(fmt.Sprintf("NS question: %v", question.Name))
 					rr = &dns.NS{
 						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
 						Ns:  r.NS,
