@@ -223,7 +223,7 @@ func processRequestLogs() {
 	defer ticker.Stop()
 
 	insertQuery := `INSERT INTO requests 
-		(request_time, client_ip, method, host, path, query_params, request_headers, response_headers,response_status_origin,
+		(request_time, client_ip, method, host, path, query_params, request_headers, response_headers, response_status_origin,
 		response_status_proxy, response_time, tls_version, request_size, response_size, request_http_version)
 		VALUES %s`
 
@@ -231,9 +231,9 @@ func processRequestLogs() {
 		select {
 		case log := <-requestLogsChannel:
 			logsBuffer = append(logsBuffer, log)
-
 		case <-ticker.C:
 			if len(logsBuffer) > 0 {
+				service.InfoLog(fmt.Sprintf("Flushing %d logs", len(logsBuffer)))
 				processBatch(logsBuffer, insertQuery)
 				logsBuffer = nil
 			}
