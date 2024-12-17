@@ -24,7 +24,7 @@ type RequestLog struct {
 	Method               string          `json:"method"`
 	Host                 string          `json:"host"`
 	Path                 string          `json:"path"`
-	QueryParams          string          `json:"query_params"`
+	QueryParams          json.RawMessage `json:"query_params"`
 	RequestHeaders       json.RawMessage `json:"request_headers"`
 	ResponseHeaders      json.RawMessage `json:"response_headers"`
 	ResponseStatusOrigin int             `json:"response_status_origin"`
@@ -170,13 +170,14 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	})
 	respHeaders, _ := json.Marshal(respHeadersMap)
 
+	service.InfoLog(string(ctx.QueryArgs().QueryString()))
 	requestLogsChannel <- &RequestLog{
 		RequestTime:          timeStart,
 		ClientIP:             getIp(ctx),
 		Method:               string(ctx.Method()),
 		Host:                 string(ctx.Host()),
 		Path:                 string(ctx.Path()),
-		QueryParams:          string(ctx.URI().QueryString()),
+		QueryParams:          queryParamString(string(ctx.QueryArgs().QueryString())),
 		RequestHeaders:       json.RawMessage(reqHeaders),
 		ResponseHeaders:      json.RawMessage(respHeaders),
 		ResponseStatusOrigin: ctx.Response.StatusCode(),
@@ -187,6 +188,21 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 		ResponseSize:         int64(len(ctx.Response.Body())),
 		RequestHTTPVersion:   string(ctx.Request.Header.Protocol()),
 	}
+}
+
+type QueryParams map[string]string
+
+func queryParamString(query string) json.RawMessage {
+	params := make(QueryParams)
+	for _, param := range strings.Split(query, "&") {
+		parts := strings.Split(param, "=")
+		if len(parts) == 2 {
+			params[parts[0]] = parts[1]
+		}
+	}
+
+	data, _ := json.Marshal(params)
+	return json.RawMessage(data)
 }
 
 func tlsVersionToString(version uint16) string {
