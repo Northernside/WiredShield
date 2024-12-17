@@ -267,7 +267,7 @@ func processBatch(logs []*RequestLog, baseQuery string) {
 	placeholders := make([]string, len(logs))
 
 	for i, log := range logs {
-		start := i * 12
+		start := i * 15
 		placeholders[i] = fmt.Sprintf(
 			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			start+1, start+2, start+3, start+4, start+5, start+6, start+7, start+8, start+9, start+10, start+11,
@@ -279,6 +279,8 @@ func processBatch(logs []*RequestLog, baseQuery string) {
 			log.ResponseHeaders, log.ResponseStatusOrigin, log.ResponseStatusProxy, log.ResponseTime, log.TLSVersion,
 			log.RequestSize, log.ResponseSize, log.RequestHTTPVersion,
 		)
+
+		service.InfoLog(fmt.Sprintf("%v", values))
 	}
 
 	query := fmt.Sprintf(baseQuery, strings.Join(placeholders, ","))
