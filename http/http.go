@@ -186,7 +186,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func processRequestLogs() {
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -195,43 +195,76 @@ func processRequestLogs() {
 }
 
 func flushRequestLogs() {
-	var logsBuffer []string
-	ticker := time.NewTicker(5 * time.Second)
+	var logsBuffer []*RequestLog
+	const bufferFlushInterval = 5 * time.Second
+	const maxBatchSize = 1000
+
+	ticker := time.NewTicker(bufferFlushInterval)
 	defer ticker.Stop()
+
+	insertQuery := `INSERT INTO requests 
+		(request_time, client_ip, method, host, path, query_params, request_headers, 
+		response_headers, response_status_origin, response_status_proxy, response_time, tls_version) 
+		VALUES %s`
 
 	for {
 		select {
 		case log := <-requestLogsChannel:
-			logsBuffer = append(logsBuffer, fmt.Sprintf(
-				"('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s')",
-				log.RequestTime.Format(time.RFC3339),
-				log.ClientIP,
-				log.Method,
-				log.Host,
-				log.Path,
-				log.QueryParams,
-				log.RequestHeaders,
-				log.ResponseHeaders,
-				log.ResponseStatusOrigin,
-				log.ResponseStatusProxy,
-				log.ResponseTime.String(),
-				log.TLSVersion,
-			))
+			logsBuffer = append(logsBuffer, log)
+
+			if len(logsBuffer) >= maxBatchSize {
+				processBatch(logsBuffer, insertQuery)
+				logsBuffer = nil
+			}
+
 		case <-ticker.C:
 			if len(logsBuffer) > 0 {
-				query := fmt.Sprintf(
-					"INSERT INTO requests (request_time, client_ip, method, host, path, query_params, request_headers, response_headers, response_status_origin, response_status_proxy, response_time, tls_version) VALUES %s;",
-					strings.Join(logsBuffer, ","),
-				)
-
-				_, err := dbConn.Exec(query)
-				if err != nil {
-					service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
-				}
-
+				processBatch(logsBuffer, insertQuery)
 				logsBuffer = nil
 			}
 		}
+	}
+}
+
+func processBatch(logs []*RequestLog, baseQuery string) {
+	if len(logs) == 0 {
+		return
+	}
+
+	values := make([]interface{}, 0, len(logs)*12)
+	placeholders := make([]string, len(logs))
+
+	for i, log := range logs {
+		start := i * 12
+		placeholders[i] = fmt.Sprintf(
+			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			start+1, start+2, start+3, start+4, start+5, start+6,
+			start+7, start+8, start+9, start+10, start+11, start+12,
+		)
+		values = append(values,
+			log.RequestTime.Format(time.RFC3339), log.ClientIP, log.Method, log.Host,
+			log.Path, log.QueryParams, log.RequestHeaders, log.ResponseHeaders,
+			log.ResponseStatusOrigin, log.ResponseStatusProxy, log.ResponseTime.String(),
+			log.TLSVersion,
+		)
+	}
+
+	query := fmt.Sprintf(baseQuery, strings.Join(placeholders, ","))
+	tx, err := dbConn.Begin()
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("Failed to begin transaction: %v", err))
+		return
+	}
+
+	_, err = tx.Exec(query, values...)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
+		tx.Rollback()
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		service.ErrorLog(fmt.Sprintf("Failed to commit transaction: %v", err))
 	}
 }
 
