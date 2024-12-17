@@ -18,14 +18,6 @@ import (
 var client *acme.Client
 var ctx = context.Background()
 
-func init() {
-	client = getClient()
-	if client == nil {
-		fmt.Println("Failed to initialize ACME client")
-		return
-	}
-}
-
 func getClient() *acme.Client {
 	accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -51,6 +43,12 @@ func getClient() *acme.Client {
 }
 
 func GenerateCertificate(domain string) ([]byte, []byte, error) {
+	client = getClient()
+	if client == nil {
+		fmt.Println("failed to get ACME client")
+		return nil, nil, nil
+	}
+
 	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domain))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to authorize order: %v", err)
