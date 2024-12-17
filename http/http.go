@@ -165,7 +165,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	respHeaders, _ := json.Marshal(respHeadersMap)
 
 	requestLogsChannel <- &RequestLog{
-		RequestTime:          timeStart.Unix(),
+		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             getIp(ctx),
 		Method:               string(ctx.Method()),
 		Host:                 string(ctx.Host()),
@@ -222,7 +222,7 @@ func processRequestLogs() {
 	ticker := time.NewTicker(bufferFlushInterval)
 	defer ticker.Stop()
 
-	insertQuery := `INSERT INTO requests 
+	insertQuery := `INSERT INTO requests
 		(request_time, client_ip, method, host, path, query_params, request_headers, response_headers, response_status_origin,
 		response_status_proxy, response_time, tls_version, request_size, response_size, request_http_version)
 		VALUES %s`
@@ -234,7 +234,7 @@ func processRequestLogs() {
 		case <-ticker.C:
 			if len(logsBuffer) > 0 {
 				service.InfoLog(fmt.Sprintf("Flushing %d logs", len(logsBuffer)))
-				processBatch(logsBuffer, insertQuery)
+				go processBatch(logsBuffer, insertQuery)
 				logsBuffer = nil
 			}
 		}
