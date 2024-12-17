@@ -70,8 +70,6 @@ func Prepare(_service *services.Service) func() {
 		panic(fmt.Sprintf("Failed to ping database: %v", err))
 	}
 
-	go processRequestLogs()
-
 	return func() {
 		port := env.GetEnv("HTTP_PORT", "443")
 		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
@@ -99,6 +97,8 @@ func Prepare(_service *services.Service) func() {
 			},
 			DisableKeepalive: false,
 		}
+
+		go processRequestLogs()
 
 		err := server.ListenAndServeTLS(addr, "", "")
 		if err != nil {
@@ -215,86 +215,106 @@ func tlsVersionToString(version uint16) string {
 	}
 }
 
-func processRequestLogs() {
-	var logsBuffer []*RequestLog
-	const bufferFlushInterval = 5 * time.Second
-	const numWorkers = 128
-
-	workers := make(chan []*RequestLog, numWorkers)
-
+/*
 	insertQuery := `INSERT INTO requests
 		(request_time, client_ip, method, host, path, query_params, request_headers, response_headers, response_status_origin,
 		response_status_proxy, response_time, tls_version, request_size, response_size, request_http_version)
 		VALUES %s`
+*/
 
-	for i := 0; i < numWorkers; i++ {
-		go func(workerID int) {
-			for logs := range workers {
-				processBatch(logs, insertQuery)
-				service.InfoLog(fmt.Sprintf("Worker %d processed %d logs", workerID, len(logs)))
-			}
-		}(i)
-	}
-
-	ticker := time.NewTicker(bufferFlushInterval)
+func processRequestLogs() {
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case log := <-requestLogsChannel:
-			logsBuffer = append(logsBuffer, log)
 		case <-ticker.C:
-			if len(logsBuffer) > 0 {
-				batch := logsBuffer
-				logsBuffer = nil
-				workers <- batch
+			logs := collectLogsFromChannel()
+
+			if len(logs) > 0 {
+				err := batchInsertRequestLogs(logs)
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("Failed to insert request logs: %v", err))
+				}
 			}
 		}
 	}
 }
 
-func processBatch(logs []*RequestLog, baseQuery string) {
+func collectLogsFromChannel() []*RequestLog {
+	logs := make([]*RequestLog, 0, 64)
+
+	for {
+		select {
+		case log := <-requestLogsChannel:
+			logs = append(logs, log)
+			if len(logs) >= 64 {
+				return logs
+			}
+		default:
+			return logs
+		}
+	}
+}
+
+func batchInsertRequestLogs(logs []*RequestLog) error {
 	if len(logs) == 0 {
-		return
+		return nil
 	}
 
-	values := make([]interface{}, 0, len(logs)*15)
 	placeholders := make([]string, len(logs))
+	values := make([]interface{}, 0, len(logs)*15)
 
 	for i, log := range logs {
-		start := i * 15
 		placeholders[i] = fmt.Sprintf(
 			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-			start+1, start+2, start+3, start+4, start+5, start+6, start+7, start+8, start+9, start+10, start+11,
-			start+12, start+13, start+14, start+15,
+			i*15+1, i*15+2, i*15+3, i*15+4, i*15+5, i*15+6, i*15+7, i*15+8,
+			i*15+9, i*15+10, i*15+11, i*15+12, i*15+13, i*15+14, i*15+15,
 		)
 
 		values = append(values,
-			log.RequestTime, log.ClientIP, log.Method, log.Host, log.Path, log.QueryParams, log.RequestHeaders,
-			log.ResponseHeaders, log.ResponseStatusOrigin, log.ResponseStatusProxy, log.ResponseTime, log.TLSVersion,
-			log.RequestSize, log.ResponseSize, log.RequestHTTPVersion,
+			log.RequestTime,
+			log.ClientIP,
+			log.Method,
+			log.Host,
+			log.Path,
+			log.QueryParams,
+			log.RequestHeaders,
+			log.ResponseHeaders,
+			log.ResponseStatusOrigin,
+			log.ResponseStatusProxy,
+			log.ResponseTime,
+			log.TLSVersion,
+			log.RequestSize,
+			log.ResponseSize,
+			log.RequestHTTPVersion,
 		)
-
-		service.InfoLog(fmt.Sprintf("%s %v", time.Now().Format(time.RFC3339), log))
 	}
 
-	query := fmt.Sprintf(baseQuery, strings.Join(placeholders, ","))
-	tx, err := dbConn.Begin()
+	query := fmt.Sprintf(`
+		INSERT INTO requests (
+			request_time, client_ip, method, host, path, query_params, 
+			request_headers, response_headers, response_status_origin, 
+			response_status_proxy, response_time, tls_version, 
+			request_size, response_size, request_http_version
+		) VALUES %s
+	`, strings.Join(placeholders, ","))
+
+	start := time.Now()
+	_, err := dbConn.Exec(query, values...)
+	elapsed := time.Since(start)
+
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to begin transaction: %v", err))
-		return
+		return fmt.Errorf("batch insert failed: %v", err)
 	}
 
-	_, err = tx.Exec(query, values...)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
-		tx.Rollback()
-		return
-	}
+	service.InfoLog(fmt.Sprintf(
+		"Batch inserted %d logs in %v",
+		len(logs),
+		elapsed,
+	))
 
-	if err := tx.Commit(); err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to commit transaction: %v", err))
-	}
+	return nil
 }
 
 func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
