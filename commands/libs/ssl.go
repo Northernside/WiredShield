@@ -30,7 +30,7 @@ func getClient() *acme.Client {
 		DirectoryURL: acme.LetsEncryptURL,
 	}
 
-	_, err = client.Register(context.Background(), &acme.Account{
+	_, err = _client.Register(context.Background(), &acme.Account{
 		Contact: []string{"mailto:ssl@northernsi.de"},
 	}, func(tosURL string) bool {
 		return true
