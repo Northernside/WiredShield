@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	ssl "wiredshield/commands/libs"
@@ -128,7 +129,32 @@ func Dns(model *Model) {
 
 			if protected {
 				model.Output += "Generating SSL certificate for " + split[3] + "\n"
-				ssl.GenerateCertificate(split[3])
+				certPEM, keyPEM, err := ssl.GenerateCertificate(split[2])
+				if err != nil {
+					model.Output += "Failed to generate certificate: " + err.Error() + "\n"
+					return
+				}
+
+				// save to certs/<domain>
+				certFile := fmt.Sprintf("certs/%s.crt", split[2])
+				keyFile := fmt.Sprintf("certs/%s.key", split[2])
+
+				writer, err := os.Create(certFile)
+				if err != nil {
+					model.Output += "failed to create cert file: " + err.Error() + "\n"
+					return
+				}
+				defer writer.Close()
+				writer.Write(certPEM)
+
+				writer, err = os.Create(keyFile)
+				if err != nil {
+					fmt.Printf("failed to create key file: %v", err)
+					return
+				}
+				defer writer.Close()
+				writer.Write(keyPEM)
+
 				model.Output += "SSL certificate for " + split[3] + " generated\n"
 			}
 		case "AAAA":

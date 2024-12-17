@@ -20,14 +20,7 @@ func main() {
 	db.Init()
 	log.Println("LMDB initialized")
 
-	commands.Commands = []commands.Command{
-		{Key: "help", Desc: "Show this help message", Fn: commands.Help},
-		{Key: "clear", Desc: "Clear the output", Fn: commands.Clear},
-		{Key: "boot", Desc: "Boot all services", Fn: commands.Boot},
-		{Key: "info", Desc: "Show service info", Fn: commands.Info},
-		{Key: "dns", Desc: "DNS server", Fn: commands.Dns},
-		{Key: "ssl", Desc: "SSL service", Fn: commands.Ssl},
-	}
+	commands.Commands = []commands.Command{}
 
 	dnsService := services.RegisterService("dns", "DNS Server")
 	dnsService.Boot = wireddns.Prepare(dnsService)
