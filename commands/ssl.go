@@ -35,9 +35,8 @@ func Ssl(model *Model) {
 			service.InfoLog("Usage: ssl generate <domain>\n")
 			return
 		}
-
+    
 		service.InfoLog("Generating certificate for " + split[2] + "...\n")
-
 		certPEM, keyPEM, err := ssl.GenerateCertificate(split[2])
 		if err != nil {
 			model.Output += "Failed to generate certificate: " + err.Error() + "\n"

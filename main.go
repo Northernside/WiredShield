@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"strings"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
@@ -9,6 +12,7 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -28,8 +32,6 @@ func main() {
 		{Key: "dns", Desc: "DNS server", Fn: commands.Dns},
 		{Key: "ssl", Desc: "SSL service", Fn: commands.Ssl},
 	}
-
-	log.Println("Commands registered")
 
 	dnsService := services.RegisterService("dns", "DNS Server")
 	dnsService.Boot = wireddns.Prepare(dnsService)
