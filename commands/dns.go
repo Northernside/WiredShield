@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	ssl "wiredshield/commands/libs"
 	"wiredshield/modules/db"
 )
 
@@ -123,6 +124,12 @@ func Dns(model *Model) {
 				Domain:    split[3],
 				IP:        split[4],
 				Protected: protected,
+			}
+
+			if protected {
+				model.Output += "Generating SSL certificate for " + split[3] + "\n"
+				ssl.GenerateCertificate(split[3])
+				model.Output += "SSL certificate for " + split[3] + " generated\n"
 			}
 		case "AAAA":
 			record = db.AAAARecord{
