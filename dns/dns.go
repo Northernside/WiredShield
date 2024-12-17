@@ -24,7 +24,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		for _, question := range r.Question {
 			// prepare
 			name := strings.ToLower(question.Name)
-			lookupName := strings.TrimSuffix(name, ".")
+			lookupName := strings.TrimSuffix(strings.ToLower(question.Name), ".")
 
 			// check if record is supported
 			var supported bool = false
@@ -62,7 +62,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					}
 
 					rr = &dns.A{
-						Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
+						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
 						A:   ip,
 					}
 				case db.AAAARecord:
@@ -74,12 +74,12 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					}
 
 					rr = &dns.AAAA{
-						Hdr:  dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
+						Hdr:  dns.RR_Header{Name: question.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
 						AAAA: ip,
 					}
 				case db.SOARecord:
 					rr = &dns.SOA{
-						Hdr:     dns.RR_Header{Name: name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
+						Hdr:     dns.RR_Header{Name: question.Name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
 						Ns:      r.PrimaryNS,
 						Mbox:    r.AdminEmail,
 						Serial:  r.Serial,
@@ -90,28 +90,28 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					}
 				case db.CNAMERecord:
 					rr = &dns.CNAME{
-						Hdr:    dns.RR_Header{Name: name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
+						Hdr:    dns.RR_Header{Name: question.Name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
 						Target: r.Target,
 					}
 				case db.NSRecord:
 					rr = &dns.NS{
-						Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
 						Ns:  r.NS,
 					}
 				case db.MXRecord:
 					rr = &dns.MX{
-						Hdr:        dns.RR_Header{Name: name, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: 300},
+						Hdr:        dns.RR_Header{Name: question.Name, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: 300},
 						Preference: r.Priority,
 						Mx:         r.Target,
 					}
 				case db.TXTRecord:
 					rr = &dns.TXT{
-						Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
+						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
 						Txt: []string{r.Text},
 					}
 				case db.SRVRecord:
 					rr = &dns.SRV{
-						Hdr:      dns.RR_Header{Name: name, Rrtype: dns.TypeSRV, Class: dns.ClassINET, Ttl: 300},
+						Hdr:      dns.RR_Header{Name: question.Name, Rrtype: dns.TypeSRV, Class: dns.ClassINET, Ttl: 300},
 						Priority: uint16(r.Priority),
 						Weight:   uint16(r.Weight),
 						Port:     uint16(r.Port),
