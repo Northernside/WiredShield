@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 	"wiredshield/modules/db"
@@ -202,53 +203,36 @@ func processRequestLogs() {
 func flushRequestLogs() {
 	var logsBuffer []string
 
-	for {
-		select {
-		case log := <-requestLogsChannel:
-			logLine, err := json.Marshal(log)
+	// psql COPY transactions
+
+	for log := range requestLogsChannel {
+		logsBuffer = append(logsBuffer, fmt.Sprintf(
+			"('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', '%s')",
+			log.RequestTime.Format(time.RFC3339),
+			log.ClientIP,
+			log.Method,
+			log.Host,
+			log.Path,
+			log.QueryParams,
+			log.RequestHeaders,
+			log.ResponseHeaders,
+			log.ResponseStatusOrigin,
+			log.ResponseStatusProxy,
+			log.ResponseTime.String(),
+			log.TLSVersion,
+		))
+
+		if len(logsBuffer) >= 100 {
+			_, err := dbConn.Exec(fmt.Sprintf(
+				"INSERT INTO requests (data) VALUES %s;",
+				strings.Join(logsBuffer, ","),
+			))
 			if err != nil {
-				service.WarnLog(fmt.Sprintf("Failed to marshal log: %v", err))
-				continue
+				service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
 			}
 
-			service.InfoLog(string(logLine))
-			logsBuffer = append(logsBuffer, string(logLine))
-		default:
-			if len(logsBuffer) == 0 {
-				return
-			}
-
-			goto INSERT
+			logsBuffer = nil
 		}
-	}
-
-INSERT:
-	txn, err := dbConn.Begin()
-	if err != nil {
-		service.WarnLog(fmt.Sprintf("Failed to begin transaction: %v", err))
-		return
-	}
-
-	stmt, err := txn.Prepare("COPY requests (data) FROM STDIN")
-	if err != nil {
-		service.WarnLog(fmt.Sprintf("Failed to prepare COPY statement: %v", err))
-		_ = txn.Rollback()
-		return
-	}
-	defer stmt.Close()
-
-	for _, log := range logsBuffer {
-		service.InfoLog(fmt.Sprintf(">>>>>>> Inserting log: %s", log))
-		_, err = stmt.Exec([]byte(log + "\n"))
-		if err != nil {
-			service.WarnLog(fmt.Sprintf("Failed to execute COPY statement: %v", err))
-			_ = txn.Rollback()
-			return
-		}
-	}
-
-	if err := txn.Commit(); err != nil {
-		service.WarnLog(fmt.Sprintf("Failed to commit transaction: %v", err))
 	}
 }
 
