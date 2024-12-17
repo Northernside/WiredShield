@@ -75,13 +75,6 @@ func Prepare(_service *services.Service) func() {
 		panic(fmt.Sprintf("Failed to ping database: %v", err))
 	}
 
-	res, err := dbConn.Exec(`CREATE TABLE IF NOT EXISTS test (id serial PRIMARY KEY, data jsonb);`)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create table: %v", err))
-	}
-
-	log.Println(res)
-
 	go processRequestLogs()
 
 	return func() {
@@ -225,10 +218,12 @@ func flushRequestLogs() {
 			))
 		case <-ticker.C:
 			if len(logsBuffer) > 0 {
-				_, err := dbConn.Exec(fmt.Sprintf(
-					"INSERT INTO requests (data) VALUES %s;",
+				query := fmt.Sprintf(
+					"INSERT INTO requests (request_time, client_ip, method, host, path, query_params, request_headers, response_headers, response_status_origin, response_status_proxy, response_time, tls_version) VALUES %s;",
 					strings.Join(logsBuffer, ","),
-				))
+				)
+
+				_, err := dbConn.Exec(query)
 				if err != nil {
 					service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
 				}
