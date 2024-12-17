@@ -263,7 +263,7 @@ func processBatch(logs []*RequestLog, baseQuery string) {
 			log.RequestSize, log.ResponseSize, log.RequestHTTPVersion,
 		)
 
-		service.InfoLog(fmt.Sprintf("%v", values))
+		service.InfoLog(fmt.Sprintf("%s %v", time.Now().Format(time.RFC3339), log))
 	}
 
 	query := fmt.Sprintf(baseQuery, strings.Join(placeholders, ","))
