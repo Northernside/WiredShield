@@ -216,18 +216,8 @@ func tlsVersionToString(version uint16) string {
 }
 
 func processRequestLogs() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		flushRequestLogs()
-	}
-}
-
-func flushRequestLogs() {
 	var logsBuffer []*RequestLog
 	const bufferFlushInterval = 5 * time.Second
-	const maxBatchSize = 1000
 
 	ticker := time.NewTicker(bufferFlushInterval)
 	defer ticker.Stop()
@@ -241,13 +231,6 @@ func flushRequestLogs() {
 		select {
 		case log := <-requestLogsChannel:
 			logsBuffer = append(logsBuffer, log)
-
-			service.InfoLog(log.ClientIP)
-
-			if len(logsBuffer) >= maxBatchSize {
-				processBatch(logsBuffer, insertQuery)
-				logsBuffer = nil
-			}
 
 		case <-ticker.C:
 			if len(logsBuffer) > 0 {
