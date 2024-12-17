@@ -36,7 +36,7 @@ type RequestLog struct {
 }
 
 var (
-	requestLogsChannel = make(chan *RequestLog, 1024^2)
+	requestLogsChannel = make(chan *RequestLog, (1024^2)*8)
 	clientPool         sync.Pool
 	service            *services.Service
 	certCache          sync.Map
@@ -218,14 +218,26 @@ func tlsVersionToString(version uint16) string {
 func processRequestLogs() {
 	var logsBuffer []*RequestLog
 	const bufferFlushInterval = 5 * time.Second
+	const numWorkers = 128
 
-	ticker := time.NewTicker(bufferFlushInterval)
-	defer ticker.Stop()
+	workers := make(chan []*RequestLog, numWorkers)
 
 	insertQuery := `INSERT INTO requests
 		(request_time, client_ip, method, host, path, query_params, request_headers, response_headers, response_status_origin,
 		response_status_proxy, response_time, tls_version, request_size, response_size, request_http_version)
 		VALUES %s`
+
+	for i := 0; i < numWorkers; i++ {
+		go func(workerID int) {
+			for logs := range workers {
+				processBatch(logs, insertQuery)
+				service.InfoLog(fmt.Sprintf("Worker %d processed %d logs", workerID, len(logs)))
+			}
+		}(i)
+	}
+
+	ticker := time.NewTicker(bufferFlushInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -233,9 +245,9 @@ func processRequestLogs() {
 			logsBuffer = append(logsBuffer, log)
 		case <-ticker.C:
 			if len(logsBuffer) > 0 {
-				service.InfoLog(fmt.Sprintf("Flushing %d logs", len(logsBuffer)))
-				go processBatch(logsBuffer, insertQuery)
+				batch := logsBuffer
 				logsBuffer = nil
+				workers <- batch
 			}
 		}
 	}
