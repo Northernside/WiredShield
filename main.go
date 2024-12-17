@@ -16,6 +16,8 @@ func init() {
 	env.LoadEnvFile()
 }
 
+// TODO: service.XYZLog is (heavily) blocking the main thread
+
 func main() {
 	db.Init()
 
