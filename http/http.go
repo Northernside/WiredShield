@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -90,7 +91,7 @@ func Prepare(_service *services.Service) func() {
 				}
 			},
 		}
-    
+
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
@@ -107,9 +108,9 @@ func Prepare(_service *services.Service) func() {
 			},
 			DisableKeepalive: false,
 		}
-    
+
 		go processRequestLogs()
-    
+
 		err := server.ListenAndServeTLS(addr, "", "")
 		if err != nil {
 			service.FatalLog(err.Error())
@@ -343,26 +344,6 @@ func getIp(reqCtx *fasthttp.RequestCtx) string {
 	}
 
 	return ipAddr.IP.String()
-}
-
-func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	domain := hello.ServerName
-	if domain == "" {
-		return nil, fmt.Errorf("no SNI provided by client")
-	}
-
-	if cert, ok := certCache.Load(domain); ok {
-		return cert.(*tls.Certificate), nil
-	}
-
-	// Log info
-	fmt.Printf("Loading certificate for domain %s\n", domain)
-
-	c, err := tls.LoadX509KeyPair(fmt.Sprintf("certs/%s.crt", domain), fmt.Sprintf("certs/%s.key", domain))
-	if err == nil {
-		certCache.Store(domain, &c)
-	}
-	return &c, err
 }
 
 func cleanCertificateData(certData []byte) []byte {
