@@ -229,14 +229,31 @@ func processRequestLogs() {
 	logWorkers := 128
 	for i := 0; i < logWorkers; i++ {
 		go func() {
-			for {
-				logs := collectLogsFromChannel()
+			for log := range requestLogsChannel {
+				logs := collectAdditionalLogs(log)
 				if len(logs) > 0 {
-					batchInsertRequestLogs(logs)
+					if err := batchInsertRequestLogs(logs); err != nil {
+						service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
+					}
 				}
 			}
 		}()
 	}
+}
+
+func collectAdditionalLogs(initialLog *RequestLog) []*RequestLog {
+	logs := []*RequestLog{initialLog}
+
+	for len(logs) < 128 {
+		select {
+		case log := <-requestLogsChannel:
+			logs = append(logs, log)
+		default:
+			return logs
+		}
+	}
+
+	return logs
 }
 
 func collectLogsFromChannel() []*RequestLog {
