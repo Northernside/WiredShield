@@ -41,6 +41,7 @@ var (
 	service            *services.Service
 	certCache          sync.Map
 	dbConn             *sql.DB
+	certLoadMutex      sync.RWMutex
 )
 
 func init() {
@@ -63,7 +64,8 @@ func Prepare(_service *services.Service) func() {
 	}
 
 	dbConn.SetMaxOpenConns(0)
-	dbConn.SetMaxIdleConns(128)
+	dbConn.SetMaxIdleConns(2048)
+	dbConn.SetConnMaxLifetime(5 * time.Minute)
 
 	err = dbConn.Ping()
 	if err != nil {
@@ -75,18 +77,26 @@ func Prepare(_service *services.Service) func() {
 		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
 		addr := binding + ":" + port
 
-		clientPool.New = func() interface{} {
-			return &fasthttp.Client{
-				ReadTimeout:  30 * time.Second,
-				WriteTimeout: 30 * time.Second,
-			}
+		clientPool = sync.Pool{
+			New: func() interface{} {
+				return &fasthttp.Client{
+					ReadTimeout:     30 * time.Second,
+					WriteTimeout:    30 * time.Second,
+					MaxConnsPerHost: 1000,
+					Dial: (&fasthttp.TCPDialer{
+						Concurrency:      4096,
+						DNSCacheDuration: 5 * time.Minute,
+					}).Dial,
+				}
+			},
 		}
 
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
 		server := &fasthttp.Server{
-			Handler: ProxyHandler,
+			Concurrency: 1024 * 16,
+			Handler:     ProxyHandler,
 			TLSConfig: &tls.Config{
 				MinVersion:               tls.VersionTLS12,
 				MaxVersion:               tls.VersionTLS13,
@@ -216,20 +226,16 @@ func tlsVersionToString(version uint16) string {
 }
 
 func processRequestLogs() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		logs := collectLogsFromChannel()
-
-		if len(logs) > 0 {
-			go func() {
-				err := batchInsertRequestLogs(logs)
-				if err != nil {
-					service.ErrorLog(fmt.Sprintf("Failed to insert request logs: %v", err))
+	logWorkers := 128
+	for i := 0; i < logWorkers; i++ {
+		go func() {
+			for {
+				logs := collectLogsFromChannel()
+				if len(logs) > 0 {
+					batchInsertRequestLogs(logs)
 				}
-			}()
-		}
+			}
+		}()
 	}
 }
 
@@ -302,6 +308,16 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 	if domain == "" {
 		return nil, fmt.Errorf("no SNI provided by client")
 	}
+
+	certLoadMutex.RLock()
+	if cert, ok := certCache.Load(domain); ok {
+		certLoadMutex.RUnlock()
+		return cert.(*tls.Certificate), nil
+	}
+	certLoadMutex.RUnlock()
+
+	certLoadMutex.Lock()
+	defer certLoadMutex.Unlock()
 
 	if cert, ok := certCache.Load(domain); ok {
 		return cert.(*tls.Certificate), nil
