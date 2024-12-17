@@ -1,7 +1,6 @@
 package http
 
 import (
-	"bytes"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -141,6 +140,8 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		req.Header.SetBytesKV(key, value)
 	})
+
+	req.SetBody(ctx.Request.Body())
 
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(resp)
@@ -344,20 +345,4 @@ func getIp(reqCtx *fasthttp.RequestCtx) string {
 	}
 
 	return ipAddr.IP.String()
-}
-
-func cleanCertificateData(certData []byte) []byte {
-	certData = bytes.TrimSpace(certData)
-	if !bytes.HasPrefix(certData, []byte("-----BEGIN CERTIFICATE-----")) {
-		service.ErrorLog("Certificate PEM data does not start with BEGIN CERTIFICATE")
-		return nil
-	}
-
-	endCertIdx := bytes.LastIndex(certData, []byte("-----END CERTIFICATE-----"))
-	if endCertIdx == -1 {
-		service.ErrorLog("No END CERTIFICATE found in PEM data")
-		return nil
-	}
-
-	return certData[:endCertIdx+len("-----END CERTIFICATE-----")]
 }
