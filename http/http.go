@@ -129,12 +129,11 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	targetRecord := targetRecords[0].(db.ARecord)
 
 	targetURL := "http://" + targetRecord.IP + string(ctx.Path())
-	service.InfoLog("Proxying request to " + targetURL)
 
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 
-	req.SetRequestURI(targetURL + string(ctx.URI().String()))
+	req.SetRequestURI(targetURL)
 	req.Header.SetMethodBytes(ctx.Method())
 	req.Header.Set("wired-origin-ip", ctx.RemoteAddr().String())
 	req.Header.Set("host", string(ctx.Host()))
