@@ -24,7 +24,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		for _, question := range r.Question {
 			// prepare
 			name := strings.ToLower(question.Name)
-			lookupName := name[:len(name)-1]
+			lookupName := strings.TrimSuffix(name, ".")
 
 			// check if record is supported
 			var supported bool = false
