@@ -175,7 +175,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 		ResponseHeaders:      json.RawMessage(respHeaders),
 		ResponseStatusOrigin: ctx.Response.StatusCode(),
 		ResponseStatusProxy:  fasthttp.StatusOK,
-		ResponseTime:         time.Since(timeStart).Microseconds(),
+		ResponseTime:         time.Since(timeStart).Milliseconds(),
 		TLSVersion:           tlsVersionToString(ctx.TLSConnectionState().Version),
 		RequestSize:          int64(ctx.Request.Header.Len()),
 		ResponseSize:         int64(len(ctx.Response.Body())),
@@ -241,6 +241,8 @@ func flushRequestLogs() {
 		select {
 		case log := <-requestLogsChannel:
 			logsBuffer = append(logsBuffer, log)
+
+			service.InfoLog(log.ClientIP)
 
 			if len(logsBuffer) >= maxBatchSize {
 				processBatch(logsBuffer, insertQuery)
@@ -319,6 +321,7 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 
 func getIp(reqCtx *fasthttp.RequestCtx) string {
 	addr := reqCtx.RemoteAddr()
+	service.InfoLog("Client IP ddd: " + addr.String())
 	ipAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
 		return ""
