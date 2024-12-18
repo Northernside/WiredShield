@@ -25,8 +25,8 @@ type RequestLog struct {
 	Host                 string          `json:"host"`
 	Path                 string          `json:"path"`
 	QueryParams          json.RawMessage `json:"query_params"`
-	RequestHeaders       json.RawMessage `json:"request_headers"`
-	ResponseHeaders      json.RawMessage `json:"response_headers"`
+	RequestHeaders       http.Header     `json:"request_headers"`
+	ResponseHeaders      http.Header     `json:"response_headers"`
 	ResponseStatusOrigin int             `json:"response_status_origin"`
 	ResponseStatusProxy  int             `json:"response_status_proxy"`
 	ResponseTime         int64           `json:"response_time"`
@@ -85,6 +85,11 @@ func Prepare(_service *services.Service) func() {
 						TLSClientConfig: &tls.Config{
 							InsecureSkipVerify: false,
 						},
+						MaxIdleConns:        200,
+						MaxIdleConnsPerHost: 200,
+						IdleConnTimeout:     30 * time.Second,
+						DisableKeepAlives:   false,
+						MaxConnsPerHost:     1000,
 					},
 					Timeout: 30 * time.Second,
 				}
@@ -158,19 +163,8 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
 	w.WriteHeader(resp.StatusCode)
 
-	io.Copy(w, resp.Body)
-
-	reqHeaders, err := json.Marshal(r.Header)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to marshal request headers: %v", err))
-		http.Error(w, "failed to marshal request headers", http.StatusInternalServerError)
-		return
-	}
-
-	respHeaders, err := json.Marshal(resp.Header)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("Failed to marshal response headers: %v", err))
-		http.Error(w, "failed to marshal response headers", http.StatusInternalServerError)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		service.ErrorLog(fmt.Sprintf("error streaming response body: %v", err))
 		return
 	}
 
@@ -181,8 +175,8 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 		Host:                 r.Host,
 		Path:                 r.URL.Path,
 		QueryParams:          queryParamString(r.URL.RawQuery),
-		RequestHeaders:       reqHeaders,
-		ResponseHeaders:      respHeaders,
+		RequestHeaders:       r.Header,
+		ResponseHeaders:      resp.Header,
 		ResponseStatusOrigin: resp.StatusCode,
 		ResponseStatusProxy:  http.StatusOK,
 		ResponseTime:         time.Since(timeStart).Milliseconds(),
@@ -215,6 +209,7 @@ func queryParamString(query string) json.RawMessage {
 		if len(parts) != 2 {
 			continue
 		}
+
 		params[parts[0]] = parts[1]
 	}
 
@@ -268,6 +263,18 @@ func batchInsertRequestLogs(logs []*RequestLog) error {
 			i*15+9, i*15+10, i*15+11, i*15+12, i*15+13, i*15+14, i*15+15,
 		)
 
+		reqHeaders, err := json.Marshal(log.RequestHeaders)
+		if err != nil {
+			service.ErrorLog(fmt.Sprintf("Failed to marshal request headers: %v", err))
+			reqHeaders = []byte("{}")
+		}
+
+		respHeaders, err := json.Marshal(log.ResponseHeaders)
+		if err != nil {
+			service.ErrorLog(fmt.Sprintf("Failed to marshal response headers: %v", err))
+			respHeaders = []byte("{}")
+		}
+
 		values = append(values,
 			log.RequestTime,
 			log.ClientIP,
@@ -275,8 +282,8 @@ func batchInsertRequestLogs(logs []*RequestLog) error {
 			log.Host,
 			log.Path,
 			log.QueryParams,
-			log.RequestHeaders,
-			log.ResponseHeaders,
+			reqHeaders,
+			respHeaders,
 			log.ResponseStatusOrigin,
 			log.ResponseStatusProxy,
 			log.ResponseTime,
