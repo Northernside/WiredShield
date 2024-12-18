@@ -104,11 +104,7 @@ func Prepare(_service *services.Service) func() {
 				GetCertificate:           getCertificateForDomain,
 				InsecureSkipVerify:       false,
 				ClientCAs:                nil,
-				PreferServerCipherSuites: true,
-				NextProtos: []string{
-					"h2",
-					"http/1.1",
-				},
+				PreferServerCipherSuites: true
 			},
 			DisableKeepalive: false,
 		}
