@@ -138,7 +138,6 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("wired-origin-ip", getIp(r))
 	req.Header.Set("host", r.Host)
 
-	req.Response.Request.Host = r.Host
 	req.Host = r.Host
 
 	client := clientPool.Get().(*http.Client)
