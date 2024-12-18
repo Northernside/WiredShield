@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
-	httpVersions := []string{"HTTP/1.1"}
-	tlsVersions := []uint16{tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12, tls.VersionTLS12}
+	httpVersions := []string{"HTTP/1.0", "HTTP/1.1", "HTTP/1.2", "HTTP/2.0"}
+	tlsVersions := []uint16{tls.VersionTLS12, tls.VersionTLS13}
 
 	for _, httpVersion := range httpVersions {
 		for _, tlsVersion := range tlsVersions {

@@ -13,6 +13,7 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
+	"github.com/dgrr/http2"
 	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
 )
@@ -112,6 +113,7 @@ func Prepare(_service *services.Service) func() {
 			DisableKeepalive: false,
 		}
 
+		http2.ConfigureServer(server, http2.ServerConfig{})
 		go processRequestLogs()
 
 		err := server.ListenAndServeTLS(addr, "", "")
