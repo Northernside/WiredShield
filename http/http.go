@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -93,14 +94,12 @@ func Prepare(_service *services.Service) func() {
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
-		mux := http.NewServeMux()
-		mux.HandleFunc("/", ProxyHandler)
+		http.HandleFunc("/", ProxyHandler)
 
 		go processRequestLogs()
 
 		server := &http.Server{
-			Addr:    addr,
-			Handler: mux,
+			Addr: addr,
 			TLSConfig: &tls.Config{
 				MinVersion:               tls.VersionTLS12,
 				MaxVersion:               tls.VersionTLS13,
@@ -127,6 +126,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	targetRecord := targetRecords[0].(db.ARecord)
 	targetURL := "http://" + targetRecord.IP + ":80" + r.URL.Path
+	service.InfoLog(fmt.Sprintf("Proxying request to %s", targetURL))
 
 	req, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
@@ -136,6 +136,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	req.Header = r.Header
 	req.Header.Set("wired-origin-ip", getIp(r))
+	req.Header.Set("host", r.Host)
 
 	client := clientPool.Get().(*http.Client)
 	defer clientPool.Put(client)
@@ -148,17 +149,13 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	for key, value := range resp.Header {
-		for _, v := range value {
-			w.Header().Add(key, v)
-		}
+		w.Header()[key] = value
 	}
+
+	w.Header().Set("server", "wiredshield")
 	w.WriteHeader(resp.StatusCode)
 
-	_, err = w.Write([]byte{})
-	if err != nil {
-		http.Error(w, "failed to write response", http.StatusInternalServerError)
-		return
-	}
+	io.Copy(w, resp.Body)
 
 	reqHeaders, err := json.Marshal(r.Header)
 	if err != nil {
