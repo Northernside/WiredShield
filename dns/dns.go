@@ -55,7 +55,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.ARecord:
 					var ip net.IP
 					if r.Protected {
-						ip = *shieldIp
+						ip = net.ParseIP("45.157.11.82")
 					} else {
 						ip = net.ParseIP(r.IP)
 					}
@@ -67,7 +67,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.AAAARecord:
 					var ip net.IP
 					if r.Protected {
-						ip = *shieldIp
+						ip = net.ParseIP("45.157.11.82")
 					} else {
 						ip = net.ParseIP(r.IP)
 					}
