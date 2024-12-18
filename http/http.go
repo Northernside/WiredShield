@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"wiredshield/services"
 
 	_ "github.com/lib/pq"
-	"github.com/valyala/fasthttp"
 )
 
 type RequestLog struct {
@@ -79,14 +79,13 @@ func Prepare(_service *services.Service) func() {
 
 		clientPool = sync.Pool{
 			New: func() interface{} {
-				return &fasthttp.Client{
-					ReadTimeout:     30 * time.Second,
-					WriteTimeout:    30 * time.Second,
-					MaxConnsPerHost: 1000,
-					Dial: (&fasthttp.TCPDialer{
-						Concurrency:      4096,
-						DNSCacheDuration: 5 * time.Minute,
-					}).Dial,
+				return &http.Client{
+					Transport: &http.Transport{
+						TLSClientConfig: &tls.Config{
+							InsecureSkipVerify: false,
+						},
+					},
+					Timeout: 30 * time.Second,
 				}
 			},
 		}
@@ -94,123 +93,104 @@ func Prepare(_service *services.Service) func() {
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
-		server := &fasthttp.Server{
-			Concurrency: 1024 * 16,
-			Handler:     ProxyHandler,
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", ProxyHandler)
+
+		go processRequestLogs()
+
+		server := &http.Server{
+			Addr:    addr,
+			Handler: mux,
 			TLSConfig: &tls.Config{
 				MinVersion:               tls.VersionTLS12,
 				MaxVersion:               tls.VersionTLS13,
 				GetCertificate:           getCertificateForDomain,
 				InsecureSkipVerify:       false,
-				ClientCAs:                nil,
 				PreferServerCipherSuites: true,
 			},
-			DisableKeepalive: false,
 		}
 
-		go processRequestLogs()
-
-		err := server.ListenAndServeTLS(addr, "", "")
+		err := server.ListenAndServeTLS("", "")
 		if err != nil {
 			service.FatalLog(err.Error())
 		}
 	}
 }
 
-func ProxyHandler(ctx *fasthttp.RequestCtx) {
+func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	timeStart := time.Now()
-	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
+	targetRecords, err := db.GetRecords("A", r.Host)
 	if err != nil || len(targetRecords) == 0 {
-		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
+		http.Error(w, "could not resolve target", http.StatusBadGateway)
 		return
 	}
 
 	targetRecord := targetRecords[0].(db.ARecord)
+	targetURL := "http://" + targetRecord.IP + ":80" + r.URL.Path
 
-	targetURL := "http://" + targetRecord.IP + ":80" + string(ctx.Path())
-
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
-
-	req.Header.Set("host", string(ctx.Host()))
-	req.Header.Set("wired-origin-ip", getIp(ctx))
-	req.UseHostHeader = true
-	req.Header.SetMethodBytes(ctx.Method())
-	req.SetRequestURI(targetURL)
-
-	ctx.Request.Header.VisitAll(func(key, value []byte) {
-		req.Header.SetBytesKV(key, value)
-	})
-
-	req.SetBody(ctx.Request.Body())
-
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
-
-	client := clientPool.Get().(*fasthttp.Client)
-	defer clientPool.Put(client)
-
-	err = client.Do(req, resp)
+	req, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
-		ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
+		http.Error(w, "error creating request", http.StatusInternalServerError)
 		return
 	}
 
-	resp.Header.VisitAll(func(key, value []byte) {
-		ctx.Response.Header.SetBytesKV(key, value)
-	})
+	req.Header = r.Header
+	req.Header.Set("wired-origin-ip", getIp(r))
 
-	ctx.Response.Header.Set("server", "wiredshield")
-	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
-	ctx.SetStatusCode(resp.StatusCode())
-	ctx.SetBody(resp.Body())
+	client := clientPool.Get().(*http.Client)
+	defer clientPool.Put(client)
 
-	reqHeadersMap := make(map[string]string)
-	ctx.Request.Header.VisitAll(func(key, value []byte) {
-		reqHeadersMap[string(key)] = string(value)
-	})
-	reqHeaders, _ := json.Marshal(reqHeadersMap)
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, "error contacting backend", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
 
-	respHeadersMap := make(map[string]string)
-	ctx.Response.Header.VisitAll(func(key, value []byte) {
-		respHeadersMap[string(key)] = string(value)
-	})
-	respHeaders, _ := json.Marshal(respHeadersMap)
+	for key, value := range resp.Header {
+		for _, v := range value {
+			w.Header().Add(key, v)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+
+	_, err = w.Write([]byte{})
+	if err != nil {
+		http.Error(w, "failed to write response", http.StatusInternalServerError)
+		return
+	}
+
+	reqHeaders, err := json.Marshal(r.Header)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("Failed to marshal request headers: %v", err))
+		http.Error(w, "failed to marshal request headers", http.StatusInternalServerError)
+		return
+	}
+
+	respHeaders, err := json.Marshal(resp.Header)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("Failed to marshal response headers: %v", err))
+		http.Error(w, "failed to marshal response headers", http.StatusInternalServerError)
+		return
+	}
 
 	requestLogsChannel <- &RequestLog{
 		RequestTime:          timeStart.UnixMilli(),
-		ClientIP:             getIp(ctx),
-		Method:               string(ctx.Method()),
-		Host:                 string(ctx.Host()),
-		Path:                 string(ctx.Path()),
-		QueryParams:          queryParamString(string(ctx.QueryArgs().QueryString())),
-		RequestHeaders:       json.RawMessage(reqHeaders),
-		ResponseHeaders:      json.RawMessage(respHeaders),
-		ResponseStatusOrigin: ctx.Response.StatusCode(),
-		ResponseStatusProxy:  fasthttp.StatusOK,
+		ClientIP:             getIp(r),
+		Method:               r.Method,
+		Host:                 r.Host,
+		Path:                 r.URL.Path,
+		QueryParams:          queryParamString(r.URL.RawQuery),
+		RequestHeaders:       reqHeaders,
+		ResponseHeaders:      respHeaders,
+		ResponseStatusOrigin: resp.StatusCode,
+		ResponseStatusProxy:  http.StatusOK,
 		ResponseTime:         time.Since(timeStart).Milliseconds(),
-		TLSVersion:           tlsVersionToString(ctx.TLSConnectionState().Version),
-		RequestSize:          int64(ctx.Request.Header.Len()),
-		ResponseSize:         int64(len(ctx.Response.Body())),
-		RequestHTTPVersion:   string(ctx.Request.Header.Protocol()),
+		TLSVersion:           tlsVersionToString(r.TLS.Version),
+		RequestSize:          int64(r.ContentLength),
+		ResponseSize:         int64(resp.ContentLength),
+		RequestHTTPVersion:   r.Proto,
 	}
-}
-
-type QueryParams map[string]string
-
-func queryParamString(query string) json.RawMessage {
-	params := make(QueryParams)
-	for _, pair := range strings.Split(query, "&") {
-		parts := strings.Split(pair, "=")
-		if len(parts) != 2 {
-			continue
-		}
-
-		params[parts[0]] = parts[1]
-	}
-
-	data, _ := json.Marshal(params)
-	return data
 }
 
 func tlsVersionToString(version uint16) string {
@@ -226,6 +206,20 @@ func tlsVersionToString(version uint16) string {
 	default:
 		return "Unknown"
 	}
+}
+
+func queryParamString(query string) json.RawMessage {
+	params := make(map[string]string)
+	for _, pair := range strings.Split(query, "&") {
+		parts := strings.Split(pair, "=")
+		if len(parts) != 2 {
+			continue
+		}
+		params[parts[0]] = parts[1]
+	}
+
+	data, _ := json.Marshal(params)
+	return data
 }
 
 func processRequestLogs() {
@@ -338,12 +332,7 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 	return &c, err
 }
 
-func getIp(reqCtx *fasthttp.RequestCtx) string {
-	addr := reqCtx.RemoteAddr()
-	ipAddr, ok := addr.(*net.TCPAddr)
-	if !ok {
-		return ""
-	}
-
-	return ipAddr.IP.String()
+func getIp(r *http.Request) string {
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+	return ip
 }
