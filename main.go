@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"wiredshield/commands"
-	stress_target "wiredshield/debug/stress"
 	wireddns "wiredshield/dns"
 	"wiredshield/http"
 	"wiredshield/modules/db"
@@ -35,9 +34,6 @@ func main() {
 
 	httpProxyService := services.RegisterService("http", "HTTP Proxy")
 	httpProxyService.Boot = http.Prepare(httpProxyService)
-
-	httpStressTestInstance := services.RegisterService("http_stt", "HTTP Stress Test Target")
-	httpStressTestInstance.Boot = stress_target.Prepare(httpStressTestInstance)
 
 	model := commands.InitialModel()
 	p := tea.NewProgram(model)
