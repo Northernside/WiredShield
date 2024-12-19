@@ -178,10 +178,14 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
 	w.WriteHeader(resp.StatusCode)
 
-	if _, err := io.Copy(w, resp.Body); err != nil {
-		service.ErrorLog(fmt.Sprintf("error streaming response body: %v", err))
-		logRequest(r, resp, timeStart, 604)
-		return
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotModified {
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			service.ErrorLog(fmt.Sprintf("error streaming response body: %v", err))
+			logRequest(r, resp, timeStart, 604)
+			return
+		}
+	} else {
+		w.WriteHeader(resp.StatusCode)
 	}
 
 	logRequest(r, resp, timeStart, 0)
