@@ -87,11 +87,43 @@ func Prepare(_service *services.Service) func() {
 		server := &http.Server{
 			Addr: addr,
 			TLSConfig: &tls.Config{
-				MinVersion:               tls.VersionTLS12,
+				MinVersion:               tls.VersionTLS10,
 				MaxVersion:               tls.VersionTLS13,
 				GetCertificate:           getCertificateForDomain,
 				InsecureSkipVerify:       false,
 				PreferServerCipherSuites: true,
+				GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+					service.InfoLog(fmt.Sprintf("Received ClientHello: %+v", hello))
+
+					return &tls.Config{
+						MinVersion:               tls.VersionTLS12,
+						MaxVersion:               tls.VersionTLS13,
+						PreferServerCipherSuites: true,
+						CipherSuites: []uint16{
+							tls.TLS_AES_128_GCM_SHA256,
+							tls.TLS_AES_256_GCM_SHA384,
+							tls.TLS_CHACHA20_POLY1305_SHA256,
+							tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+							tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+						},
+						CurvePreferences: []tls.CurveID{
+							tls.X25519,
+							tls.CurveP256,
+							tls.CurveP384,
+						},
+						GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+							return getCertificateForDomain(hello)
+						},
+						InsecureSkipVerify: false,
+					}, nil
+				},
 			},
 		}
 
