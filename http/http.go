@@ -306,6 +306,7 @@ func batchInsertRequestLogs(logs []*RequestLog) error {
 }
 
 func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	service.InfoLog(fmt.Sprintf("ClientHelloInfo: %+v\n", hello))
 	domain := hello.ServerName
 	if domain == "" {
 		return nil, fmt.Errorf("no SNI provided by client")
