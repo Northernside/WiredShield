@@ -180,7 +180,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotModified {
 		if _, err := io.Copy(w, resp.Body); err != nil {
-			service.ErrorLog(fmt.Sprintf("error streaming response body: %v", err))
+			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode, err))
 			logRequest(r, resp, timeStart, 604)
 			return
 		}
