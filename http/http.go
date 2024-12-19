@@ -93,10 +93,8 @@ func Prepare(_service *services.Service) func() {
 				InsecureSkipVerify:       false,
 				PreferServerCipherSuites: true,
 				GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
-					service.InfoLog(fmt.Sprintf("Received ClientHello: %+v", hello))
-
 					return &tls.Config{
-						MinVersion:               tls.VersionTLS12,
+						MinVersion:               tls.VersionTLS10,
 						MaxVersion:               tls.VersionTLS13,
 						PreferServerCipherSuites: true,
 						CipherSuites: []uint16{
@@ -338,7 +336,6 @@ func batchInsertRequestLogs(logs []*RequestLog) error {
 }
 
 func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	service.InfoLog(fmt.Sprintf("ClientHelloInfo: %+v\n", hello))
 	domain := hello.ServerName
 	if domain == "" {
 		return nil, fmt.Errorf("no SNI provided by client")
