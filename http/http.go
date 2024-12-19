@@ -38,7 +38,6 @@ type RequestLog struct {
 
 var (
 	requestLogsChannel = make(chan *RequestLog, (1024^2)*8)
-	clientPool         sync.Pool
 	service            *services.Service
 	certCache          sync.Map
 	dbConn             *sql.DB
@@ -78,24 +77,6 @@ func Prepare(_service *services.Service) func() {
 		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
 		addr := binding + ":" + port
 
-		clientPool = sync.Pool{
-			New: func() interface{} {
-				return &http.Client{
-					Transport: &http.Transport{
-						TLSClientConfig: &tls.Config{
-							InsecureSkipVerify: false,
-						},
-						MaxIdleConns:        200,
-						MaxIdleConnsPerHost: 200,
-						IdleConnTimeout:     30 * time.Second,
-						DisableKeepAlives:   false,
-						MaxConnsPerHost:     1000,
-					},
-					Timeout: 30 * time.Second,
-				}
-			},
-		}
-
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
@@ -131,7 +112,6 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	targetRecord := targetRecords[0].(db.ARecord)
 	targetURL := "http://" + targetRecord.IP + ":80" + r.URL.Path
-	service.InfoLog(fmt.Sprintf("Proxying request to %s", targetURL))
 
 	req, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
@@ -145,9 +125,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	req.Host = r.Host
 
-	client := clientPool.Get().(*http.Client)
-	defer clientPool.Put(client)
-
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "error contacting backend", http.StatusBadGateway)
