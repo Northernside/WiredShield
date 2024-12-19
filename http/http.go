@@ -112,7 +112,6 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	targetRecord := targetRecords[0].(db.ARecord)
 	targetURL := "http://" + targetRecord.IP + ":80" + r.URL.Path
-	// service.InfoLog(fmt.Sprintf("Proxying request to %s", targetURL))
 
 	req, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
