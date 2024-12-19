@@ -157,27 +157,27 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, internalCode int) {
 	requestLogsChannel <- &RequestLog{
-		RequestTime:     timeStart.UnixMilli(),
-		ClientIP:        getIp(r),
-		Method:          r.Method,
-		Host:            r.Host,
-		Path:            r.URL.Path,
-		QueryParams:     queryParamString(r.URL.RawQuery),
-		RequestHeaders:  r.Header,
-		ResponseHeaders: resp.Header,
-		ResponseStatusOrigin: func() int {
+		RequestTime:          timeStart.UnixMilli(),
+		ClientIP:             getIp(r),
+		Method:               r.Method,
+		Host:                 r.Host,
+		Path:                 r.URL.Path,
+		QueryParams:          queryParamString(r.URL.RawQuery),
+		RequestHeaders:       r.Header,
+		ResponseHeaders:      resp.Header,
+		ResponseStatusOrigin: resp.StatusCode,
+		ResponseStatusProxy: func() int {
 			if internalCode != 0 {
 				return internalCode
 			}
 
 			return resp.StatusCode
 		}(),
-		ResponseStatusProxy: resp.StatusCode,
-		ResponseTime:        time.Since(timeStart).Milliseconds(),
-		TLSVersion:          tlsVersionToString(r.TLS.Version),
-		RequestSize:         int64(r.ContentLength),
-		ResponseSize:        int64(resp.ContentLength),
-		RequestHTTPVersion:  r.Proto,
+		ResponseTime:       time.Since(timeStart).Milliseconds(),
+		TLSVersion:         tlsVersionToString(r.TLS.Version),
+		RequestSize:        int64(r.ContentLength),
+		ResponseSize:       int64(resp.ContentLength),
+		RequestHTTPVersion: r.Proto,
 	}
 }
 
