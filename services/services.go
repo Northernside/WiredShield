@@ -60,5 +60,5 @@ func (s *Service) FatalLog(message string) {
 var LogsChannel = make(chan string)
 
 func PrintToModel(serviceName string, message string) {
-	LogsChannel <- message
+	//LogsChannel <- message
 }
