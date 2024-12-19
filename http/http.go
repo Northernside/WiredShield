@@ -108,7 +108,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil || len(targetRecords) == 0 {
 		http.Error(w, "could not resolve target", http.StatusBadGateway)
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(r, resp, timeStart, true)
+		logRequest(r, resp, timeStart, 601)
 		return
 	}
 
@@ -119,7 +119,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "error creating request", http.StatusInternalServerError)
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(r, resp, timeStart, true)
+		logRequest(r, resp, timeStart, 602)
 		return
 	}
 
@@ -133,7 +133,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "error contacting backend", http.StatusBadGateway)
-		logRequest(r, resp, timeStart, true)
+		logRequest(r, resp, timeStart, 603)
 		return
 	}
 	defer resp.Body.Close()
@@ -148,14 +148,14 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		service.ErrorLog(fmt.Sprintf("error streaming response body: %v", err))
-		logRequest(r, resp, timeStart, true)
+		logRequest(r, resp, timeStart, 604)
 		return
 	}
 
-	logRequest(r, resp, timeStart, false)
+	logRequest(r, resp, timeStart, 0)
 }
 
-func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, failed bool) {
+func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, internalCode int) {
 	requestLogsChannel <- &RequestLog{
 		RequestTime:     timeStart.UnixMilli(),
 		ClientIP:        getIp(r),
@@ -166,8 +166,8 @@ func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, faile
 		RequestHeaders:  r.Header,
 		ResponseHeaders: resp.Header,
 		ResponseStatusOrigin: func() int {
-			if failed {
-				return 0
+			if internalCode != 0 {
+				return internalCode
 			}
 
 			return resp.StatusCode
