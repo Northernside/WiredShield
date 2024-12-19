@@ -108,7 +108,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil || len(targetRecords) == 0 {
 		http.Error(w, "could not resolve target", http.StatusBadGateway)
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(r, resp, timeStart)
+		logRequest(r, resp, timeStart, true)
 		return
 	}
 
@@ -119,7 +119,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "error creating request", http.StatusInternalServerError)
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(r, resp, timeStart)
+		logRequest(r, resp, timeStart, true)
 		return
 	}
 
@@ -133,7 +133,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "error contacting backend", http.StatusBadGateway)
-		logRequest(r, resp, timeStart)
+		logRequest(r, resp, timeStart, true)
 		return
 	}
 	defer resp.Body.Close()
@@ -148,30 +148,36 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		service.ErrorLog(fmt.Sprintf("error streaming response body: %v", err))
-		logRequest(r, resp, timeStart)
+		logRequest(r, resp, timeStart, true)
 		return
 	}
 
-	logRequest(r, resp, timeStart)
+	logRequest(r, resp, timeStart, false)
 }
 
-func logRequest(r *http.Request, resp *http.Response, timeStart time.Time) {
+func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, failed bool) {
 	requestLogsChannel <- &RequestLog{
-		RequestTime:          timeStart.UnixMilli(),
-		ClientIP:             getIp(r),
-		Method:               r.Method,
-		Host:                 r.Host,
-		Path:                 r.URL.Path,
-		QueryParams:          queryParamString(r.URL.RawQuery),
-		RequestHeaders:       r.Header,
-		ResponseHeaders:      resp.Header,
-		ResponseStatusOrigin: resp.StatusCode,
-		ResponseStatusProxy:  http.StatusOK,
-		ResponseTime:         time.Since(timeStart).Milliseconds(),
-		TLSVersion:           tlsVersionToString(r.TLS.Version),
-		RequestSize:          int64(r.ContentLength),
-		ResponseSize:         int64(resp.ContentLength),
-		RequestHTTPVersion:   r.Proto,
+		RequestTime:     timeStart.UnixMilli(),
+		ClientIP:        getIp(r),
+		Method:          r.Method,
+		Host:            r.Host,
+		Path:            r.URL.Path,
+		QueryParams:     queryParamString(r.URL.RawQuery),
+		RequestHeaders:  r.Header,
+		ResponseHeaders: resp.Header,
+		ResponseStatusOrigin: func() int {
+			if failed {
+				return http.StatusBadGateway
+			}
+
+			return resp.StatusCode
+		}(),
+		ResponseStatusProxy: resp.StatusCode,
+		ResponseTime:        time.Since(timeStart).Milliseconds(),
+		TLSVersion:          tlsVersionToString(r.TLS.Version),
+		RequestSize:         int64(r.ContentLength),
+		ResponseSize:        int64(resp.ContentLength),
+		RequestHTTPVersion:  r.Proto,
 	}
 }
 
