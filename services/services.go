@@ -41,24 +41,33 @@ func RegisterService(name, displayName string) *Service {
 }
 
 func (s *Service) InfoLog(message string) {
-	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;34mINFO\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
+	logPipeline <- "\033[0;37m[\033[0;34mINFO\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m" + s.DisplayName + "\033[0;37m \033[0;37m→\033[0;37m \033[0;37m" + message + "\033[0m\n"
 }
 
 func (s *Service) WarnLog(message string) {
-	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;33mWARN\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
+	logPipeline <- "\033[0;37m[\033[0;33mWARN\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m" + s.DisplayName + "\033[0;37m \033[0;37m→\033[0;37m \033[0;37m" + message + "\033[0m\n"
 }
 
 func (s *Service) ErrorLog(message string) {
-	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
+	logPipeline <- "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m" + s.DisplayName + "\033[0;37m \033[0;37m→\033[0;37m \033[0;37m" + message + "\033[0m\n"
 }
 
 func (s *Service) FatalLog(message string) {
-	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
+	logPipeline <- "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m" + s.DisplayName + "\033[0;37m \033[0;37m→\033[0;37m \033[0;37m" + message + "\033[0m\n"
 	panic(message)
 }
 
-var LogsChannel = make(chan string)
+var (
+	logPipeline = make(chan string, 1024*32)
+	LogsChannel = make(chan string)
+)
 
-func PrintToModel(serviceName string, message string) {
-	//LogsChannel <- message
+func init() {
+	go processLogs()
+}
+
+func processLogs() {
+	for log := range logPipeline {
+		LogsChannel <- log
+	}
 }

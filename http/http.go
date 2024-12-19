@@ -107,6 +107,8 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	targetRecords, err := db.GetRecords("A", r.Host)
 	if err != nil || len(targetRecords) == 0 {
 		http.Error(w, "could not resolve target", http.StatusBadGateway)
+		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
+		logRequest(r, resp, timeStart)
 		return
 	}
 
@@ -116,6 +118,8 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	req, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
 		http.Error(w, "error creating request", http.StatusInternalServerError)
+		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
+		logRequest(r, resp, timeStart)
 		return
 	}
 
@@ -129,6 +133,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "error contacting backend", http.StatusBadGateway)
+		logRequest(r, resp, timeStart)
 		return
 	}
 	defer resp.Body.Close()
@@ -143,9 +148,14 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		service.ErrorLog(fmt.Sprintf("error streaming response body: %v", err))
+		logRequest(r, resp, timeStart)
 		return
 	}
 
+	logRequest(r, resp, timeStart)
+}
+
+func logRequest(r *http.Request, resp *http.Response, timeStart time.Time) {
 	requestLogsChannel <- &RequestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             getIp(r),
