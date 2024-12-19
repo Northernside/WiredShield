@@ -167,7 +167,7 @@ func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, faile
 		ResponseHeaders: resp.Header,
 		ResponseStatusOrigin: func() int {
 			if failed {
-				return http.StatusBadGateway
+				return 0
 			}
 
 			return resp.StatusCode
