@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -85,7 +86,8 @@ func Prepare(_service *services.Service) func() {
 		go processRequestLogs()
 
 		server := &http.Server{
-			Addr: addr,
+			ErrorLog: log.New(io.Discard, "", 0),
+			Addr:     addr,
 			TLSConfig: &tls.Config{
 				MinVersion:               tls.VersionTLS10,
 				MaxVersion:               tls.VersionTLS13,
