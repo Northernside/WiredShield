@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -19,7 +20,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type RequestLog struct {
+type requestLog struct {
 	RequestTime          int64           `json:"request_time"`
 	ClientIP             string          `json:"client_ip"`
 	Method               string          `json:"method"`
@@ -37,8 +38,23 @@ type RequestLog struct {
 	RequestHTTPVersion   string          `json:"request_http_version"`
 }
 
+type countingResponseWriter struct {
+	http.ResponseWriter
+	bytesWritten int64
+}
+
+func (w *countingResponseWriter) Write(b []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(b)
+	w.bytesWritten += int64(n)
+	return n, err
+}
+
+func (w *countingResponseWriter) WriteHeader(statusCode int) {
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
 var (
-	requestLogsChannel = make(chan *RequestLog, (1024^2)*8)
+	requestLogsChannel = make(chan *requestLog, (1024^2)*8)
 	service            *services.Service
 	certCache          sync.Map
 	dbConn             *sql.DB
@@ -158,11 +174,13 @@ func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
 
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	timeStart := time.Now()
+	requestSize := calculateRequestSize(r)
+
 	targetRecords, err := db.GetRecords("A", r.Host)
 	if err != nil || len(targetRecords) == 0 {
 		http.Error(w, "could not resolve target", http.StatusBadGateway)
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(r, resp, timeStart, 601)
+		logRequest(r, resp, timeStart, 601, requestSize, 0)
 		return
 	}
 
@@ -173,7 +191,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "error creating request", http.StatusInternalServerError)
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(r, resp, timeStart, 602)
+		logRequest(r, resp, timeStart, 602, requestSize, 0)
 		return
 	}
 
@@ -187,37 +205,57 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(w, "error contacting backend", http.StatusBadGateway)
-		logRequest(r, resp, timeStart, 603)
+		logRequest(r, resp, timeStart, 603, requestSize, 0)
 		return
 	}
 	defer resp.Body.Close()
 
+	crw := &countingResponseWriter{ResponseWriter: w}
+
 	for key, value := range resp.Header {
-		w.Header()[key] = value
+		crw.Header()[key] = value
 	}
 
-	w.Header().Set("server", "wiredshield")
-	w.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
-	w.WriteHeader(resp.StatusCode)
+	crw.Header().Set("server", "wiredshield")
+	crw.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
+	crw.WriteHeader(resp.StatusCode)
 
+	var responseBodySize int64
 	switch resp.StatusCode {
 	case http.StatusContinue, http.StatusSwitchingProtocols, http.StatusProcessing, http.StatusEarlyHints:
 	case http.StatusNoContent, http.StatusResetContent:
 	case http.StatusNotModified:
-		w.WriteHeader(resp.StatusCode)
+		crw.WriteHeader(resp.StatusCode)
 	default:
-		if _, err := io.Copy(w, resp.Body); err != nil {
+		responseBodySize, err = io.Copy(crw, resp.Body)
+		if err != nil {
 			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode, err))
-			logRequest(r, resp, timeStart, 604)
+			logRequest(r, resp, timeStart, 604, requestSize, crw.bytesWritten)
 			return
 		}
 	}
 
-	logRequest(r, resp, timeStart, 0)
+	logRequest(r, resp, timeStart, 0, requestSize, crw.bytesWritten+responseBodySize)
 }
 
-func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, internalCode int) {
-	requestLogsChannel <- &RequestLog{
+func calculateRequestSize(r *http.Request) int64 {
+	var size int64
+	size += int64(len(r.Method) + len(r.URL.String()) + len(r.Proto) + 2) // req line
+	for k, v := range r.Header {
+		size += int64(len(k) + len(v[0]) + 4) // header line
+	}
+
+	if r.Body != nil {
+		bodyBytes, _ := ioutil.ReadAll(r.Body)
+		size += int64(len(bodyBytes))
+		r.Body = ioutil.NopCloser(strings.NewReader(string(bodyBytes))) // reset body
+	}
+
+	return size
+}
+
+func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
+	requestLogsChannel <- &requestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             getIp(r),
 		Method:               r.Method,
@@ -236,8 +274,8 @@ func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, inter
 		}(),
 		ResponseTime:       time.Since(timeStart).Milliseconds(),
 		TLSVersion:         tlsVersionToString(r.TLS.Version),
-		RequestSize:        int64(r.ContentLength),
-		ResponseSize:       int64(resp.ContentLength),
+		RequestSize:        requestSize,
+		ResponseSize:       responseSize,
 		RequestHTTPVersion: r.Proto,
 	}
 }
@@ -288,8 +326,8 @@ func processRequestLogs() {
 	}
 }
 
-func collectAdditionalLogs(initialLog *RequestLog) []*RequestLog {
-	logs := []*RequestLog{initialLog}
+func collectAdditionalLogs(initialLog *requestLog) []*requestLog {
+	logs := []*requestLog{initialLog}
 
 	for len(logs) < 128 {
 		select {
@@ -303,7 +341,7 @@ func collectAdditionalLogs(initialLog *RequestLog) []*RequestLog {
 	return logs
 }
 
-func batchInsertRequestLogs(logs []*RequestLog) error {
+func batchInsertRequestLogs(logs []*requestLog) error {
 	if len(logs) == 0 {
 		return nil
 	}
