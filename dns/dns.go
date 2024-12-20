@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/services"
@@ -14,7 +15,14 @@ import (
 var (
 	service  *services.Service
 	shieldIp *net.IP
+	cache    = make(map[string]cacheEntry)
+	cacheMux sync.RWMutex
 )
+
+type cacheEntry struct {
+	records    []dns.RR
+	expiration time.Time
+}
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := dns.Msg{}
@@ -40,6 +48,22 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				return
 			}
 
+			// check cache
+			cacheKey := fmt.Sprintf("%s:%s", dns.TypeToString[question.Qtype], lookupName)
+			cacheMux.RLock()
+			entry, found := cache[cacheKey]
+			cacheMux.RUnlock()
+
+			if found && time.Now().Before(entry.expiration) {
+				m.Answer = append(m.Answer, entry.records...)
+				err := w.WriteMsg(&m)
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+				}
+
+				return
+			}
+
 			// get record(s) from db
 			records, err := db.GetRecords(dns.TypeToString[question.Qtype], lookupName)
 			if err != nil {
@@ -48,14 +72,15 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				return
 			}
 
-			// append records to response
+			// append records to response and cache
+			var rrList []dns.RR
 			for _, record := range records {
 				var rr dns.RR
 				switch r := record.(type) {
 				case db.ARecord:
 					var ip net.IP
 					if r.Protected {
-						ip = *shieldIp
+						ip = net.ParseIP("45.157.11.82")
 					} else {
 						ip = net.ParseIP(r.IP)
 					}
@@ -67,7 +92,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.AAAARecord:
 					var ip net.IP
 					if r.Protected {
-						ip = *shieldIp
+						ip = net.ParseIP("45.157.11.82")
 					} else {
 						ip = net.ParseIP(r.IP)
 					}
@@ -120,13 +145,22 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 				if rr != nil {
 					m.Answer = append(m.Answer, rr)
+					rrList = append(rrList, rr)
 				}
 			}
-		}
 
-		err := w.WriteMsg(&m)
-		if err != nil {
-			service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+			// update cache
+			cacheMux.Lock()
+			cache[cacheKey] = cacheEntry{
+				records:    rrList,
+				expiration: time.Now().Add(1 * time.Hour),
+			}
+			cacheMux.Unlock()
+
+			err = w.WriteMsg(&m)
+			if err != nil {
+				service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+			}
 		}
 	}
 }

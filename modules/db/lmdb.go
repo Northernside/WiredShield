@@ -19,6 +19,11 @@ func Init() {
 		log.Fatal("failed to create LMDB environment:", err)
 	}
 
+	err = env.SetMaxReaders(1024 * 32)
+	if err != nil {
+		log.Fatal("failed to set max readers:", err)
+	}
+
 	err = env.SetMaxDBs(2 ^ 32 - 1)
 	if err != nil {
 		log.Fatal("failed to set max DBs:", err)
