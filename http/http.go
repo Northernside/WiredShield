@@ -127,11 +127,33 @@ func Prepare(_service *services.Service) func() {
 			},
 		}
 
+		go func() {
+			httpAddr := binding + ":80"
+			service.InfoLog("Starting HTTP redirect server on " + httpAddr)
+			httpServer := &http.Server{
+				Addr:    httpAddr,
+				Handler: http.HandlerFunc(redirectToHTTPS),
+			}
+
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				service.FatalLog("HTTP redirect server failed: " + err.Error())
+			}
+		}()
+
 		err := server.ListenAndServeTLS("", "")
 		if err != nil {
 			service.FatalLog(err.Error())
 		}
 	}
+}
+
+func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
+	target := "https://" + r.Host + r.URL.Path
+	if len(r.URL.RawQuery) > 0 {
+		target += "?" + r.URL.RawQuery
+	}
+
+	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
 
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
