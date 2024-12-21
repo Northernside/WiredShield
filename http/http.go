@@ -17,26 +17,26 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
-	"github.com/gin-gonic/gin"
+	"github.com/kataras/iris/v12"
 	_ "github.com/lib/pq"
 )
 
 type requestLog struct {
-	RequestTime          int64           `json:"request_time"`
-	ClientIP             string          `json:"client_ip"`
-	Method               string          `json:"method"`
-	Host                 string          `json:"host"`
-	Path                 string          `json:"path"`
-	QueryParams          json.RawMessage `json:"query_params"`
-	RequestHeaders       http.Header     `json:"request_headers"`
-	ResponseHeaders      http.Header     `json:"response_headers"`
-	ResponseStatusOrigin int             `json:"response_status_origin"`
-	ResponseStatusProxy  int             `json:"response_status_proxy"`
-	ResponseTime         int64           `json:"response_time"`
-	TLSVersion           string          `json:"tls_version"`
-	RequestSize          int64           `json:"request_size"`
-	ResponseSize         int64           `json:"response_size"`
-	RequestHTTPVersion   string          `json:"request_http_version"`
+	RequestTime          int64               `json:"request_time"`
+	ClientIP             string              `json:"client_ip"`
+	Method               string              `json:"method"`
+	Host                 string              `json:"host"`
+	Path                 string              `json:"path"`
+	QueryParams          json.RawMessage     `json:"query_params"`
+	RequestHeaders       map[string][]string `json:"request_headers"`
+	ResponseHeaders      map[string][]string `json:"response_headers"`
+	ResponseStatusOrigin int                 `json:"response_status_origin"`
+	ResponseStatusProxy  int                 `json:"response_status_proxy"`
+	ResponseTime         int64               `json:"response_time"`
+	TLSVersion           string              `json:"tls_version"`
+	RequestSize          int64               `json:"request_size"`
+	ResponseSize         int64               `json:"response_size"`
+	RequestHTTPVersion   string              `json:"request_http_version"`
 }
 
 var (
@@ -76,62 +76,56 @@ func Prepare(_service *services.Service) func() {
 	}
 
 	return func() {
+		app := iris.New()
+
+		app.Get("/", ProxyHandler)
+
+		go processRequestLogs()
+
+		tlsConfig := &tls.Config{
+			MinVersion:               tls.VersionTLS10,
+			MaxVersion:               tls.VersionTLS13,
+			GetCertificate:           getCertificateForDomain,
+			InsecureSkipVerify:       false,
+			PreferServerCipherSuites: true,
+			GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+				return &tls.Config{
+					MinVersion:               tls.VersionTLS10,
+					MaxVersion:               tls.VersionTLS13,
+					PreferServerCipherSuites: true,
+					CipherSuites: []uint16{
+						tls.TLS_AES_128_GCM_SHA256,
+						tls.TLS_AES_256_GCM_SHA384,
+						tls.TLS_CHACHA20_POLY1305_SHA256,
+						tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+						tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+						tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+						tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+						tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+						tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+						tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+						tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+						tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+					},
+					CurvePreferences: []tls.CurveID{
+						tls.X25519,
+						tls.CurveP256,
+						tls.CurveP384,
+					},
+					GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+						return getCertificateForDomain(hello)
+					},
+					InsecureSkipVerify: false,
+				}, nil
+			},
+		}
+
 		port := env.GetEnv("HTTP_PORT", "443")
 		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
 		addr := binding + ":" + port
 
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
-
-		router := gin.New()
-		router.Use(gin.Recovery())
-
-		router.Any("/*proxyPath", ProxyHandler)
-
-		go processRequestLogs()
-
-		server := &http.Server{
-			ErrorLog: log.New(io.Discard, "", 0),
-			Addr:     addr,
-			Handler:  router,
-			TLSConfig: &tls.Config{
-				MinVersion:               tls.VersionTLS10,
-				MaxVersion:               tls.VersionTLS13,
-				GetCertificate:           getCertificateForDomain,
-				InsecureSkipVerify:       false,
-				PreferServerCipherSuites: true,
-				GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
-					return &tls.Config{
-						MinVersion:               tls.VersionTLS10,
-						MaxVersion:               tls.VersionTLS13,
-						PreferServerCipherSuites: true,
-						CipherSuites: []uint16{
-							tls.TLS_AES_128_GCM_SHA256,
-							tls.TLS_AES_256_GCM_SHA384,
-							tls.TLS_CHACHA20_POLY1305_SHA256,
-							tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-							tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-							tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-							tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-							tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-							tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-							tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-						},
-						CurvePreferences: []tls.CurveID{
-							tls.X25519,
-							tls.CurveP256,
-							tls.CurveP384,
-						},
-						GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-							return getCertificateForDomain(hello)
-						},
-						InsecureSkipVerify: false,
-					}, nil
-				},
-			},
-		}
 
 		go func() {
 			httpAddr := binding + ":80"
@@ -146,9 +140,13 @@ func Prepare(_service *services.Service) func() {
 			}
 		}()
 
-		err := server.ListenAndServeTLS("", "")
-		if err != nil {
-			service.FatalLog(err.Error())
+		server := &http.Server{
+			Addr:      ":443",
+			TLSConfig: tlsConfig,
+		}
+
+		if err := app.Run(iris.Server(server)); err != nil {
+			service.FatalLog("HTTPS proxy server failed: " + err.Error())
 		}
 	}
 }
@@ -162,68 +160,71 @@ func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
 
-func ProxyHandler(c *gin.Context) {
+func ProxyHandler(ctx iris.Context) {
 	timeStart := time.Now()
-	requestSize := calculateRequestSize(c.Request)
+	requestSize := calculateRequestSize(ctx.Request())
 
-	targetRecords, err := db.GetRecords("A", c.Request.Host)
+	targetRecords, err := db.GetRecords("A", ctx.Host())
 	if err != nil || len(targetRecords) == 0 {
-		c.String(http.StatusBadGateway, "could not resolve target")
+		ctx.StatusCode(http.StatusBadGateway)
+		ctx.WriteString("could not resolve target")
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(c.Request, resp, timeStart, 601, requestSize, 0)
+		logRequest(ctx.Request(), resp, timeStart, 601, requestSize, 0)
 		return
 	}
 
 	targetRecord := targetRecords[0].(db.ARecord)
-	targetURL := "http://" + targetRecord.IP + ":80" + c.Request.URL.Path
+	targetURL := "http://" + targetRecord.IP + ":80" + ctx.Request().URL.Path
 
-	req, err := http.NewRequest(c.Request.Method, targetURL, c.Request.Body)
+	req, err := http.NewRequest(ctx.Method(), targetURL, ctx.Request().Body)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "error creating request")
-		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(c.Request, resp, timeStart, 602, requestSize, 0)
+		ctx.StatusCode(http.StatusInternalServerError)
+		ctx.WriteString("error creating request")
+		resp := &http.Response{StatusCode: http.StatusInternalServerError, Header: http.Header{}, ContentLength: 0}
+		logRequest(ctx.Request(), resp, timeStart, 602, requestSize, 0)
 		return
 	}
 
-	req.Header = c.Request.Header
-	req.Header.Set("wired-origin-ip", getIp(c.Request))
-	req.Header.Set("host", c.Request.Host)
+	req.Header = ctx.Request().Header
+	req.Header.Set("wired-origin-ip", getIp(ctx.Request()))
+	req.Header.Set("host", ctx.Host())
 
-	req.Host = c.Request.Host
+	req.Host = ctx.Host()
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		c.String(http.StatusBadGateway, "error contacting backend")
-		logRequest(c.Request, resp, timeStart, 603, requestSize, 0)
+		ctx.StatusCode(http.StatusBadGateway)
+		ctx.WriteString("error contacting backend")
+		logRequest(ctx.Request(), resp, timeStart, 603, requestSize, 0)
 		return
 	}
 	defer resp.Body.Close()
 
 	for key, value := range resp.Header {
-		c.Writer.Header()[key] = value
+		ctx.Header(key, value[0])
 	}
 
-	c.Writer.Header().Set("server", "wiredshield")
-	c.Writer.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
-	c.Writer.WriteHeader(resp.StatusCode)
+	ctx.Header("server", "wiredshield")
+	ctx.Header("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
+	ctx.StatusCode(resp.StatusCode)
 
 	var responseBodySize int64
 	switch resp.StatusCode {
 	case http.StatusContinue, http.StatusSwitchingProtocols, http.StatusProcessing, http.StatusEarlyHints:
 	case http.StatusNoContent, http.StatusResetContent:
 	case http.StatusNotModified:
-		c.Writer.WriteHeader(resp.StatusCode)
+		ctx.StatusCode(resp.StatusCode)
 	default:
-		responseBodySize, err = io.Copy(c.Writer, resp.Body)
+		responseBodySize, err = io.Copy(ctx.ResponseWriter(), resp.Body)
 		if err != nil {
 			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode, err))
-			logRequest(c.Request, resp, timeStart, 604, requestSize, responseBodySize)
+			logRequest(ctx.Request(), resp, timeStart, 604, requestSize, 0)
 			return
 		}
 	}
 
-	logRequest(c.Request, resp, timeStart, 0, requestSize, int64(c.Writer.Size())+responseBodySize)
+	logRequest(ctx.Request(), resp, timeStart, 0, requestSize, responseBodySize)
 }
 
 func calculateRequestSize(r *http.Request) int64 {
@@ -423,4 +424,11 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 func getIp(r *http.Request) string {
 	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 	return ip
+}
+
+func requestLogger(ctx iris.Context) {
+	start := time.Now()
+	ctx.Next()
+	duration := time.Since(start)
+	log.Printf("Request: %s %s %s %v", ctx.Method(), ctx.Path(), ctx.RemoteAddr(), duration)
 }
