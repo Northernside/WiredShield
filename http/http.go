@@ -244,6 +244,20 @@ func calculateRequestSize(r *http.Request) int64 {
 }
 
 func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
+	var responseHeaders http.Header
+	var requestHeaders http.Header
+	var responseStatusCode int
+
+	if resp != nil {
+		responseHeaders = resp.Header
+		requestHeaders = r.Header
+		responseStatusCode = resp.StatusCode
+	} else {
+		responseHeaders = http.Header{}
+		requestHeaders = http.Header{}
+		responseStatusCode = 0
+	}
+
 	requestLogsChannel <- &requestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             getIp(r),
@@ -251,9 +265,9 @@ func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, inter
 		Host:                 r.Host,
 		Path:                 r.URL.Path,
 		QueryParams:          queryParamString(r.URL.RawQuery),
-		RequestHeaders:       r.Header,
-		ResponseHeaders:      resp.Header,
-		ResponseStatusOrigin: resp.StatusCode,
+		RequestHeaders:       requestHeaders,
+		ResponseHeaders:      responseHeaders,
+		ResponseStatusOrigin: responseStatusCode,
 		ResponseStatusProxy: func() int {
 			if internalCode != 0 {
 				return internalCode
