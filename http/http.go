@@ -377,6 +377,10 @@ func batchInsertRequestLogs(logs []*requestLog) error {
 }
 
 func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	if hello.ServerName == "" {
+		return nil, fmt.Errorf("SNI (Server Name Indication) is missing in the TLS handshake")
+	}
+
 	domain := hello.ServerName
 	if domain == "" {
 		return nil, fmt.Errorf("no SNI provided by client")
