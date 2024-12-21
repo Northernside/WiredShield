@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -35,21 +36,6 @@ type requestLog struct {
 	RequestSize          int64           `json:"request_size"`
 	ResponseSize         int64           `json:"response_size"`
 	RequestHTTPVersion   string          `json:"request_http_version"`
-}
-
-type countingResponseWriter struct {
-	http.ResponseWriter
-	bytesWritten int64
-}
-
-func (w *countingResponseWriter) Write(b []byte) (int, error) {
-	n, err := w.ResponseWriter.Write(b)
-	w.bytesWritten += int64(n)
-	return n, err
-}
-
-func (w *countingResponseWriter) WriteHeader(statusCode int) {
-	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 var (
@@ -173,7 +159,7 @@ func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
 
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	timeStart := time.Now()
-	requestSize := int64(0)
+	requestSize := calculateRequestSize(r)
 
 	targetRecords, err := db.GetRecords("A", r.Host)
 	if err != nil || len(targetRecords) == 0 {
@@ -223,6 +209,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	case http.StatusNotModified:
 		w.WriteHeader(resp.StatusCode)
 	default:
+		_, err = io.Copy(w, resp.Body)
 		if err != nil {
 			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode, err))
 			logRequest(r, resp, timeStart, 604, requestSize, 0)
@@ -231,6 +218,22 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logRequest(r, resp, timeStart, 0, requestSize, 0)
+}
+
+func calculateRequestSize(r *http.Request) int64 {
+	var size int64
+	size += int64(len(r.Method) + len(r.URL.String()) + len(r.Proto) + 2) // req line
+	for k, v := range r.Header {
+		size += int64(len(k) + len(v[0]) + 4) // header line
+	}
+
+	if r.Body != nil {
+		bodyBytes, _ := ioutil.ReadAll(r.Body)
+		size += int64(len(bodyBytes))
+		r.Body = ioutil.NopCloser(strings.NewReader(string(bodyBytes))) // reset body
+	}
+
+	return size
 }
 
 func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
@@ -253,8 +256,8 @@ func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, inter
 		}(),
 		ResponseTime:       time.Since(timeStart).Milliseconds(),
 		TLSVersion:         tlsVersionToString(r.TLS.Version),
-		RequestSize:        0,
-		ResponseSize:       0,
+		RequestSize:        requestSize,
+		ResponseSize:       responseSize,
 		RequestHTTPVersion: r.Proto,
 	}
 }
