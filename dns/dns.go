@@ -150,6 +150,27 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
+			if len(records) == 0 {
+				rr := &dns.SOA{
+					Hdr:     dns.RR_Header{Name: question.Name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
+					Ns:      "woof.ns.wired.rip.",
+					Mbox:    "info.wired.rip.",
+					Serial:  2024122101,
+					Refresh: 7200,
+					Retry:   3600,
+					Expire:  1209600,
+					Minttl:  86400,
+				}
+
+				m.Answer = append(m.Answer, rr)
+				rrList = append(rrList, rr)
+			}
+
+			if len(m.Answer) == 0 {
+				emptyReply(w, &m)
+				return
+			}
+
 			// update cache
 			cacheMux.Lock()
 			cache[cacheKey] = cacheEntry{
