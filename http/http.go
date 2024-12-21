@@ -83,8 +83,7 @@ func Prepare(_service *services.Service) func() {
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
-		router := gin.Default()
-		// router.Use(gin.Logger())
+		router := gin.New()
 		router.Use(gin.Recovery())
 
 		router.Any("/*proxyPath", ProxyHandler)
