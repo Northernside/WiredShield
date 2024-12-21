@@ -109,7 +109,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Mbox:    "info.wired.rip.",
 						Serial:  2024122101,
 						Refresh: 7200,
-						Retry:   3600,
+						Retry:   2400,
 						Expire:  1209600,
 						Minttl:  86400,
 					}
