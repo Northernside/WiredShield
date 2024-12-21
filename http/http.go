@@ -17,6 +17,8 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/lib/pq"
 )
 
@@ -36,6 +38,21 @@ type requestLog struct {
 	RequestSize          int64           `json:"request_size"`
 	ResponseSize         int64           `json:"response_size"`
 	RequestHTTPVersion   string          `json:"request_http_version"`
+}
+
+type countingResponseWriter struct {
+	http.ResponseWriter
+	bytesWritten int64
+}
+
+func (w *countingResponseWriter) Write(b []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(b)
+	w.bytesWritten += int64(n)
+	return n, err
+}
+
+func (w *countingResponseWriter) WriteHeader(statusCode int) {
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 var (
@@ -82,13 +99,16 @@ func Prepare(_service *services.Service) func() {
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
-		http.HandleFunc("/", ProxyHandler)
+		r := chi.NewRouter()
+		r.Use(middleware.Logger)
+		r.HandleFunc("/", ProxyHandler)
 
 		go processRequestLogs()
 
 		server := &http.Server{
 			ErrorLog: log.New(io.Discard, "", 0),
 			Addr:     addr,
+			Handler:  r,
 			TLSConfig: &tls.Config{
 				MinVersion:               tls.VersionTLS10,
 				MaxVersion:               tls.VersionTLS13,
@@ -195,29 +215,32 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	crw := &countingResponseWriter{ResponseWriter: w}
+
 	for key, value := range resp.Header {
-		w.Header()[key] = value
+		crw.Header()[key] = value
 	}
 
-	w.Header().Set("server", "wiredshield")
-	w.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
-	w.WriteHeader(resp.StatusCode)
+	crw.Header().Set("server", "wiredshield")
+	crw.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
+	crw.WriteHeader(resp.StatusCode)
 
+	var responseBodySize int64
 	switch resp.StatusCode {
 	case http.StatusContinue, http.StatusSwitchingProtocols, http.StatusProcessing, http.StatusEarlyHints:
 	case http.StatusNoContent, http.StatusResetContent:
 	case http.StatusNotModified:
-		w.WriteHeader(resp.StatusCode)
+		crw.WriteHeader(resp.StatusCode)
 	default:
-		_, err = io.Copy(w, resp.Body)
+		responseBodySize, err = io.Copy(crw, resp.Body)
 		if err != nil {
 			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode, err))
-			logRequest(r, resp, timeStart, 604, requestSize, 0)
+			logRequest(r, resp, timeStart, 604, requestSize, crw.bytesWritten)
 			return
 		}
 	}
 
-	logRequest(r, resp, timeStart, 0, requestSize, 0)
+	logRequest(r, resp, timeStart, 0, requestSize, crw.bytesWritten+responseBodySize)
 }
 
 func calculateRequestSize(r *http.Request) int64 {
