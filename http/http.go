@@ -5,11 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
-	"net"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -17,26 +12,26 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
-	"github.com/kataras/iris/v12"
 	_ "github.com/lib/pq"
+	"github.com/valyala/fasthttp"
 )
 
 type requestLog struct {
-	RequestTime          int64               `json:"request_time"`
-	ClientIP             string              `json:"client_ip"`
-	Method               string              `json:"method"`
-	Host                 string              `json:"host"`
-	Path                 string              `json:"path"`
-	QueryParams          json.RawMessage     `json:"query_params"`
-	RequestHeaders       map[string][]string `json:"request_headers"`
-	ResponseHeaders      map[string][]string `json:"response_headers"`
-	ResponseStatusOrigin int                 `json:"response_status_origin"`
-	ResponseStatusProxy  int                 `json:"response_status_proxy"`
-	ResponseTime         int64               `json:"response_time"`
-	TLSVersion           string              `json:"tls_version"`
-	RequestSize          int64               `json:"request_size"`
-	ResponseSize         int64               `json:"response_size"`
-	RequestHTTPVersion   string              `json:"request_http_version"`
+	RequestTime          int64           `json:"request_time"`
+	ClientIP             string          `json:"client_ip"`
+	Method               string          `json:"method"`
+	Host                 string          `json:"host"`
+	Path                 string          `json:"path"`
+	QueryParams          json.RawMessage `json:"query_params"`
+	RequestHeaders       json.RawMessage `json:"request_headers"`
+	ResponseHeaders      json.RawMessage `json:"response_headers"`
+	ResponseStatusOrigin int             `json:"response_status_origin"`
+	ResponseStatusProxy  int             `json:"response_status_proxy"`
+	ResponseTime         int64           `json:"response_time"`
+	TLSVersion           string          `json:"tls_version"`
+	RequestSize          int64           `json:"request_size"`
+	ResponseSize         int64           `json:"response_size"`
+	RequestHTTPVersion   string          `json:"request_http_version"`
 }
 
 var (
@@ -45,6 +40,13 @@ var (
 	certCache          sync.Map
 	dbConn             *sql.DB
 	certLoadMutex      sync.RWMutex
+	clientPool         = &sync.Pool{
+		New: func() interface{} {
+			return &fasthttp.Client{
+				MaxConnsPerHost: 2048,
+			}
+		},
+	}
 )
 
 func init() {
@@ -76,50 +78,6 @@ func Prepare(_service *services.Service) func() {
 	}
 
 	return func() {
-		app := iris.New()
-
-		app.Get("/", ProxyHandler)
-
-		go processRequestLogs()
-
-		tlsConfig := &tls.Config{
-			MinVersion:               tls.VersionTLS10,
-			MaxVersion:               tls.VersionTLS13,
-			GetCertificate:           getCertificateForDomain,
-			InsecureSkipVerify:       false,
-			PreferServerCipherSuites: true,
-			GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
-				return &tls.Config{
-					MinVersion:               tls.VersionTLS10,
-					MaxVersion:               tls.VersionTLS13,
-					PreferServerCipherSuites: true,
-					CipherSuites: []uint16{
-						tls.TLS_AES_128_GCM_SHA256,
-						tls.TLS_AES_256_GCM_SHA384,
-						tls.TLS_CHACHA20_POLY1305_SHA256,
-						tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-						tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-						tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-						tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-						tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-						tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-						tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-						tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-						tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-					},
-					CurvePreferences: []tls.CurveID{
-						tls.X25519,
-						tls.CurveP256,
-						tls.CurveP384,
-					},
-					GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-						return getCertificateForDomain(hello)
-					},
-					InsecureSkipVerify: false,
-				}, nil
-			},
-		}
-
 		port := env.GetEnv("HTTP_PORT", "443")
 		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
 		addr := binding + ":" + port
@@ -127,160 +85,163 @@ func Prepare(_service *services.Service) func() {
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
+		go processRequestLogs()
+
+		server := &fasthttp.Server{
+			Handler: ProxyHandler,
+			Name:    "wiredshield",
+			TLSConfig: &tls.Config{
+				NextProtos:               []string{"http/1.1"},
+				MinVersion:               tls.VersionTLS10,
+				MaxVersion:               tls.VersionTLS13,
+				InsecureSkipVerify:       true,
+				PreferServerCipherSuites: true,
+				GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					return getCertificateForDomain(hello)
+				},
+				GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+					return &tls.Config{
+						NextProtos:               []string{"http/1.1"},
+						MinVersion:               tls.VersionTLS10,
+						MaxVersion:               tls.VersionTLS13,
+						PreferServerCipherSuites: true,
+						CipherSuites: []uint16{
+							tls.TLS_AES_128_GCM_SHA256,
+							tls.TLS_AES_256_GCM_SHA384,
+							tls.TLS_CHACHA20_POLY1305_SHA256,
+							tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+							tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+						},
+						CurvePreferences: []tls.CurveID{
+							tls.X25519,
+							tls.CurveP256,
+							tls.CurveP384,
+						},
+						GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+							return getCertificateForDomain(hello)
+						},
+						InsecureSkipVerify: false,
+					}, nil
+				},
+			},
+		}
+
 		go func() {
 			httpAddr := binding + ":80"
 			service.InfoLog("Starting HTTP redirect server on " + httpAddr)
-			httpServer := &http.Server{
-				Addr:    httpAddr,
-				Handler: http.HandlerFunc(redirectToHTTPS),
+			httpServer := &fasthttp.Server{
+				Handler: redirectToHTTPS,
 			}
 
-			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			if err := httpServer.ListenAndServe(httpAddr); err != nil {
 				service.FatalLog("HTTP redirect server failed: " + err.Error())
 			}
 		}()
 
-		server := &http.Server{
-			Addr:      ":443",
-			TLSConfig: tlsConfig,
-		}
-
-		if err := app.Run(iris.Server(server)); err != nil {
-			service.FatalLog("HTTPS proxy server failed: " + err.Error())
+		err := server.ListenAndServeTLS(addr, "", "")
+		if err != nil {
+			service.FatalLog(err.Error())
 		}
 	}
 }
 
-func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
-	target := "https://" + r.Host + r.URL.Path
-	if len(r.URL.RawQuery) > 0 {
-		target += "?" + r.URL.RawQuery
-	}
-
-	http.Redirect(w, r, target, http.StatusMovedPermanently)
+func redirectToHTTPS(ctx *fasthttp.RequestCtx) {
+	target := "https://" + string(ctx.Host()) + string(ctx.RequestURI())
+	ctx.Redirect(target, fasthttp.StatusMovedPermanently)
 }
 
-func ProxyHandler(ctx iris.Context) {
+func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	timeStart := time.Now()
-	requestSize := calculateRequestSize(ctx.Request())
+	requestSize := calculateRequestSize(ctx)
 
-	targetRecords, err := db.GetRecords("A", ctx.Host())
+	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
 	if err != nil || len(targetRecords) == 0 {
-		ctx.StatusCode(http.StatusBadGateway)
-		ctx.WriteString("could not resolve target")
-		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(ctx.Request(), resp, timeStart, 601, requestSize, 0)
+		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
 		return
 	}
 
 	targetRecord := targetRecords[0].(db.ARecord)
-	targetURL := "http://" + targetRecord.IP + ":80" + ctx.Request().URL.Path
+	targetURL := "http://" + targetRecord.IP + ":80" + string(ctx.RequestURI())
 
-	req, err := http.NewRequest(ctx.Method(), targetURL, ctx.Request().Body)
-	if err != nil {
-		ctx.StatusCode(http.StatusInternalServerError)
-		ctx.WriteString("error creating request")
-		resp := &http.Response{StatusCode: http.StatusInternalServerError, Header: http.Header{}, ContentLength: 0}
-		logRequest(ctx.Request(), resp, timeStart, 602, requestSize, 0)
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+
+	ctx.Request.CopyTo(req)
+	req.SetRequestURI(targetURL)
+	req.Header.Set("wired-origin-ip", getIp(ctx))
+	req.Header.Set("host", string(ctx.Host()))
+
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
+
+	client := clientPool.Get().(*fasthttp.Client)
+	defer clientPool.Put(client)
+
+	if err := client.Do(req, resp); err != nil {
+		ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
+		logRequest(ctx, resp, timeStart, 603, requestSize, 0)
 		return
 	}
 
-	req.Header = ctx.Request().Header
-	req.Header.Set("wired-origin-ip", getIp(ctx.Request()))
-	req.Header.Set("host", ctx.Host())
-
-	req.Host = ctx.Host()
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		ctx.StatusCode(http.StatusBadGateway)
-		ctx.WriteString("error contacting backend")
-		logRequest(ctx.Request(), resp, timeStart, 603, requestSize, 0)
-		return
-	}
-	defer resp.Body.Close()
-
-	for key, value := range resp.Header {
-		ctx.Header(key, value[0])
-	}
-
-	ctx.Header("server", "wiredshield")
-	ctx.Header("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
-	ctx.StatusCode(resp.StatusCode)
+	ctx.Response.Header.Set("server", "wiredshield")
+	ctx.Response.Header.Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
+	resp.Header.CopyTo(&ctx.Response.Header)
+	ctx.SetStatusCode(resp.StatusCode())
 
 	var responseBodySize int64
-	switch resp.StatusCode {
-	case http.StatusContinue, http.StatusSwitchingProtocols, http.StatusProcessing, http.StatusEarlyHints:
-	case http.StatusNoContent, http.StatusResetContent:
-	case http.StatusNotModified:
-		ctx.StatusCode(resp.StatusCode)
+	switch resp.StatusCode() {
+	case fasthttp.StatusContinue, fasthttp.StatusSwitchingProtocols, fasthttp.StatusProcessing, fasthttp.StatusEarlyHints:
+	case fasthttp.StatusNoContent, fasthttp.StatusResetContent:
+	case fasthttp.StatusNotModified:
+		ctx.SetStatusCode(resp.StatusCode())
 	default:
-		responseBodySize, err = io.Copy(ctx.ResponseWriter(), resp.Body)
-		if err != nil {
-			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode, err))
-			logRequest(ctx.Request(), resp, timeStart, 604, requestSize, 0)
-			return
-		}
+		responseBodySize = int64(len(resp.Body()))
+		ctx.SetBody(resp.Body())
 	}
 
-	logRequest(ctx.Request(), resp, timeStart, 0, requestSize, responseBodySize)
+	logRequest(ctx, resp, timeStart, 0, requestSize, responseBodySize)
 }
 
-func calculateRequestSize(r *http.Request) int64 {
-	var size int64
-	size += int64(len(r.Method) + len(r.URL.String()) + len(r.Proto) + 2) // req line
-	for k, v := range r.Header {
-		size += int64(len(k) + len(v[0]) + 4) // header line
-	}
-
-	if r.Body != nil {
-		bodyBytes, _ := ioutil.ReadAll(r.Body)
-		size += int64(len(bodyBytes))
-		r.Body = ioutil.NopCloser(strings.NewReader(string(bodyBytes))) // reset body
-	}
-
-	return size
-}
-
-func logRequest(r *http.Request, resp *http.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
-	var responseHeaders http.Header
-	var requestHeaders http.Header
-	var responseStatusCode int
-
-	if resp != nil {
-		responseHeaders = resp.Header
-		requestHeaders = r.Header
-		responseStatusCode = resp.StatusCode
-	} else {
-		responseHeaders = http.Header{}
-		requestHeaders = http.Header{}
-		responseStatusCode = 0
-	}
-
+func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
 	requestLogsChannel <- &requestLog{
 		RequestTime:          timeStart.UnixMilli(),
-		ClientIP:             getIp(r),
-		Method:               r.Method,
-		Host:                 r.Host,
-		Path:                 r.URL.Path,
-		QueryParams:          queryParamString(r.URL.RawQuery),
-		RequestHeaders:       requestHeaders,
-		ResponseHeaders:      responseHeaders,
-		ResponseStatusOrigin: responseStatusCode,
+		ClientIP:             getIp(ctx),
+		Method:               string(ctx.Method()),
+		Host:                 string(ctx.Host()),
+		Path:                 string(ctx.Path()),
+		QueryParams:          queryParamString(string(ctx.URI().QueryString())),
+		RequestHeaders:       json.RawMessage(ctx.Request.Header.String()),
+		ResponseHeaders:      json.RawMessage(resp.Header.String()),
+		ResponseStatusOrigin: resp.StatusCode(),
 		ResponseStatusProxy: func() int {
 			if internalCode != 0 {
 				return internalCode
 			}
-
-			return resp.StatusCode
+			return resp.StatusCode()
 		}(),
 		ResponseTime:       time.Since(timeStart).Milliseconds(),
-		TLSVersion:         tlsVersionToString(r.TLS.Version),
+		TLSVersion:         tlsVersionToString(ctx.TLSConnectionState().Version),
 		RequestSize:        requestSize,
 		ResponseSize:       responseSize,
-		RequestHTTPVersion: r.Proto,
+		RequestHTTPVersion: string(ctx.Request.Header.Protocol()),
 	}
+}
+
+func calculateRequestSize(ctx *fasthttp.RequestCtx) int64 {
+	var size int64
+	size += int64(len(ctx.Method()) + len(ctx.RequestURI()) + len(ctx.Request.Header.Protocol()) + 2) // req line
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		size += int64(len(key) + len(value) + 4) // header line
+	})
+	size += int64(len(ctx.PostBody()))
+	return size
 }
 
 func tlsVersionToString(version uint16) string {
@@ -305,10 +266,8 @@ func queryParamString(query string) json.RawMessage {
 		if len(parts) != 2 {
 			continue
 		}
-
 		params[parts[0]] = parts[1]
 	}
-
 	data, _ := json.Marshal(params)
 	return data
 }
@@ -331,7 +290,6 @@ func processRequestLogs() {
 
 func collectAdditionalLogs(initialLog *requestLog) []*requestLog {
 	logs := []*requestLog{initialLog}
-
 	for len(logs) < 128 {
 		select {
 		case log := <-requestLogsChannel:
@@ -340,7 +298,6 @@ func collectAdditionalLogs(initialLog *requestLog) []*requestLog {
 			return logs
 		}
 	}
-
 	return logs
 }
 
@@ -435,14 +392,7 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 	return &c, err
 }
 
-func getIp(r *http.Request) string {
-	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+func getIp(ctx *fasthttp.RequestCtx) string {
+	ip := ctx.RemoteIP().String()
 	return ip
-}
-
-func requestLogger(ctx iris.Context) {
-	start := time.Now()
-	ctx.Next()
-	duration := time.Since(start)
-	log.Printf("Request: %s %s %s %v", ctx.Method(), ctx.Path(), ctx.RemoteAddr(), duration)
 }
