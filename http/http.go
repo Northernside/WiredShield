@@ -185,7 +185,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	defer clientPool.Put(client)
 
 	if err := client.Do(req, resp); err != nil {
-		ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
+		ctx.Error(fmt.Sprintf("error contacting backend: %v", err), fasthttp.StatusBadGateway)
 		logRequest(ctx, resp, timeStart, 603, requestSize, 0)
 		return
 	}
