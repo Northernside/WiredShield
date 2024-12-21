@@ -98,7 +98,6 @@ func Prepare(_service *services.Service) func() {
 			Concurrency: 1024 * 16,
 			Handler:     ProxyHandler,
 			TLSConfig: &tls.Config{
-				NextProtos:               []string{"http/1.1"},
 				MinVersion:               tls.VersionTLS12,
 				MaxVersion:               tls.VersionTLS13,
 				GetCertificate:           getCertificateForDomain,
