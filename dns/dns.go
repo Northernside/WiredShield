@@ -27,6 +27,7 @@ type cacheEntry struct {
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := dns.Msg{}
 	m.SetReply(r)
+	m.Authoritative = true
 
 	if len(r.Question) > 0 {
 		for _, question := range r.Question {
@@ -104,13 +105,13 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.SOARecord:
 					rr = &dns.SOA{
 						Hdr:     dns.RR_Header{Name: question.Name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
-						Ns:      r.PrimaryNS,
-						Mbox:    r.AdminEmail,
-						Serial:  r.Serial,
-						Refresh: r.Refresh,
-						Retry:   r.Retry,
-						Expire:  r.Expire,
-						Minttl:  r.MinimumTTL,
+						Ns:      "woof.ns.wired.rip.",
+						Mbox:    "info.wired.rip.",
+						Serial:  2024122101,
+						Refresh: 7200,
+						Retry:   3600,
+						Expire:  1209600,
+						Minttl:  86400,
 					}
 				case db.CNAMERecord:
 					rr = &dns.CNAME{
