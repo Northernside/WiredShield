@@ -210,6 +210,18 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
+	reqHeadersMap := make(map[string]string)
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		reqHeadersMap[string(key)] = string(value)
+	})
+	reqHeaders, _ := json.Marshal(reqHeadersMap)
+
+	respHeadersMap := make(map[string]string)
+	ctx.Response.Header.VisitAll(func(key, value []byte) {
+		respHeadersMap[string(key)] = string(value)
+	})
+	respHeaders, _ := json.Marshal(respHeadersMap)
+
 	requestLogsChannel <- &requestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             getIp(ctx),
@@ -217,8 +229,8 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		Host:                 string(ctx.Host()),
 		Path:                 string(ctx.Path()),
 		QueryParams:          queryParamString(string(ctx.URI().QueryString())),
-		RequestHeaders:       json.RawMessage(ctx.Request.Header.String()),
-		ResponseHeaders:      json.RawMessage(resp.Header.String()),
+		RequestHeaders:       reqHeaders,
+		ResponseHeaders:      respHeaders,
 		ResponseStatusOrigin: resp.StatusCode(),
 		ResponseStatusProxy: func() int {
 			if internalCode != 0 {
