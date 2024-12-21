@@ -17,7 +17,7 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
 
@@ -37,21 +37,6 @@ type requestLog struct {
 	RequestSize          int64           `json:"request_size"`
 	ResponseSize         int64           `json:"response_size"`
 	RequestHTTPVersion   string          `json:"request_http_version"`
-}
-
-type countingResponseWriter struct {
-	http.ResponseWriter
-	bytesWritten int64
-}
-
-func (w *countingResponseWriter) Write(b []byte) (int, error) {
-	n, err := w.ResponseWriter.Write(b)
-	w.bytesWritten += int64(n)
-	return n, err
-}
-
-func (w *countingResponseWriter) WriteHeader(statusCode int) {
-	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 var (
@@ -98,15 +83,18 @@ func Prepare(_service *services.Service) func() {
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
 
-		r := chi.NewRouter()
-		r.HandleFunc("/", ProxyHandler)
+		router := gin.Default()
+		// router.Use(gin.Logger())
+		router.Use(gin.Recovery())
+
+		router.Any("/*proxyPath", ProxyHandler)
 
 		go processRequestLogs()
 
 		server := &http.Server{
 			ErrorLog: log.New(io.Discard, "", 0),
 			Addr:     addr,
-			Handler:  r,
+			Handler:  router,
 			TLSConfig: &tls.Config{
 				MinVersion:               tls.VersionTLS10,
 				MaxVersion:               tls.VersionTLS13,
@@ -175,70 +163,68 @@ func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
 
-func ProxyHandler(w http.ResponseWriter, r *http.Request) {
+func ProxyHandler(c *gin.Context) {
 	timeStart := time.Now()
-	requestSize := calculateRequestSize(r)
+	requestSize := calculateRequestSize(c.Request)
 
-	targetRecords, err := db.GetRecords("A", r.Host)
+	targetRecords, err := db.GetRecords("A", c.Request.Host)
 	if err != nil || len(targetRecords) == 0 {
-		http.Error(w, "could not resolve target", http.StatusBadGateway)
+		c.String(http.StatusBadGateway, "could not resolve target")
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(r, resp, timeStart, 601, requestSize, 0)
+		logRequest(c.Request, resp, timeStart, 601, requestSize, 0)
 		return
 	}
 
 	targetRecord := targetRecords[0].(db.ARecord)
-	targetURL := "http://" + targetRecord.IP + ":80" + r.URL.Path
+	targetURL := "http://" + targetRecord.IP + ":80" + c.Request.URL.Path
 
-	req, err := http.NewRequest(r.Method, targetURL, r.Body)
+	req, err := http.NewRequest(c.Request.Method, targetURL, c.Request.Body)
 	if err != nil {
-		http.Error(w, "error creating request", http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, "error creating request")
 		resp := &http.Response{StatusCode: http.StatusBadGateway, Header: http.Header{}, ContentLength: 0}
-		logRequest(r, resp, timeStart, 602, requestSize, 0)
+		logRequest(c.Request, resp, timeStart, 602, requestSize, 0)
 		return
 	}
 
-	req.Header = r.Header
-	req.Header.Set("wired-origin-ip", getIp(r))
-	req.Header.Set("host", r.Host)
+	req.Header = c.Request.Header
+	req.Header.Set("wired-origin-ip", getIp(c.Request))
+	req.Header.Set("host", c.Request.Host)
 
-	req.Host = r.Host
+	req.Host = c.Request.Host
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		http.Error(w, "error contacting backend", http.StatusBadGateway)
-		logRequest(r, resp, timeStart, 603, requestSize, 0)
+		c.String(http.StatusBadGateway, "error contacting backend")
+		logRequest(c.Request, resp, timeStart, 603, requestSize, 0)
 		return
 	}
 	defer resp.Body.Close()
 
-	crw := &countingResponseWriter{ResponseWriter: w}
-
 	for key, value := range resp.Header {
-		crw.Header()[key] = value
+		c.Writer.Header()[key] = value
 	}
 
-	crw.Header().Set("server", "wiredshield")
-	crw.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
-	crw.WriteHeader(resp.StatusCode)
+	c.Writer.Header().Set("server", "wiredshield")
+	c.Writer.Header().Set("x-proxy-time", fmt.Sprintf("%dms", time.Since(timeStart).Milliseconds()))
+	c.Writer.WriteHeader(resp.StatusCode)
 
 	var responseBodySize int64
 	switch resp.StatusCode {
 	case http.StatusContinue, http.StatusSwitchingProtocols, http.StatusProcessing, http.StatusEarlyHints:
 	case http.StatusNoContent, http.StatusResetContent:
 	case http.StatusNotModified:
-		crw.WriteHeader(resp.StatusCode)
+		c.Writer.WriteHeader(resp.StatusCode)
 	default:
-		responseBodySize, err = io.Copy(crw, resp.Body)
+		responseBodySize, err = io.Copy(c.Writer, resp.Body)
 		if err != nil {
 			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode, err))
-			logRequest(r, resp, timeStart, 604, requestSize, crw.bytesWritten)
+			logRequest(c.Request, resp, timeStart, 604, requestSize, responseBodySize)
 			return
 		}
 	}
 
-	logRequest(r, resp, timeStart, 0, requestSize, crw.bytesWritten+responseBodySize)
+	logRequest(c.Request, resp, timeStart, 0, requestSize, int64(c.Writer.Size())+responseBodySize)
 }
 
 func calculateRequestSize(r *http.Request) int64 {
