@@ -203,15 +203,27 @@ func Prepare(_service *services.Service) func() {
 
 	return func() {
 		addr := "0.0.0.0:53"
-		server := &dns.Server{Addr: addr, Net: "udp"}
 
 		dns.HandleFunc(".", handleRequest)
 
+		udpServer := &dns.Server{Addr: addr, Net: "udp"}
+		tcpServer := &dns.Server{Addr: addr, Net: "tcp"}
+
+		go func() {
+			err := udpServer.ListenAndServe()
+			if err != nil {
+				service.FatalLog("failed to start udp server: " + err.Error())
+			}
+		}()
+
+		go func() {
+			err := tcpServer.ListenAndServe()
+			if err != nil {
+				service.FatalLog("failed to start tcp server: " + err.Error())
+			}
+		}()
+
 		service.InfoLog("Starting DNS server on " + addr)
 		service.OnlineSince = time.Now().Unix()
-		err := server.ListenAndServe()
-		if err != nil {
-			service.ErrorLog("Failed to start DNS server: " + err.Error())
-		}
 	}
 }
