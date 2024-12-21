@@ -18,7 +18,6 @@ import (
 	"wiredshield/services"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/lib/pq"
 )
 
@@ -100,7 +99,6 @@ func Prepare(_service *services.Service) func() {
 		service.OnlineSince = time.Now().Unix()
 
 		r := chi.NewRouter()
-		r.Use(middleware.Logger)
 		r.HandleFunc("/", ProxyHandler)
 
 		go processRequestLogs()
