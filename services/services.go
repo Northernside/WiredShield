@@ -42,22 +42,22 @@ func RegisterService(name, displayName string) *Service {
 
 func (s *Service) InfoLog(message string) {
 	//logPipeline <- "\033[0;37m[\033[0;34mINFO\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m" + s.DisplayName + "\033[0;37m \033[0;37m→\033[0;37m \033[0;37m" + message + "\033[0m\n"
-	PrintToModel(s.DisplayName, message)
+	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;34mINFO\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
 }
 
 func (s *Service) WarnLog(message string) {
 	//logPipeline <- "\033[0;37m[\033[0;33mWARN\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m" + s.DisplayName + "\033[0;37m \033[0;37m→\033[0;37m \033[0;37m" + message + "\033[0m\n"
-	PrintToModel(s.DisplayName, message)
+	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;33mWARN\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
 }
 
 func (s *Service) ErrorLog(message string) {
 	//logPipeline <- "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m" + s.DisplayName + "\033[0;37m \033[0;37m→\033[0;37m \033[0;37m" + message + "\033[0m\n"
-	PrintToModel(s.DisplayName, message)
+	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
 }
 
 func (s *Service) FatalLog(message string) {
 	//logPipeline <- "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m" + s.DisplayName + "\033[0;37m \033[0;37m→\033[0;37m \033[0;37m" + message + "\033[0m\n"
-	PrintToModel(s.DisplayName, message)
+	PrintToModel(s.DisplayName, "\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m \033[0;94m"+s.DisplayName+"\033[0;37m \033[0;37m→\033[0;37m \033[0;37m"+message+"\033[0m\n")
 	panic(message)
 }
 
