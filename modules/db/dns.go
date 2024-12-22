@@ -89,7 +89,7 @@ func UpdateRecord(recordType, domain string, record interface{}) error {
 				return fmt.Errorf("failed to insert records: %v", err)
 			}
 
-			return txn.Commit()
+			return nil
 		}
 
 		if value != nil { // append to array
