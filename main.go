@@ -197,6 +197,7 @@ func nodeHandling() {
 	b64SigningCode := base64.StdEncoding.EncodeToString([]byte(signingCode))
 	req.Header.Set("ws-signing-code-signature", wsSigningCode)
 	req.Header.Set("ws-signing-code-signature", b64SigningCode)
+	req.Header.Set("ws-client-name", clientName)
 
 	resp, err = client.Do(req)
 	if err != nil {
