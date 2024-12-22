@@ -148,6 +148,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Port:     uint16(r.Port),
 						Target:   r.Target,
 					}
+				default:
+					service.WarnLog(fmt.Sprintf("unknown record type: %v", r))
 				}
 
 				if rr != nil {
