@@ -34,6 +34,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			// prepare
 			lookupName := strings.TrimSuffix(strings.ToLower(question.Name), ".")
 
+			service.InfoLog(fmt.Sprintf("query: %s %s", dns.TypeToString[question.Qtype], lookupName))
+
 			// check if record is supported
 			var supported bool = false
 			for _, recordType := range db.SupportedRecordTypes {
