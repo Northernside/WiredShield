@@ -75,9 +75,12 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				return
 			}
 
+			service.InfoLog(fmt.Sprintf("found %d records", len(records)))
+
 			// append records to response and cache
 			var rrList []dns.RR
 			for _, record := range records {
+				service.InfoLog(fmt.Sprintf("record: %v", record))
 				var rr dns.RR
 				switch r := record.(type) {
 				case db.ARecord:
