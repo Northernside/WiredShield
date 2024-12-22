@@ -29,7 +29,7 @@ func main() {
 	processService = services.RegisterService("process", "WiredShield")
 	processService.Boot = func() {
 		processService.InfoLog("Initializing WiredShield")
-		db.PInit(processService)
+		go db.PInit(processService)
 	}
 
 	isMaster := env.GetEnv("MASTER", "false")
