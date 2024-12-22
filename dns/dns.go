@@ -34,8 +34,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			// prepare
 			lookupName := strings.TrimSuffix(strings.ToLower(question.Name), ".")
 
-			service.InfoLog(fmt.Sprintf("query: %s %s", dns.TypeToString[question.Qtype], lookupName))
-
 			// check if record is supported
 			var supported bool = false
 			for _, recordType := range db.SupportedRecordTypes {
@@ -74,8 +72,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				emptyReply(w, &m)
 				return
 			}
-
-			service.InfoLog(fmt.Sprintf("found %d records", len(records)))
 
 			// append records to response and cache
 			var rrList []dns.RR
@@ -119,7 +115,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Minttl:  86400,
 					}
 				case db.CNAMERecord:
-					service.InfoLog(fmt.Sprintf("cname record: %v", r))
 					rr = &dns.CNAME{
 						Hdr:    dns.RR_Header{Name: question.Name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
 						Target: r.Target + ".",
@@ -148,8 +143,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Port:     uint16(r.Port),
 						Target:   r.Target,
 					}
-				default:
-					service.WarnLog(fmt.Sprintf("unknown record type: %v", r))
 				}
 
 				if rr != nil {
