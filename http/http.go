@@ -44,16 +44,6 @@ var (
 	certCache          sync.Map
 	dbConn             *pgxpool.Pool
 	certLoadMutex      sync.RWMutex
-	requestPool        = sync.Pool{
-		New: func() interface{} {
-			return &fasthttp.Request{}
-		},
-	}
-	responsePool = sync.Pool{
-		New: func() interface{} {
-			return &fasthttp.Response{}
-		},
-	}
 )
 
 func init() {
@@ -191,11 +181,8 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	requestSize := getRequestSize(ctx)
 
-	req := requestPool.Get().(*fasthttp.Request)
-	defer requestPool.Put(req)
-
-	resp := responsePool.Get().(*fasthttp.Response)
-	defer responsePool.Put(resp)
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
 
 	req.Header.Set("host", string(ctx.Host()))
 	req.Header.Set("wired-origin-ip", getIp(ctx))
@@ -211,6 +198,9 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	client := clientPool.Get().(*fasthttp.Client)
 	defer clientPool.Put(client)
+
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
 
 	err = client.Do(req, resp)
 	if err != nil {
