@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type RequestLog struct {
+type requestLog struct {
 	RequestTime          int64           `json:"request_time"`
 	ClientIP             string          `json:"client_ip"`
 	Method               string          `json:"method"`
@@ -36,7 +37,7 @@ type RequestLog struct {
 }
 
 var (
-	requestLogsChannel = make(chan *RequestLog, (1024^2)*8)
+	requestLogsChannel = make(chan *requestLog, (1024^2)*8)
 	clientPool         sync.Pool
 	service            *services.Service
 	certCache          sync.Map
@@ -97,18 +98,63 @@ func Prepare(_service *services.Service) func() {
 		server := &fasthttp.Server{
 			Concurrency: 1024 * 16,
 			Handler:     ProxyHandler,
+			Name:        "wiredshield",
 			TLSConfig: &tls.Config{
-				MinVersion:               tls.VersionTLS12,
+				NextProtos:               []string{"http/1.1"},
+				MinVersion:               tls.VersionTLS10,
 				MaxVersion:               tls.VersionTLS13,
 				GetCertificate:           getCertificateForDomain,
 				InsecureSkipVerify:       false,
 				ClientCAs:                nil,
 				PreferServerCipherSuites: true,
+				GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+					return &tls.Config{
+						NextProtos:               []string{"http/1.1"},
+						MinVersion:               tls.VersionTLS10,
+						MaxVersion:               tls.VersionTLS13,
+						GetCertificate:           getCertificateForDomain,
+						InsecureSkipVerify:       false,
+						ClientCAs:                nil,
+						PreferServerCipherSuites: true,
+						CipherSuites: []uint16{
+							tls.TLS_AES_128_GCM_SHA256,
+							tls.TLS_AES_256_GCM_SHA384,
+							tls.TLS_CHACHA20_POLY1305_SHA256,
+							tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+							tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+							tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+							tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+							tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+							tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+						},
+						CurvePreferences: []tls.CurveID{
+							tls.X25519,
+							tls.CurveP256,
+							tls.CurveP384,
+						},
+					}, nil
+				},
 			},
-			DisableKeepalive: false,
 		}
 
 		go processRequestLogs()
+
+		go func() {
+			httpAddr := binding + ":80"
+			service.InfoLog("Starting HTTP redirect server on " + httpAddr)
+			httpServer := &http.Server{
+				Addr:    httpAddr,
+				Handler: http.HandlerFunc(redirectToHTTPS),
+			}
+
+			err := httpServer.ListenAndServe()
+			if err != nil {
+				service.FatalLog(err.Error())
+			}
+		}()
 
 		err := server.ListenAndServeTLS(addr, "", "")
 		if err != nil {
@@ -117,17 +163,28 @@ func Prepare(_service *services.Service) func() {
 	}
 }
 
+func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
+	target := "https://" + r.Host + r.URL.Path
+	if len(r.URL.RawQuery) > 0 {
+		target += "?" + r.URL.RawQuery
+	}
+
+	http.Redirect(w, r, target, http.StatusMovedPermanently)
+}
+
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	timeStart := time.Now()
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
 	if err != nil || len(targetRecords) == 0 {
 		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
+		logRequest(ctx, nil, timeStart, 601, 0, 0)
 		return
 	}
 
 	targetRecord := targetRecords[0].(db.ARecord)
-
 	targetURL := "http://" + targetRecord.IP + ":80" + string(ctx.Path())
+
+	requestSize := getRequestSize(ctx)
 
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
@@ -153,6 +210,7 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	err = client.Do(req, resp)
 	if err != nil {
 		ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
+		logRequest(ctx, resp, timeStart, 603, 0, 0)
 		return
 	}
 
@@ -165,6 +223,56 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(resp.StatusCode())
 	ctx.SetBody(resp.Body())
 
+	responseSize := getResponseSize(ctx, resp)
+
+	switch resp.StatusCode() {
+	case http.StatusContinue, http.StatusSwitchingProtocols, http.StatusProcessing, http.StatusEarlyHints:
+	case http.StatusNoContent, http.StatusResetContent:
+	case http.StatusNotModified:
+		ctx.SetStatusCode(resp.StatusCode())
+	default:
+		if err != nil {
+			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode(), err))
+			logRequest(ctx, resp, timeStart, 604, 0, 0)
+			return
+		}
+	}
+
+	logRequest(ctx, resp, timeStart, resp.StatusCode(), requestSize, responseSize)
+}
+
+// both methods still inaccurate, will fix at a later time
+func getRequestSize(ctx *fasthttp.RequestCtx) int64 {
+	totalSize := int64(0)
+
+	totalSize += int64(len(ctx.Method()))
+	url := ctx.URI().String()
+	totalSize += int64(len(url))
+
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		totalSize += int64(len(key) + len(value))
+	})
+
+	totalSize += int64(len(ctx.Request.Body()))
+
+	return totalSize
+}
+
+func getResponseSize(ctx *fasthttp.RequestCtx, resp *fasthttp.Response) int64 {
+	totalSize := int64(0)
+
+	totalSize += int64(len(fmt.Sprintf("%d", resp.StatusCode())))
+
+	resp.Header.VisitAll(func(key, value []byte) {
+		totalSize += int64(len(key) + len(value))
+	})
+
+	totalSize += int64(len(resp.Body()))
+
+	return totalSize
+}
+
+func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
 	reqHeadersMap := make(map[string]string)
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		reqHeadersMap[string(key)] = string(value)
@@ -177,22 +285,27 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	})
 	respHeaders, _ := json.Marshal(respHeadersMap)
 
-	requestLogsChannel <- &RequestLog{
+	requestLogsChannel <- &requestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             getIp(ctx),
 		Method:               string(ctx.Method()),
 		Host:                 string(ctx.Host()),
 		Path:                 string(ctx.Path()),
-		QueryParams:          queryParamString(string(ctx.QueryArgs().QueryString())),
+		QueryParams:          queryParamString(string(ctx.QueryArgs().String())),
 		RequestHeaders:       json.RawMessage(reqHeaders),
 		ResponseHeaders:      json.RawMessage(respHeaders),
-		ResponseStatusOrigin: ctx.Response.StatusCode(),
-		ResponseStatusProxy:  fasthttp.StatusOK,
-		ResponseTime:         time.Since(timeStart).Milliseconds(),
-		TLSVersion:           tlsVersionToString(ctx.TLSConnectionState().Version),
-		RequestSize:          int64(ctx.Request.Header.Len()),
-		ResponseSize:         int64(len(ctx.Response.Body())),
-		RequestHTTPVersion:   string(ctx.Request.Header.Protocol()),
+		ResponseStatusOrigin: resp.StatusCode(),
+		ResponseStatusProxy: func() int {
+			if internalCode != 0 {
+				return internalCode
+			}
+			return resp.StatusCode()
+		}(),
+		ResponseTime:       time.Since(timeStart).Milliseconds(),
+		TLSVersion:         tlsVersionToString(ctx.TLSConnectionState().Version),
+		RequestSize:        requestSize,
+		ResponseSize:       responseSize,
+		RequestHTTPVersion: string(ctx.Request.Header.Protocol()),
 	}
 }
 
@@ -244,8 +357,8 @@ func processRequestLogs() {
 	}
 }
 
-func collectAdditionalLogs(initialLog *RequestLog) []*RequestLog {
-	logs := []*RequestLog{initialLog}
+func collectAdditionalLogs(initialLog *requestLog) []*requestLog {
+	logs := []*requestLog{initialLog}
 
 	for len(logs) < 128 {
 		select {
@@ -259,7 +372,7 @@ func collectAdditionalLogs(initialLog *RequestLog) []*RequestLog {
 	return logs
 }
 
-func batchInsertRequestLogs(logs []*RequestLog) error {
+func batchInsertRequestLogs(logs []*requestLog) error {
 	if len(logs) == 0 {
 		return nil
 	}
