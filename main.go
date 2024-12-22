@@ -102,7 +102,7 @@ func nodeHandling() {
 					Timeout: time.Second * 5,
 				}
 
-				return d.DialContext(ctx, "udp", "woof.ns.wired.rip")
+				return d.DialContext(ctx, "udp", "woof.ns.wired.rip:53")
 			},
 		},
 	}
