@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
 	wiredhttps "wiredshield/http"
@@ -30,6 +31,7 @@ func main() {
 
 	processService = services.RegisterService("process", "WiredShield")
 	processService.Boot = func() {
+		processService.OnlineSince = time.Now().Unix()
 		processService.InfoLog("Initializing WiredShield")
 		go db.PInit(processService)
 	}
@@ -41,11 +43,15 @@ func main() {
 		nodeHandling()
 	}
 
-	dnsService := services.RegisterService("dns", "DNS Server")
-	dnsService.Boot = wireddns.Prepare(dnsService)
+	if (env.GetEnv("TMP_BYPASS", "false")) == "false" {
+		dnsService := services.RegisterService("dns", "DNS Server")
+		dnsService.Boot = wireddns.Prepare(dnsService)
 
-	httpsService := services.RegisterService("https", "HTTPS Server")
-	httpsService.Boot = wiredhttps.Prepare(httpsService)
+		httpsService := services.RegisterService("https", "HTTPS Server")
+		httpsService.Boot = wiredhttps.Prepare(httpsService)
+	} else {
+		processService.WarnLog("TMP: Bypassing DNS and HTTPS services")
+	}
 
 	commands.Commands = []commands.Command{
 		{Key: "help", Desc: "Show this help message", Fn: commands.Help},
