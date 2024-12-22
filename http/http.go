@@ -168,6 +168,12 @@ func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
 }
 
 func ProxyHandler(ctx *fasthttp.RequestCtx) {
+	if strings.HasPrefix(string(ctx.Path()), "/#wiredshield#/") {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		ctx.SetBodyString("hello world")
+		return
+	}
+
 	timeStart := time.Now()
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
 	if err != nil || len(targetRecords) == 0 {
