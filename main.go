@@ -104,6 +104,7 @@ func handleArgs(args []string) {
 		client.GeoLoc.Country = split[0]
 		client.GeoLoc.City = split[1]
 
+		db.PInit(processService)
 		err = db.InsertClient(client)
 		if err != nil {
 			fmt.Println("Failed to insert client into db")
