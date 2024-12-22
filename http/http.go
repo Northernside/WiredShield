@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"wiredshield/http/routes"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
-	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
 )
@@ -42,7 +42,6 @@ var (
 	clientPool         sync.Pool
 	service            *services.Service
 	certCache          sync.Map
-	dbConn             *pgxpool.Pool
 	certLoadMutex      sync.RWMutex
 )
 
@@ -53,19 +52,6 @@ func init() {
 
 func Prepare(_service *services.Service) func() {
 	service = _service
-
-	var err error
-	connString := fmt.Sprintf(
-		"postgres://%s:%s@localhost:5432/%s?sslmode=disable",
-		env.GetEnv("PSQL_USER", "wiredshield"),
-		env.GetEnv("PSQL_PASSWORD", ""),
-		env.GetEnv("PSQL_DB", "reverseproxy"),
-	)
-
-	dbConn, err = pgxpool.Connect(context.Background(), connString)
-	if err != nil {
-		service.FatalLog(fmt.Sprintf("failed to connect to database: %v", err))
-	}
 
 	return func() {
 		port := env.GetEnv("HTTP_PORT", "443")
@@ -91,7 +77,7 @@ func Prepare(_service *services.Service) func() {
 
 		server := &fasthttp.Server{
 			Concurrency:   1024 * 256,
-			Handler:       ProxyHandler,
+			Handler:       proxyHandler,
 			Name:          "wiredshield",
 			MaxConnsPerIP: 1024 * 256,
 			TLSConfig: &tls.Config{
@@ -167,9 +153,9 @@ func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
 
-func ProxyHandler(ctx *fasthttp.RequestCtx) {
+func proxyHandler(ctx *fasthttp.RequestCtx) {
 	if strings.HasPrefix(string(ctx.Path()), "/.wiredshield/") {
-		ctx.Error("hello world", fasthttp.StatusOK)
+		handleWiredShieldEndpoints(ctx)
 		return
 	}
 
@@ -239,6 +225,16 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), requestSize, responseSize)
+}
+
+func handleWiredShieldEndpoints(ctx *fasthttp.RequestCtx) {
+	switch string(ctx.Path()) {
+	case "/.wiredshield/proxy-auth":
+		routes.ProxyAuth(ctx)
+		return
+	default:
+		ctx.Error("not found", fasthttp.StatusNotFound)
+	}
 }
 
 // both methods still inaccurate, will fix at a later time
@@ -377,7 +373,7 @@ func batchInsertRequestLogs(logs []*requestLog) error {
 		return nil
 	}
 
-	conn, err := dbConn.Acquire(context.Background())
+	conn, err := db.PsqlConn.Acquire(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to acquire connection: %v", err)
 	}

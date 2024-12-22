@@ -2,6 +2,8 @@ package services
 
 import (
 	"sync"
+
+	"golang.org/x/crypto/openpgp"
 )
 
 type networkInfo struct {
@@ -18,8 +20,10 @@ type Service struct {
 }
 
 var (
-	ServiceRegistry = map[string]*Service{}
-	registryLock    sync.Mutex
+	ServiceRegistry    = map[string]*Service{}
+	PublicKeys         = make(map[string]*openpgp.Entity)
+	ProcessAccessToken string
+	registryLock       sync.Mutex
 )
 
 func RegisterService(name, displayName string) *Service {
