@@ -43,6 +43,16 @@ var (
 	certCache          sync.Map
 	dbConn             *sql.DB
 	certLoadMutex      sync.RWMutex
+	requestPool        = sync.Pool{
+		New: func() interface{} {
+			return &fasthttp.Request{}
+		},
+	}
+	responsePool = sync.Pool{
+		New: func() interface{} {
+			return &fasthttp.Response{}
+		},
+	}
 )
 
 func init() {
@@ -83,9 +93,9 @@ func Prepare(_service *services.Service) func() {
 				return &fasthttp.Client{
 					ReadTimeout:     30 * time.Second,
 					WriteTimeout:    30 * time.Second,
-					MaxConnsPerHost: 1000,
+					MaxConnsPerHost: 1024 * 256,
 					Dial: (&fasthttp.TCPDialer{
-						Concurrency:      4096,
+						Concurrency:      1024 * 256,
 						DNSCacheDuration: 5 * time.Minute,
 					}).Dial,
 				}
@@ -96,9 +106,10 @@ func Prepare(_service *services.Service) func() {
 		service.OnlineSince = time.Now().Unix()
 
 		server := &fasthttp.Server{
-			Concurrency: 1024 * 16,
-			Handler:     ProxyHandler,
-			Name:        "wiredshield",
+			Concurrency:   1024 * 256,
+			Handler:       ProxyHandler,
+			Name:          "wiredshield",
+			MaxConnsPerIP: 1024 * 256,
 			TLSConfig: &tls.Config{
 				NextProtos:               []string{"http/1.1"},
 				MinVersion:               tls.VersionTLS10,
@@ -186,8 +197,11 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	requestSize := getRequestSize(ctx)
 
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
+	req := requestPool.Get().(*fasthttp.Request)
+	defer requestPool.Put(req)
+
+	resp := responsePool.Get().(*fasthttp.Response)
+	defer responsePool.Put(resp)
 
 	req.Header.Set("host", string(ctx.Host()))
 	req.Header.Set("wired-origin-ip", getIp(ctx))
@@ -200,9 +214,6 @@ func ProxyHandler(ctx *fasthttp.RequestCtx) {
 	})
 
 	req.SetBody(ctx.Request.Body())
-
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
 
 	client := clientPool.Get().(*fasthttp.Client)
 	defer clientPool.Put(client)
@@ -342,7 +353,7 @@ func tlsVersionToString(version uint16) string {
 }
 
 func processRequestLogs() {
-	logWorkers := 128
+	logWorkers := 512
 	for i := 0; i < logWorkers; i++ {
 		go func() {
 			for log := range requestLogsChannel {
