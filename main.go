@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -93,6 +95,22 @@ func nodeHandling() {
 	req.Header.Set("ws-client-name", clientName)
 
 	client := &http.Client{}
+	dialer := &net.Dialer{
+		Resolver: &net.Resolver{
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{
+					Timeout: time.Second * 5,
+				}
+
+				return d.DialContext(ctx, "udp", "woof.ns.wired.rip")
+			},
+		},
+	}
+
+	client.Transport = &http.Transport{
+		DialContext: dialer.DialContext,
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %s", masterHost+".wiredshield/proxy-auth", clientName, err.Error()))
