@@ -114,9 +114,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Minttl:  86400,
 					}
 				case db.CNAMERecord:
+					service.InfoLog(fmt.Sprintf("cname record: %v", r))
 					rr = &dns.CNAME{
 						Hdr:    dns.RR_Header{Name: question.Name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
-						Target: r.Target,
+						Target: r.Target + ".",
 					}
 				case db.NSRecord:
 					rr = &dns.NS{
