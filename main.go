@@ -32,16 +32,16 @@ var processService *services.Service
 func main() {
 	db.Init()
 
-	args := os.Args[1:]
-	if len(args) > 0 {
-		handleArgs(args)
-	}
-
 	processService = services.RegisterService("process", "WiredShield")
 	processService.Boot = func() {
 		processService.OnlineSince = time.Now().Unix()
 		processService.InfoLog("Initializing WiredShield")
 		go db.PInit(processService)
+	}
+
+	args := os.Args[1:]
+	if len(args) > 0 {
+		handleArgs(args)
 	}
 
 	isMaster := env.GetEnv("MASTER", "false")
