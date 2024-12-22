@@ -127,7 +127,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					rr = &dns.MX{
 						Hdr:        dns.RR_Header{Name: question.Name, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: 300},
 						Preference: r.Priority,
-						Mx:         r.Target,
+						Mx:         r.Target + ".",
 					}
 				case db.TXTRecord:
 					rr = &dns.TXT{
