@@ -161,5 +161,12 @@ func handleKeys(clientName string) {
 		}
 	}
 
+	if env.GetEnv("MASTER", "false") == "true" {
+		services.ServerPrivateKey, err = pgp.LoadPrivateKey(privateKeyPath, "")
+		if err != nil {
+			processService.FatalLog(fmt.Sprintf("Failed to load private key -> %s", err.Error()))
+		}
+	}
+
 	processService.InfoLog("Keys found")
 }

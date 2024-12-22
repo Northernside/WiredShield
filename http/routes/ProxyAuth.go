@@ -8,24 +8,15 @@ import (
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/modules/pgp"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
-	"golang.org/x/crypto/openpgp"
 )
 
 var (
 	ClientMap              = make(map[string]db.Client)
 	pendingAuthentications = make(map[string]string)
-	serverPrivateKey       *openpgp.Entity
 )
-
-func init() {
-	var err error
-	serverPrivateKey, err = pgp.LoadPrivateKey("certs/master-private.asc", "")
-	if err != nil {
-		panic(err)
-	}
-}
 
 func ProxyAuth(ctx *fasthttp.RequestCtx) {
 	if !ctx.IsGet() {
@@ -125,7 +116,7 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 
 		delete(pendingAuthentications, clientName)
 
-		token, err := pgp.GenerateToken(serverPrivateKey, clientName)
+		token, err := pgp.GenerateToken(services.ServerPrivateKey, clientName)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")

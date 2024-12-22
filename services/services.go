@@ -22,6 +22,7 @@ type Service struct {
 var (
 	ServiceRegistry    = map[string]*Service{}
 	PublicKeys         = make(map[string]*openpgp.Entity)
+	ServerPrivateKey   *openpgp.Entity
 	ProcessAccessToken string
 	registryLock       sync.Mutex
 )
