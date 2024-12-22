@@ -23,6 +23,7 @@ var (
 	ServiceRegistry    = map[string]*Service{}
 	PublicKeys         = make(map[string]*openpgp.Entity)
 	ServerPrivateKey   *openpgp.Entity
+	ClientName         string
 	ProcessAccessToken string
 	registryLock       sync.Mutex
 )

@@ -88,8 +88,8 @@ func handleArgs(args []string) {
 			os.Exit(1)
 		}
 
-		clientName := args[1]
-		_, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", clientName))
+		services.ClientName = args[1]
+		_, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", services.ClientName))
 		if err != nil {
 			fmt.Println("Public key not found")
 			os.Exit(1)
@@ -97,10 +97,10 @@ func handleArgs(args []string) {
 
 		// insert into db
 		var client db.Client
-		client.Name = clientName
+		client.Name = services.ClientName
 		client.IPAddress = args[2]
 
-		split := strings.Split(clientName, "-")
+		split := strings.Split(services.ClientName, "-")
 		client.GeoLoc.Country = split[0]
 		client.GeoLoc.City = split[1]
 
@@ -132,21 +132,21 @@ func masterHandling() {
 func nodeHandling() {
 	processService.InfoLog("Running as node")
 
-	clientName := env.GetEnv("CLIENT_NAME", "unknown")
-	if clientName == "unknown" {
+	services.ClientName = env.GetEnv("CLIENT_NAME", "unknown")
+	if services.ClientName == "unknown" {
 		processService.FatalLog("CLIENT_NAME is not set")
 	}
 
-	handleKeys(clientName)
+	handleKeys(services.ClientName)
 
 	masterHost := env.GetEnv("MASTER_API", "https://shield.as214428.net/")
 	req, err := http.NewRequest("GET", masterHost+".wiredshield/proxy-auth", nil)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 1, %s, %s", masterHost+".wiredshield/proxy-auth", clientName))
+		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 1, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName))
 	}
 
 	req.Header.Set("State", "1")
-	req.Header.Set("ws-client-name", clientName)
+	req.Header.Set("ws-client-name", services.ClientName)
 
 	client := &http.Client{}
 	dialer := &net.Dialer{
@@ -167,11 +167,11 @@ func nodeHandling() {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %s", masterHost+".wiredshield/proxy-auth", clientName, err.Error()))
+		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName, err.Error()))
 	}
 
 	if resp.StatusCode != 200 {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %d", masterHost+".wiredshield/proxy-auth", clientName, resp.StatusCode))
+		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %d", masterHost+".wiredshield/proxy-auth", services.ClientName, resp.StatusCode))
 	}
 
 	wsSigningCode := resp.Header.Get("ws-signing-code")
@@ -179,33 +179,33 @@ func nodeHandling() {
 
 	req, err = http.NewRequest("GET", masterHost+".wiredshield/proxy-auth", nil)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 2, %s, %s", masterHost+".wiredshield/proxy-auth", clientName))
+		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 2, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName))
 	}
 
 	req.Header.Set("State", "2")
 
-	privateKey, err := pgp.LoadPrivateKey(fmt.Sprintf("certs/%s-private.asc", clientName), "")
+	privateKey, err := pgp.LoadPrivateKey(fmt.Sprintf("certs/%s-private.asc", services.ClientName), "")
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to load private key -> %s, %s", clientName, err.Error()))
+		processService.FatalLog(fmt.Sprintf("Failed to load private key -> %s, %s", services.ClientName, err.Error()))
 	}
 
 	signingCode, err := pgp.SignMessage(string(wsSigningCode), privateKey)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to sign message -> %s, %s", clientName, err.Error()))
+		processService.FatalLog(fmt.Sprintf("Failed to sign message -> %s, %s", services.ClientName, err.Error()))
 	}
 
 	b64SigningCode := base64.StdEncoding.EncodeToString([]byte(signingCode))
 	req.Header.Set("ws-signing-code", wsSigningCode)
 	req.Header.Set("ws-signing-code-signature", b64SigningCode)
-	req.Header.Set("ws-client-name", clientName)
+	req.Header.Set("ws-client-name", services.ClientName)
 
 	resp, err = client.Do(req)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %s", masterHost+".wiredshield/proxy-auth", clientName, err.Error()))
+		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName, err.Error()))
 	}
 
 	if resp.StatusCode != 200 {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %d", masterHost+".wiredshield/proxy-auth", clientName, resp.StatusCode))
+		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %d", masterHost+".wiredshield/proxy-auth", services.ClientName, resp.StatusCode))
 	}
 
 	services.ProcessAccessToken = resp.Header.Get("ws-access-token")
