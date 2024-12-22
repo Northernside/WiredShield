@@ -84,9 +84,9 @@ func nodeHandling() {
 	handleKeys(clientName)
 
 	masterHost := env.GetEnv("MASTER_API", "https://shield.as214428.net/")
-	req, err := http.NewRequest("GET", masterHost+"/.wiredshield/proxy-auth", nil)
+	req, err := http.NewRequest("GET", masterHost+".wiredshield/proxy-auth", nil)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 1, %s, %s", masterHost+"/.wiredshield/proxy-auth", clientName))
+		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 1, %s, %s", masterHost+".wiredshield/proxy-auth", clientName))
 	}
 
 	req.Header.Set("State", "1")
@@ -95,19 +95,19 @@ func nodeHandling() {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %s", masterHost+"/.wiredshield/proxy-auth", clientName, err.Error()))
+		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %s", masterHost+".wiredshield/proxy-auth", clientName, err.Error()))
 	}
 
 	if resp.StatusCode != 200 {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %d", masterHost+"/.wiredshield/proxy-auth", clientName, resp.StatusCode))
+		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %d", masterHost+".wiredshield/proxy-auth", clientName, resp.StatusCode))
 	}
 
 	wsSigningCode := resp.Header.Get("ws-signing-code")
 	processService.InfoLog(fmt.Sprintf("Received signing code: %s", wsSigningCode))
 
-	req, err = http.NewRequest("GET", masterHost+"/.wiredshield/proxy-auth", nil)
+	req, err = http.NewRequest("GET", masterHost+".wiredshield/proxy-auth", nil)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 2, %s, %s", masterHost+"/.wiredshield/proxy-auth", clientName))
+		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 2, %s, %s", masterHost+".wiredshield/proxy-auth", clientName))
 	}
 
 	req.Header.Set("State", "2")
@@ -128,11 +128,11 @@ func nodeHandling() {
 
 	resp, err = client.Do(req)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %s", masterHost+"/.wiredshield/proxy-auth", clientName, err.Error()))
+		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %s", masterHost+".wiredshield/proxy-auth", clientName, err.Error()))
 	}
 
 	if resp.StatusCode != 200 {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %d", masterHost+"/.wiredshield/proxy-auth", clientName, resp.StatusCode))
+		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %d", masterHost+".wiredshield/proxy-auth", clientName, resp.StatusCode))
 	}
 
 	services.ProcessAccessToken = resp.Header.Get("ws-access-token")
