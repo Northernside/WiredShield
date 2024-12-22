@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"wiredshield/commands"
+	wireddns "wiredshield/dns"
+	wiredhttps "wiredshield/http"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/modules/pgp"
@@ -38,6 +40,12 @@ func main() {
 	} else {
 		nodeHandling()
 	}
+
+	dnsService := services.RegisterService("dns", "DNS Server")
+	dnsService.Boot = wireddns.Prepare(dnsService)
+
+	httpsService := services.RegisterService("https", "HTTPS Server")
+	httpsService.Boot = wiredhttps.Prepare(httpsService)
 
 	commands.Commands = []commands.Command{
 		{Key: "help", Desc: "Show this help message", Fn: commands.Help},
