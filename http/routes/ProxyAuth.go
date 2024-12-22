@@ -21,7 +21,7 @@ var (
 
 func init() {
 	var err error
-	serverPrivateKey, err = pgp.LoadPrivateKey("certs/server-private.asc", "")
+	serverPrivateKey, err = pgp.LoadPrivateKey("certs/master-private.asc", "")
 	if err != nil {
 		panic(err)
 	}
