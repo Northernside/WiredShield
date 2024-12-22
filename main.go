@@ -51,6 +51,8 @@ func main() {
 		nodeHandling()
 	}
 
+	services.ClientName = env.GetEnv("CLIENT_NAME", "unknown")
+
 	if (env.GetEnv("TMP_BYPASS", "false")) == "false" {
 		dnsService := services.RegisterService("dns", "DNS Server")
 		dnsService.Boot = wireddns.Prepare(dnsService)

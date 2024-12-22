@@ -14,7 +14,7 @@ func Info(ctx *fasthttp.RequestCtx) {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("h=%s\n", string(ctx.Request.Header.Peek("host"))))
 	sb.WriteString(fmt.Sprintf("ip=%s\n", ctx.RemoteIP().String()))
-	sb.WriteString(fmt.Sprintf("ts=%d\n", time.Now().Unix()))
+	sb.WriteString(fmt.Sprintf("ts=%d\n", time.Now().UnixMilli()))
 	sb.WriteString(fmt.Sprintf("uag=%s\n", string(ctx.Request.Header.Peek("user-agent"))))
 	sb.WriteString(fmt.Sprintf("colo=%s\n", strings.ToUpper(services.ClientName)))
 	sb.WriteString(fmt.Sprintf("http=%s\n", string(ctx.Request.Header.Protocol())))
