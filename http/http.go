@@ -1,8 +1,8 @@
 package http
 
 import (
+	"context"
 	"crypto/tls"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -14,6 +14,7 @@ import (
 	"wiredshield/modules/env"
 	"wiredshield/services"
 
+	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
 )
@@ -41,7 +42,7 @@ var (
 	clientPool         sync.Pool
 	service            *services.Service
 	certCache          sync.Map
-	dbConn             *sql.DB
+	dbConn             *pgxpool.Pool
 	certLoadMutex      sync.RWMutex
 	requestPool        = sync.Pool{
 		New: func() interface{} {
@@ -64,23 +65,16 @@ func Prepare(_service *services.Service) func() {
 	service = _service
 
 	var err error
-	dbConn, err = sql.Open("postgres", fmt.Sprintf(
+	connString := fmt.Sprintf(
 		"postgres://%s:%s@localhost:5432/%s?sslmode=disable",
 		env.GetEnv("PSQL_USER", "wiredshield"),
 		env.GetEnv("PSQL_PASSWORD", ""),
 		env.GetEnv("PSQL_DB", "reverseproxy"),
-	))
-	if err != nil {
-		panic(fmt.Sprintf("Failed to connect to database: %v", err))
-	}
+	)
 
-	dbConn.SetMaxOpenConns(0)
-	dbConn.SetMaxIdleConns(2048)
-	dbConn.SetConnMaxLifetime(5 * time.Minute)
-
-	err = dbConn.Ping()
+	dbConn, err = pgxpool.Connect(context.Background(), connString)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to ping database: %v", err))
+		service.FatalLog(fmt.Sprintf("failed to connect to database: %v", err))
 	}
 
 	return func() {
@@ -388,6 +382,18 @@ func batchInsertRequestLogs(logs []*requestLog) error {
 		return nil
 	}
 
+	conn, err := dbConn.Acquire(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to acquire connection: %v", err)
+	}
+	defer conn.Release()
+
+	transaction, err := conn.Begin(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer transaction.Rollback(context.Background())
+
 	placeholders := make([]string, len(logs))
 	values := make([]interface{}, 0, len(logs)*15)
 
@@ -397,7 +403,6 @@ func batchInsertRequestLogs(logs []*requestLog) error {
 			i*15+1, i*15+2, i*15+3, i*15+4, i*15+5, i*15+6, i*15+7, i*15+8,
 			i*15+9, i*15+10, i*15+11, i*15+12, i*15+13, i*15+14, i*15+15,
 		)
-
 		values = append(values,
 			log.RequestTime,
 			log.ClientIP,
@@ -418,20 +423,20 @@ func batchInsertRequestLogs(logs []*requestLog) error {
 	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO requests (
-			request_time, client_ip, method, host, path, query_params, 
-			request_headers, response_headers, response_status_origin, 
-			response_status_proxy, response_time, tls_version, 
-			request_size, response_size, request_http_version
-		) VALUES %s
-	`, strings.Join(placeholders, ","))
+        INSERT INTO requests (
+            request_time, client_ip, method, host, path, query_params, 
+            request_headers, response_headers, response_status_origin, 
+            response_status_proxy, response_time, tls_version, 
+            request_size, response_size, request_http_version
+        ) VALUES %s
+    `, strings.Join(placeholders, ","))
 
-	_, err := dbConn.Exec(query, values...)
+	_, err = transaction.Exec(context.Background(), query, values...)
 	if err != nil {
 		return fmt.Errorf("batch insert failed: %v", err)
 	}
 
-	return nil
+	return transaction.Commit(context.Background())
 }
 
 func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
