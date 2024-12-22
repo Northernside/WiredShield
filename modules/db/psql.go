@@ -28,6 +28,12 @@ func PInit(service *services.Service) {
 		service.FatalLog(fmt.Sprintf("failed to connect to database: %v", err))
 	}
 
+	// create client table if not exists
+	_, err = PsqlConn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS clients (name TEXT PRIMARY KEY, ip_address TEXT, country TEXT, city TEXT)")
+	if err != nil {
+		service.FatalLog(fmt.Sprintf("failed to create clients table: %v", err))
+	}
+
 	service.InfoLog("Connected to PostgreSQL")
 }
 
@@ -37,18 +43,22 @@ type GeoLoc struct {
 }
 
 type Client struct {
-	ID        int
+	Name      string
 	IPAddress string
 	GeoLoc    GeoLoc
-	PublicKey string
 }
 
 func GetClient(clientName string) (Client, error) {
 	var client Client
-	err := PsqlConn.QueryRow(context.Background(), "SELECT * FROM clients WHERE name = $1", clientName).Scan(&client.ID, &client.IPAddress, &client.GeoLoc.Country, &client.GeoLoc.City, &client.PublicKey)
+	err := PsqlConn.QueryRow(context.Background(), "SELECT * FROM clients WHERE name = $1", clientName).Scan(&client.Name, &client.IPAddress, &client.GeoLoc.Country, &client.GeoLoc.City)
 	if err != nil {
 		return client, err
 	}
 
 	return client, nil
+}
+
+func InsertClient(client Client) error {
+	_, err := PsqlConn.Exec(context.Background(), "INSERT INTO clients (name, ip_address, country, city) VALUES ($1, $2, $3, $4)", client.Name, client.IPAddress, client.GeoLoc.Country, client.GeoLoc.City)
+	return err
 }

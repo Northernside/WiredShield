@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 	"wiredshield/commands"
 	wireddns "wiredshield/dns"
@@ -30,6 +31,11 @@ var processService *services.Service
 
 func main() {
 	db.Init()
+
+	args := os.Args[1:]
+	if len(args) > 0 {
+		handleArgs(args)
+	}
 
 	processService = services.RegisterService("process", "WiredShield")
 	processService.Boot = func() {
@@ -67,6 +73,53 @@ func main() {
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func handleArgs(args []string) {
+	switch args[0] {
+	case "help":
+		fmt.Println("Usage: wiredshield [add-client]")
+		fmt.Println("add-client <client-name> <ip-address> - Add a new client")
+		os.Exit(0)
+	case "add-client":
+		if len(args) < 2 {
+			fmt.Println("Usage: wiredshield add-client <client-name> <ip-address>")
+			os.Exit(1)
+		}
+
+		clientName := args[1]
+		_, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", clientName))
+		if err != nil {
+			fmt.Println("Public key not found")
+			os.Exit(1)
+		}
+
+		// insert into db
+		var client db.Client
+		client.Name = clientName
+		client.IPAddress = args[2]
+
+		split := strings.Split(clientName, "-")
+		client.GeoLoc.Country = split[0]
+		client.GeoLoc.City = split[1]
+
+		err = db.InsertClient(client)
+		if err != nil {
+			fmt.Println("Failed to insert client into db")
+			os.Exit(1)
+		}
+
+		fmt.Println("New client added:")
+		fmt.Println("\tName:", client.Name)
+		fmt.Println("\tIP Address:", client.IPAddress)
+		fmt.Println("\tCountry:", client.GeoLoc.Country)
+		fmt.Println("\tCity:", client.GeoLoc.City)
+
+		os.Exit(0)
+	default:
+		fmt.Println("Unknown command")
+		os.Exit(1)
 	}
 }
 
