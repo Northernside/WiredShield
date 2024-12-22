@@ -21,7 +21,7 @@ var (
 
 func init() {
 	var err error
-	serverPrivateKey, err = pgp.LoadPrivateKey("keys/server-private.asc", "")
+	serverPrivateKey, err = pgp.LoadPrivateKey("certs/server-private.asc", "")
 	if err != nil {
 		panic(err)
 	}
@@ -109,7 +109,7 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		publicKey, err := pgp.LoadPublicKey(fmt.Sprintf("keys/%s-public.asc", clientName))
+		publicKey, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", clientName))
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")

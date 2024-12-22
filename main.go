@@ -106,7 +106,7 @@ func nodeHandling() {
 
 	req.Header.Set("State", "2")
 
-	privateKey, err := pgp.LoadPrivateKey(fmt.Sprintf("keys/%s-private.asc", clientName), "")
+	privateKey, err := pgp.LoadPrivateKey(fmt.Sprintf("certs/%s-private.asc", clientName), "")
 	if err != nil {
 		processService.FatalLog(fmt.Sprintf("Failed to load private key -> %s, %s", clientName, err.Error()))
 	}
