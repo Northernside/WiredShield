@@ -42,6 +42,35 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			// prepare
 			lookupName := strings.TrimSuffix(strings.ToLower(question.Name), ".")
 
+			if lookupName == "wiredshield_info" && dns.TypeToString[question.Qtype] == "TXT" {
+				country, err := whois.GetCountry(strings.Split(w.RemoteAddr().String(), ":")[0])
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", strings.Split(w.RemoteAddr().String(), ":")[0], err))
+					country = "Unknown (Error)"
+				}
+
+				lines := []string{
+					"WiredShield DNS Server",
+					fmt.Sprintf("DNS Based Geo-Location: " + country),
+				}
+
+				for _, line := range lines {
+					txt := &dns.TXT{
+						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
+						Txt: []string{line},
+					}
+
+					m.Answer = append(m.Answer, txt)
+				}
+
+				err = w.WriteMsg(&m)
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+				}
+
+				return
+			}
+
 			// check if record is supported
 			var supported bool = false
 			for _, recordType := range db.SupportedRecordTypes {
