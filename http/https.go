@@ -154,6 +154,13 @@ func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
 }
 
 func proxyHandler(ctx *fasthttp.RequestCtx) {
+	defer func() {
+		if err := recover(); err != nil {
+			service.ErrorLog(fmt.Sprintf("Recovered from panic in proxyHandler: %v", err))
+			ctx.Error("Internal Server Error (Backend Panic)", fasthttp.StatusInternalServerError)
+		}
+	}()
+
 	if strings.HasPrefix(string(ctx.Path()), "/.wiredshield/") {
 		handleWiredShieldEndpoints(ctx)
 		return
@@ -286,6 +293,11 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 	})
 	respHeaders, _ := json.Marshal(respHeadersMap)
 
+	responseStatusOrigin := 0
+	if resp != nil {
+		responseStatusOrigin = resp.StatusCode()
+	}
+
 	requestLogsChannel <- &requestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             getIp(ctx),
@@ -295,11 +307,12 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		QueryParams:          queryParamString(string(ctx.QueryArgs().String())),
 		RequestHeaders:       json.RawMessage(reqHeaders),
 		ResponseHeaders:      json.RawMessage(respHeaders),
-		ResponseStatusOrigin: resp.StatusCode(),
+		ResponseStatusOrigin: responseStatusOrigin,
 		ResponseStatusProxy: func() int {
 			if internalCode != 0 {
 				return internalCode
 			}
+
 			return resp.StatusCode()
 		}(),
 		ResponseTime:       time.Since(timeStart).Milliseconds(),
