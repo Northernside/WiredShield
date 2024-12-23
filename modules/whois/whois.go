@@ -66,7 +66,12 @@ func queryRegionalWhoisServer(server, ip string) (string, error) {
 	}
 	defer conn.Close()
 
-	_, err = conn.Write([]byte(ip + "\r\n"))
+	if strings.Contains(server, "arin") {
+		_, err = conn.Write([]byte("z + " + ip + " +\r\n"))
+	} else {
+		_, err = conn.Write([]byte(ip + "\r\n"))
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("failed to write to regional WHOIS server: %v", err)
 	}
