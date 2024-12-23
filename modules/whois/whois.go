@@ -87,6 +87,12 @@ func queryRegionalWhoisServer(server, ip string) (string, error) {
 	}
 
 	for _, line := range strings.Split(whoisResponse.String(), "\n") {
+		if strings.HasPrefix(strings.ToLower(line), "resourcelink:") {
+			if strings.HasPrefix(strings.TrimSpace(strings.Split(line, ":")[1]), "whois.") {
+				return queryRegionalWhoisServer(strings.TrimSpace(strings.Split(line, ":")[1]), ip)
+			}
+		}
+
 		if strings.HasPrefix(strings.ToLower(line), "country:") {
 			return strings.TrimSpace(strings.Split(line, ":")[1]), nil
 		}
