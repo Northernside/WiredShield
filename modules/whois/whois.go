@@ -67,7 +67,7 @@ func queryRegionalWhoisServer(server, ip string) (string, error) {
 	defer conn.Close()
 
 	if strings.Contains(server, "whois.arin.net") {
-		_, err = conn.Write([]byte("n + " + ip + " +\r\n"))
+		_, err = conn.Write([]byte("z + " + ip + " +\r\n"))
 	} else {
 		_, err = conn.Write([]byte(ip + "\r\n"))
 	}
