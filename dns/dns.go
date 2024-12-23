@@ -89,7 +89,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.ARecord:
 					var responseIps []net.IP
 					if r.Protected {
-						responseIps = getOptimalIp(w.RemoteAddr().String())
+						responseIps = getOptimalIp(strings.Split(w.RemoteAddr().String(), ":")[0])
 					} else {
 						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
@@ -103,7 +103,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.AAAARecord:
 					var responseIps []net.IP
 					if r.Protected {
-						responseIps = getOptimalIp(w.RemoteAddr().String())
+						responseIps = getOptimalIp(strings.Split(w.RemoteAddr().String(), ":")[0])
 					} else {
 						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
