@@ -232,7 +232,7 @@ func Prepare(_service *services.Service) func() {
 
 					country, err := whois.GetCountry(ipnet.IP.String())
 					if err != nil {
-						service.ErrorLog("failed to get country: " + err.Error())
+						service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", ipnet.IP.String(), err))
 					} else {
 						service.InfoLog("Primary IPv4 country: " + country)
 					}
@@ -276,7 +276,7 @@ func Prepare(_service *services.Service) func() {
 func getOptimalIp(userIp string) []net.IP {
 	country, err := whois.GetCountry(userIp)
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("failed to get country: %v", err))
+		service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", userIp, err))
 		return []net.IP{net.ParseIP(processIp)}
 	}
 

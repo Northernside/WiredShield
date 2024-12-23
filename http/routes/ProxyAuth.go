@@ -131,7 +131,7 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 
 		country, err := whois.GetCountry(client.IPAddress)
 		if err != nil {
-			services.ProcessService.ErrorLog(fmt.Sprintf("failed to get country: %v", err))
+			services.ProcessService.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", client.IPAddress, err))
 
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
