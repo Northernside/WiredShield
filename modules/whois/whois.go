@@ -59,19 +59,21 @@ func findReferWhoisServer(whoisData string) string {
 	return ""
 }
 
-func queryRegionalWhoisServer(server, ip string) (string, error) {
+func queryRegionalWhoisServer(server, ip string, arinIssue bool) (string, error) {
 	conn, err := net.Dial("tcp", server+":43")
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to regional WHOIS server (%s): %v", server, err)
 	}
 	defer conn.Close()
 
-	if strings.Contains(server, "arin") {
-		_, err = conn.Write([]byte("z + " + ip + " +\r\n"))
+	var query string
+	if arinIssue && strings.Contains(server, "arin") {
+		query = "z + " + ip + "+\r\n"
 	} else {
-		_, err = conn.Write([]byte(ip + "\r\n"))
+		query = ip + "\r\n"
 	}
 
+	_, err = conn.Write([]byte(query))
 	if err != nil {
 		return "", fmt.Errorf("failed to write to regional WHOIS server: %v", err)
 	}
@@ -87,15 +89,13 @@ func queryRegionalWhoisServer(server, ip string) (string, error) {
 	}
 
 	for _, line := range strings.Split(whoisResponse.String(), "\n") {
-		if strings.HasPrefix(strings.ToLower(line), "resourcelink:") {
-			if strings.HasPrefix(strings.TrimSpace(strings.Split(line, ":")[1]), "whois.") {
-				return queryRegionalWhoisServer(strings.TrimSpace(strings.Split(line, ":")[1]), ip)
-			}
-		}
-
 		if strings.HasPrefix(strings.ToLower(line), "country:") {
 			return strings.TrimSpace(strings.Split(line, ":")[1]), nil
 		}
+	}
+
+	if !arinIssue {
+		return queryRegionalWhoisServer(server, ip, true)
 	}
 
 	return "", fmt.Errorf("country not found in WHOIS response")
