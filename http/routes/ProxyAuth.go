@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"net"
 	wireddns "wiredshield/dns"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
@@ -139,9 +140,9 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 		}
 
 		if _, ok := wireddns.Resolvers[country]; !ok {
-			wireddns.Resolvers[country] = []string{client.IPAddress}
+			wireddns.Resolvers[country] = []net.IP{net.ParseIP(client.IPAddress)}
 		} else {
-			wireddns.Resolvers[country] = append(wireddns.Resolvers[country], client.IPAddress)
+			wireddns.Resolvers[country] = append(wireddns.Resolvers[country], net.ParseIP(client.IPAddress))
 		}
 
 		ctx.Response.Header.Set("ws-access-token", token)
