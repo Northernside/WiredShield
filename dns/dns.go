@@ -7,20 +7,28 @@ import (
 	"sync"
 	"time"
 	"wiredshield/modules/db"
+	"wiredshield/modules/whois"
 	"wiredshield/services"
 
 	"github.com/miekg/dns"
 )
 
 var (
-	service  *services.Service
-	shieldIp *net.IP
-	cache    = make(map[string]cacheEntry)
-	cacheMux sync.RWMutex
+	service     *services.Service
+	cache       = make(map[string]dnsCacheEntry)
+	geoLocCache = make(map[string]geoLocCacheEntry)
+	Resolvers   = map[string][]string{}
+	processIp   string
+	cacheMux    sync.RWMutex
 )
 
-type cacheEntry struct {
+type dnsCacheEntry struct {
 	records    []dns.RR
+	expiration time.Time
+}
+
+type geoLocCacheEntry struct {
+	country    string
 	expiration time.Time
 }
 
@@ -79,28 +87,32 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				var rr dns.RR
 				switch r := record.(type) {
 				case db.ARecord:
-					var ip net.IP
+					var responseIps []net.IP
 					if r.Protected {
-						ip = net.ParseIP("45.157.11.82")
+						responseIps = getOptimalIp(w.RemoteAddr().String())
 					} else {
-						ip = net.ParseIP(r.IP)
+						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
 
-					rr = &dns.A{
-						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
-						A:   ip,
+					for _, ip := range responseIps {
+						rr = &dns.A{
+							Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
+							A:   ip,
+						}
 					}
 				case db.AAAARecord:
-					var ip net.IP
+					var responseIps []net.IP
 					if r.Protected {
-						ip = net.ParseIP("45.157.11.82")
+						responseIps = getOptimalIp(w.RemoteAddr().String())
 					} else {
-						ip = net.ParseIP(r.IP)
+						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
 
-					rr = &dns.AAAA{
-						Hdr:  dns.RR_Header{Name: question.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
-						AAAA: ip,
+					for _, ip := range responseIps {
+						rr = &dns.AAAA{
+							Hdr:  dns.RR_Header{Name: question.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
+							AAAA: ip,
+						}
 					}
 				case db.SOARecord:
 					rr = &dns.SOA{
@@ -173,7 +185,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			// update cache
 			cacheMux.Lock()
-			cache[cacheKey] = cacheEntry{
+			cache[cacheKey] = dnsCacheEntry{
 				records:    rrList,
 				expiration: time.Now().Add(1 * time.Hour),
 			}
@@ -216,7 +228,18 @@ func Prepare(_service *services.Service) func() {
 		for _, addr := range addrs {
 			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 				if ipnet.IP.To4() != nil {
-					shieldIp = &ipnet.IP
+					service.InfoLog("Primary IPv4 address: " + ipnet.IP.String())
+
+					country, err := whois.GetCountry(ipnet.IP.String())
+					if err != nil {
+						service.ErrorLog("failed to get country: " + err.Error())
+					} else {
+						service.InfoLog("Primary IPv4 country: " + country)
+					}
+
+					Resolvers[country] = []string{ipnet.IP.String()}
+					processIp = ipnet.IP.String()
+
 					break
 				}
 			}
@@ -248,4 +271,18 @@ func Prepare(_service *services.Service) func() {
 		service.InfoLog("Starting DNS server on " + addr)
 		service.OnlineSince = time.Now().Unix()
 	}
+}
+
+func getOptimalIp(userIp string) []net.IP {
+	country, err := whois.GetCountry(userIp)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("failed to get country: %v", err))
+		return []net.IP{net.ParseIP(processIp)}
+	}
+
+	if resolvers, ok := Resolvers[country]; ok {
+		return []net.IP{net.ParseIP(resolvers[0])}
+	}
+
+	return []net.IP{net.ParseIP(processIp)}
 }

@@ -27,16 +27,14 @@ func init() {
 
 // TODO: service.XYZLog is (heavily) blocking the main thread
 
-var processService *services.Service
-
 func main() {
 	db.Init()
 
-	processService = services.RegisterService("process", "WiredShield")
-	processService.Boot = func() {
-		processService.OnlineSince = time.Now().Unix()
-		processService.InfoLog("Initializing WiredShield")
-		go db.PInit(processService)
+	services.ProcessService = services.RegisterService("process", "WiredShield")
+	services.ProcessService.Boot = func() {
+		services.ProcessService.OnlineSince = time.Now().Unix()
+		services.ProcessService.InfoLog("Initializing WiredShield")
+		go db.PInit(services.ProcessService)
 	}
 
 	args := os.Args[1:]
@@ -60,7 +58,7 @@ func main() {
 		httpsService := services.RegisterService("https", "HTTPS Server")
 		httpsService.Boot = wiredhttps.Prepare(httpsService)
 	} else {
-		processService.WarnLog("TMP: Bypassing DNS and HTTPS services")
+		services.ProcessService.WarnLog("TMP: Bypassing DNS and HTTPS services")
 	}
 
 	commands.Commands = []commands.Command{
@@ -98,7 +96,7 @@ func handleArgs(args []string) {
 		}
 
 		// insert into db
-		var client db.Client
+		var client services.Client
 		client.Name = services.ClientName
 		client.IPAddress = args[2]
 
@@ -106,7 +104,7 @@ func handleArgs(args []string) {
 		client.GeoLoc.Country = split[0]
 		client.GeoLoc.City = split[1]
 
-		db.PInit(processService)
+		db.PInit(services.ProcessService)
 		err = db.InsertClient(client)
 		if err != nil {
 			fmt.Println("Failed to insert client into db")
@@ -127,16 +125,16 @@ func handleArgs(args []string) {
 }
 
 func masterHandling() {
-	processService.InfoLog("Running as master")
+	services.ProcessService.InfoLog("Running as master")
 	handleKeys("master")
 }
 
 func nodeHandling() {
-	processService.InfoLog("Running as node")
+	services.ProcessService.InfoLog("Running as node")
 
 	services.ClientName = env.GetEnv("CLIENT_NAME", "unknown")
 	if services.ClientName == "unknown" {
-		processService.FatalLog("CLIENT_NAME is not set")
+		services.ProcessService.FatalLog("CLIENT_NAME is not set")
 	}
 
 	handleKeys(services.ClientName)
@@ -144,7 +142,7 @@ func nodeHandling() {
 	masterHost := env.GetEnv("MASTER_API", "https://shield.as214428.net/")
 	req, err := http.NewRequest("GET", masterHost+".wiredshield/proxy-auth", nil)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 1, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName))
+		services.ProcessService.FatalLog(fmt.Sprintf("Failed to create request -> State: 1, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName))
 	}
 
 	req.Header.Set("State", "1")
@@ -169,31 +167,31 @@ func nodeHandling() {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName, err.Error()))
+		services.ProcessService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName, err.Error()))
 	}
 
 	if resp.StatusCode != 200 {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %d", masterHost+".wiredshield/proxy-auth", services.ClientName, resp.StatusCode))
+		services.ProcessService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 1, %s, %s, %d", masterHost+".wiredshield/proxy-auth", services.ClientName, resp.StatusCode))
 	}
 
 	wsSigningCode := resp.Header.Get("ws-signing-code")
-	processService.InfoLog(fmt.Sprintf("Received signing code: %s", wsSigningCode))
+	services.ProcessService.InfoLog(fmt.Sprintf("Received signing code: %s", wsSigningCode))
 
 	req, err = http.NewRequest("GET", masterHost+".wiredshield/proxy-auth", nil)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to create request -> State: 2, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName))
+		services.ProcessService.FatalLog(fmt.Sprintf("Failed to create request -> State: 2, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName))
 	}
 
 	req.Header.Set("State", "2")
 
 	privateKey, err := pgp.LoadPrivateKey(fmt.Sprintf("certs/%s-private.asc", services.ClientName), "")
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to load private key -> %s, %s", services.ClientName, err.Error()))
+		services.ProcessService.FatalLog(fmt.Sprintf("Failed to load private key -> %s, %s", services.ClientName, err.Error()))
 	}
 
 	signingCode, err := pgp.SignMessage(string(wsSigningCode), privateKey)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to sign message -> %s, %s", services.ClientName, err.Error()))
+		services.ProcessService.FatalLog(fmt.Sprintf("Failed to sign message -> %s, %s", services.ClientName, err.Error()))
 	}
 
 	b64SigningCode := base64.StdEncoding.EncodeToString([]byte(signingCode))
@@ -203,15 +201,15 @@ func nodeHandling() {
 
 	resp, err = client.Do(req)
 	if err != nil {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName, err.Error()))
+		services.ProcessService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %s", masterHost+".wiredshield/proxy-auth", services.ClientName, err.Error()))
 	}
 
 	if resp.StatusCode != 200 {
-		processService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %d", masterHost+".wiredshield/proxy-auth", services.ClientName, resp.StatusCode))
+		services.ProcessService.FatalLog(fmt.Sprintf("Failed to send proxy-auth request -> State: 2, %s, %s, %d", masterHost+".wiredshield/proxy-auth", services.ClientName, resp.StatusCode))
 	}
 
 	services.ProcessAccessToken = resp.Header.Get("ws-access-token")
-	processService.InfoLog(fmt.Sprintf("Received access token: %s", services.ProcessAccessToken))
+	services.ProcessService.InfoLog(fmt.Sprintf("Received access token: %s", services.ProcessAccessToken))
 }
 
 func handleKeys(clientName string) {
@@ -226,28 +224,28 @@ func handleKeys(clientName string) {
 	_, err := os.Stat(publicKeyPath)
 	if err != nil {
 		// generate new keypair
-		processService.InfoLog("Public key not found, generating new keypair")
+		services.ProcessService.InfoLog("Public key not found, generating new keypair")
 		err = pgp.GenerateKeyPair(clientName)
 		if err != nil {
-			processService.FatalLog(fmt.Sprintf("Failed to generate keypair -> %s", err.Error()))
+			services.ProcessService.FatalLog(fmt.Sprintf("Failed to generate keypair -> %s", err.Error()))
 		}
 	}
 
 	_, err = os.Stat(privateKeyPath)
 	if err != nil {
-		processService.FatalLog("Private key not found, generating new keypair")
+		services.ProcessService.FatalLog("Private key not found, generating new keypair")
 		err = pgp.GenerateKeyPair(clientName)
 		if err != nil {
-			processService.FatalLog(fmt.Sprintf("Failed to generate keypair -> %s", err.Error()))
+			services.ProcessService.FatalLog(fmt.Sprintf("Failed to generate keypair -> %s", err.Error()))
 		}
 	}
 
 	if env.GetEnv("MASTER", "false") == "true" {
 		services.ServerPrivateKey, err = pgp.LoadPrivateKey(privateKeyPath, "")
 		if err != nil {
-			processService.FatalLog(fmt.Sprintf("Failed to load private key -> %s", err.Error()))
+			services.ProcessService.FatalLog(fmt.Sprintf("Failed to load private key -> %s", err.Error()))
 		}
 	}
 
-	processService.InfoLog("Keys found")
+	services.ProcessService.InfoLog("Keys found")
 }

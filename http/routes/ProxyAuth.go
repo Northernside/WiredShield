@@ -5,16 +5,17 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	wireddns "wiredshield/dns"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/modules/pgp"
+	"wiredshield/modules/whois"
 	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
 
 var (
-	ClientMap              = make(map[string]db.Client)
 	pendingAuthentications = make(map[string]string)
 )
 
@@ -49,7 +50,7 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		ClientMap[clientName] = client
+		services.ClientMap[clientName] = client
 		ctx.SetStatusCode(fasthttp.StatusOK)
 
 		signingCode := randomString() + "." + clientName
@@ -121,6 +122,26 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
+		}
+
+		client := services.ClientMap[clientName]
+		client.Ready = true
+
+		services.ClientMap[clientName] = client
+
+		country, err := whois.GetCountry(client.IPAddress)
+		if err != nil {
+			services.ProcessService.ErrorLog(fmt.Sprintf("failed to get country: %v", err))
+
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
+			return
+		}
+
+		if _, ok := wireddns.Resolvers[country]; !ok {
+			wireddns.Resolvers[country] = []string{client.IPAddress}
+		} else {
+			wireddns.Resolvers[country] = append(wireddns.Resolvers[country], client.IPAddress)
 		}
 
 		ctx.Response.Header.Set("ws-access-token", token)

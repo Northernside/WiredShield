@@ -1,7 +1,6 @@
 package wiredhttps
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -13,36 +12,31 @@ import (
 	"wiredshield/http/routes"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
+	"wiredshield/modules/logging"
 	"wiredshield/services"
 
 	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
 )
 
-type requestLog struct {
-	RequestTime          int64           `json:"request_time"`
-	ClientIP             string          `json:"client_ip"`
-	Method               string          `json:"method"`
-	Host                 string          `json:"host"`
-	Path                 string          `json:"path"`
-	QueryParams          json.RawMessage `json:"query_params"`
-	RequestHeaders       json.RawMessage `json:"request_headers"`
-	ResponseHeaders      json.RawMessage `json:"response_headers"`
-	ResponseStatusOrigin int             `json:"response_status_origin"`
-	ResponseStatusProxy  int             `json:"response_status_proxy"`
-	ResponseTime         int64           `json:"response_time"`
-	TLSVersion           string          `json:"tls_version"`
-	RequestSize          int64           `json:"request_size"`
-	ResponseSize         int64           `json:"response_size"`
-	RequestHTTPVersion   string          `json:"request_http_version"`
-}
-
 var (
-	requestLogsChannel = make(chan *requestLog, (1024^2)*8)
-	clientPool         sync.Pool
-	service            *services.Service
-	certCache          sync.Map
-	certLoadMutex      sync.RWMutex
+	clientPool = sync.Pool{
+		New: func() interface{} {
+			return &fasthttp.Client{
+				ReadTimeout:     30 * time.Second,
+				WriteTimeout:    30 * time.Second,
+				MaxConnsPerHost: 1024 * 256,
+				Dial: (&fasthttp.TCPDialer{
+					Concurrency:      1024 * 256,
+					DNSCacheDuration: 5 * time.Minute,
+				}).Dial,
+			}
+		},
+	}
+
+	service       *services.Service
+	certCache     sync.Map
+	certLoadMutex sync.RWMutex
 )
 
 func init() {
@@ -54,23 +48,8 @@ func Prepare(_service *services.Service) func() {
 	service = _service
 
 	return func() {
-		port := env.GetEnv("HTTP_PORT", "443")
 		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
-		addr := binding + ":" + port
-
-		clientPool = sync.Pool{
-			New: func() interface{} {
-				return &fasthttp.Client{
-					ReadTimeout:     30 * time.Second,
-					WriteTimeout:    30 * time.Second,
-					MaxConnsPerHost: 1024 * 256,
-					Dial: (&fasthttp.TCPDialer{
-						Concurrency:      1024 * 256,
-						DNSCacheDuration: 5 * time.Minute,
-					}).Dial,
-				}
-			},
-		}
+		addr := binding + ":" + env.GetEnv("HTTP_PORT", "443")
 
 		service.InfoLog("Starting HTTPS proxy on " + addr)
 		service.OnlineSince = time.Now().Unix()
@@ -156,7 +135,7 @@ func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
 func proxyHandler(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
-			service.ErrorLog(fmt.Sprintf("Recovered from panic in proxyHandler: %v", err))
+			service.ErrorLog(fmt.Sprintf("recovered from panic in proxyHandler: %v", err))
 			ctx.Error("Internal Server Error (Backend Panic)", fasthttp.StatusInternalServerError)
 		}
 	}()
@@ -298,7 +277,7 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		responseStatusOrigin = resp.StatusCode()
 	}
 
-	requestLogsChannel <- &requestLog{
+	logging.RequestLogsChannel <- &logging.RequestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             getIp(ctx),
 		Method:               string(ctx.Method()),
@@ -359,93 +338,16 @@ func processRequestLogs() {
 	logWorkers := 512
 	for i := 0; i < logWorkers; i++ {
 		go func() {
-			for log := range requestLogsChannel {
-				logs := collectAdditionalLogs(log)
+			for log := range logging.RequestLogsChannel {
+				logs := logging.CollectAdditionalLogs(log)
 				if len(logs) > 0 {
-					if err := batchInsertRequestLogs(logs); err != nil {
+					if err := logging.BatchInsertRequestLogs(logs); err != nil {
 						service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
 					}
 				}
 			}
 		}()
 	}
-}
-
-func collectAdditionalLogs(initialLog *requestLog) []*requestLog {
-	logs := []*requestLog{initialLog}
-
-	for len(logs) < 128 {
-		select {
-		case log := <-requestLogsChannel:
-			logs = append(logs, log)
-		default:
-			return logs
-		}
-	}
-
-	return logs
-}
-
-func batchInsertRequestLogs(logs []*requestLog) error {
-	if len(logs) == 0 {
-		return nil
-	}
-
-	conn, err := db.PsqlConn.Acquire(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to acquire connection: %v", err)
-	}
-	defer conn.Release()
-
-	transaction, err := conn.Begin(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %v", err)
-	}
-	defer transaction.Rollback(context.Background())
-
-	placeholders := make([]string, len(logs))
-	values := make([]interface{}, 0, len(logs)*15)
-
-	for i, log := range logs {
-		placeholders[i] = fmt.Sprintf(
-			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-			i*15+1, i*15+2, i*15+3, i*15+4, i*15+5, i*15+6, i*15+7, i*15+8,
-			i*15+9, i*15+10, i*15+11, i*15+12, i*15+13, i*15+14, i*15+15,
-		)
-		values = append(values,
-			log.RequestTime,
-			log.ClientIP,
-			log.Method,
-			log.Host,
-			log.Path,
-			log.QueryParams,
-			log.RequestHeaders,
-			log.ResponseHeaders,
-			log.ResponseStatusOrigin,
-			log.ResponseStatusProxy,
-			log.ResponseTime,
-			log.TLSVersion,
-			log.RequestSize,
-			log.ResponseSize,
-			log.RequestHTTPVersion,
-		)
-	}
-
-	query := fmt.Sprintf(`
-        INSERT INTO requests (
-            request_time, client_ip, method, host, path, query_params, 
-            request_headers, response_headers, response_status_origin, 
-            response_status_proxy, response_time, tls_version, 
-            request_size, response_size, request_http_version
-        ) VALUES %s
-    `, strings.Join(placeholders, ","))
-
-	_, err = transaction.Exec(context.Background(), query, values...)
-	if err != nil {
-		return fmt.Errorf("batch insert failed: %v", err)
-	}
-
-	return transaction.Commit(context.Background())
 }
 
 func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {

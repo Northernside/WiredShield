@@ -38,28 +38,18 @@ func PInit(service *services.Service) {
 	service.InfoLog("Connected to PostgreSQL")
 }
 
-type GeoLoc struct {
-	Country string
-	City    string
-}
-
-type Client struct {
-	Name      string
-	IPAddress string
-	GeoLoc    GeoLoc
-}
-
-func GetClient(clientName string) (Client, error) {
-	var client Client
+func GetClient(clientName string) (services.Client, error) {
+	var client services.Client
 	err := PsqlConn.QueryRow(context.Background(), "SELECT * FROM clients WHERE name = $1", clientName).Scan(&client.Name, &client.IPAddress, &client.GeoLoc.Country, &client.GeoLoc.City)
 	if err != nil {
 		return client, err
 	}
 
+	client.Ready = false
 	return client, nil
 }
 
-func InsertClient(client Client) error {
+func InsertClient(client services.Client) error {
 	_, err := PsqlConn.Exec(context.Background(), "INSERT INTO clients (name, ip_address, country, city) VALUES ($1, $2, $3, $4)", client.Name, client.IPAddress, client.GeoLoc.Country, client.GeoLoc.City)
 	return err
 }
