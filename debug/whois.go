@@ -1,12 +1,22 @@
-package whois
+package main
 
 import (
 	"bufio"
 	"fmt"
 	"net"
 	"strings"
-	"wiredshield/services"
 )
+
+func main() {
+	ip := "3.209.85.98"
+	country, err := GetCountry(ip)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Country: %s\n", country)
+}
 
 func GetCountry(ip string) (string, error) {
 	country, err := getCountryFromWhois(ip)
@@ -36,13 +46,14 @@ func getCountryFromWhois(ip string) (string, error) {
 		whoisResponse.WriteString(scanner.Text() + "\n")
 	}
 
+	fmt.Println(whoisResponse.String())
+
 	if err := scanner.Err(); err != nil {
 		return "", fmt.Errorf("failed to read from WHOIS server: %v", err)
 	}
 
 	server := findReferWhoisServer(whoisResponse.String())
 	if server == "" {
-		services.ProcessService.ErrorLog(whoisResponse.String())
 		return "", fmt.Errorf("no referral WHOIS server found")
 	}
 
@@ -76,6 +87,8 @@ func queryRegionalWhoisServer(server, ip string) (string, error) {
 	for scanner.Scan() {
 		whoisResponse.WriteString(scanner.Text() + "\n")
 	}
+
+	fmt.Println(whoisResponse.String())
 
 	if err := scanner.Err(); err != nil {
 		return "", fmt.Errorf("failed to read from regional WHOIS server: %v", err)
