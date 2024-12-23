@@ -46,7 +46,7 @@ func getCountryFromWhois(ip string) (string, error) {
 		return "", fmt.Errorf("no referral WHOIS server found")
 	}
 
-	return queryRegionalWhoisServer(server, ip)
+	return queryRegionalWhoisServer(server, ip, false)
 }
 
 func findReferWhoisServer(whoisData string) string {
