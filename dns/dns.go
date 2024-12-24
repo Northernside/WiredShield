@@ -119,28 +119,28 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					var responseIps []net.IP
 
 					if r.Protected {
-						responseIps = getOptimalIp(strings.Split(w.RemoteAddr().String(), ":")[0])
+						responseIps = getOptimalResolvers(strings.Split(w.RemoteAddr().String(), ":")[0])
 					} else {
 						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
 
 					for _, ip := range responseIps {
 						rr = &dns.A{
-							Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
+							Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600},
 							A:   ip,
 						}
 					}
 				case db.AAAARecord:
 					var responseIps []net.IP
 					if r.Protected {
-						responseIps = getOptimalIp(strings.Split(w.RemoteAddr().String(), ":")[0])
+						responseIps = getOptimalResolvers(strings.Split(w.RemoteAddr().String(), ":")[0])
 					} else {
 						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
 
 					for _, ip := range responseIps {
 						rr = &dns.AAAA{
-							Hdr:  dns.RR_Header{Name: question.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
+							Hdr:  dns.RR_Header{Name: question.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600},
 							AAAA: ip,
 						}
 					}
@@ -302,7 +302,8 @@ func Prepare(_service *services.Service) func() {
 		service.OnlineSince = time.Now().Unix()
 	}
 }
-func getOptimalIp(userIp string) []net.IP {
+
+func getOptimalResolvers(userIp string) []net.IP {
 	cacheMux.RLock()
 	geoEntry, found := geoLocCache[userIp]
 	cacheMux.RUnlock()

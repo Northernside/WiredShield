@@ -5,15 +5,32 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"wiredshield/services"
 )
 
+var (
+	IPToGeoloc = make(map[string]string)
+	cacheMu    sync.RWMutex
+)
+
 func GetCountry(ip string) (string, error) {
+	cacheMu.RLock()
+	country, found := IPToGeoloc[ip]
+	cacheMu.RUnlock()
+	if found {
+		return country, nil
+	}
+
 	country, err := getCountryFromWhois(ip)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return "", err
 	}
+
+	cacheMu.Lock()
+	IPToGeoloc[ip] = country
+	cacheMu.Unlock()
 
 	return country, nil
 }

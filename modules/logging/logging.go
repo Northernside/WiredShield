@@ -24,6 +24,7 @@ type RequestLog struct {
 	RequestSize          int64           `json:"request_size"`
 	ResponseSize         int64           `json:"response_size"`
 	RequestHTTPVersion   string          `json:"request_http_version"`
+	ClientCountry        string          `json:"client_country"`
 }
 
 var (

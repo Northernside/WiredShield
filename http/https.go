@@ -13,6 +13,7 @@ import (
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	"wiredshield/modules/logging"
+	"wiredshield/modules/whois"
 	"wiredshield/services"
 
 	_ "github.com/lib/pq"
@@ -277,9 +278,15 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		responseStatusOrigin = resp.StatusCode()
 	}
 
+	ip := getIp(ctx)
+	country, err := whois.GetCountry(ip)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("failed to get country for IP %s: %v", ip, err))
+	}
+
 	logging.RequestLogsChannel <- &logging.RequestLog{
 		RequestTime:          timeStart.UnixMilli(),
-		ClientIP:             getIp(ctx),
+		ClientIP:             ip,
 		Method:               string(ctx.Method()),
 		Host:                 string(ctx.Host()),
 		Path:                 string(ctx.Path()),
@@ -299,6 +306,7 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		RequestSize:        requestSize,
 		ResponseSize:       responseSize,
 		RequestHTTPVersion: string(ctx.Request.Header.Protocol()),
+		ClientCountry:      country,
 	}
 }
 
