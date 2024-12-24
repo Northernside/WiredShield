@@ -370,7 +370,6 @@ func Prepare(_service *services.Service) func() {
 }
 
 func getOptimalResolvers(userIp string) []net.IP {
-	service.InfoLog(fmt.Sprintf("Getting optimal resolvers for %s", userIp))
 	cacheMux.RLock()
 	geoEntry, found := geoLocCache[userIp]
 	cacheMux.RUnlock()
@@ -386,8 +385,6 @@ func getOptimalResolvers(userIp string) []net.IP {
 		service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", userIp, err))
 		return []net.IP{net.ParseIP(processIp)}
 	}
-
-	service.InfoLog(fmt.Sprintf("Country for %s: %s", userIp, country))
 
 	cacheMux.Lock()
 	geoLocCache[userIp] = geoLocCacheEntry{
