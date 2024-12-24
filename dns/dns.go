@@ -38,9 +38,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	m.Authoritative = true
 
+	clientIp := strings.Split(w.RemoteAddr().String(), ":")[0]
 	dnsLog := &logging.DNSRequestLog{
 		QueryTime:     time.Now().Unix(),
-		ClientIP:      strings.Split(w.RemoteAddr().String(), ":")[0],
+		ClientIP:      clientIp,
 		QueryName:     "",
 		QueryType:     "",
 		QueryClass:    "",
@@ -60,12 +61,12 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			dnsLog.QueryType = dns.TypeToString[question.Qtype]
 			dnsLog.QueryClass = dns.ClassToString[question.Qclass]
 
-			country, err := whois.GetCountry(strings.Split(w.RemoteAddr().String(), ":")[0])
+			country, err := whois.GetCountry(clientIp)
 			dnsLog.ClientCountry = country
 
 			if lookupName == "wiredshield_info" && dns.TypeToString[question.Qtype] == "TXT" {
 				if err != nil {
-					service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", strings.Split(w.RemoteAddr().String(), ":")[0], err))
+					service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", clientIp, err))
 					country = "Unknown (Error)"
 				}
 
@@ -114,7 +115,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			// check cache
-			cacheKey := fmt.Sprintf("%s:%s", dns.TypeToString[question.Qtype], lookupName)
+			cacheKey := fmt.Sprintf("%s:%s:%s", dns.TypeToString[question.Qtype], lookupName, clientIp)
 			cacheMux.RLock()
 			entry, found := cache[cacheKey]
 			cacheMux.RUnlock()
@@ -154,7 +155,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					var responseIps []net.IP
 
 					if r.Protected {
-						responseIps = getOptimalResolvers(strings.Split(w.RemoteAddr().String(), ":")[0])
+						responseIps = getOptimalResolvers(clientIp)
 					} else {
 						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
@@ -168,7 +169,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.AAAARecord:
 					var responseIps []net.IP
 					if r.Protected {
-						responseIps = getOptimalResolvers(strings.Split(w.RemoteAddr().String(), ":")[0])
+						responseIps = getOptimalResolvers(clientIp)
 					} else {
 						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
@@ -369,6 +370,7 @@ func Prepare(_service *services.Service) func() {
 }
 
 func getOptimalResolvers(userIp string) []net.IP {
+	service.InfoLog(fmt.Sprintf("Getting optimal resolvers for %s", userIp))
 	cacheMux.RLock()
 	geoEntry, found := geoLocCache[userIp]
 	cacheMux.RUnlock()
@@ -384,6 +386,8 @@ func getOptimalResolvers(userIp string) []net.IP {
 		service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", userIp, err))
 		return []net.IP{net.ParseIP(processIp)}
 	}
+
+	service.InfoLog(fmt.Sprintf("Country for %s: %s", userIp, country))
 
 	cacheMux.Lock()
 	geoLocCache[userIp] = geoLocCacheEntry{
