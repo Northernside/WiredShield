@@ -83,7 +83,7 @@ func findReferWhoisServer(whoisData string) string {
 func queryRegionalWhoisServer(server, ip string, arinIssue bool) (string, error) {
 	conn, err := net.Dial("tcp", server+":43")
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to regional WHOIS server (%s): %v", server, err)
+		return "", fmt.Errorf("failed to connect to regional WHOIS server (%s, %s): %v", server, ip, err)
 	}
 	defer conn.Close()
 
