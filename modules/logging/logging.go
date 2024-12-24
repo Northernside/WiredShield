@@ -64,13 +64,13 @@ func BatchInsertRequestLogs(logs []*RequestLog) error {
 	defer transaction.Rollback(context.Background())
 
 	placeholders := make([]string, len(logs))
-	values := make([]interface{}, 0, len(logs)*15)
+	values := make([]interface{}, 0, len(logs)*16)
 
 	for i, log := range logs {
 		placeholders[i] = fmt.Sprintf(
-			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			i*15+1, i*15+2, i*15+3, i*15+4, i*15+5, i*15+6, i*15+7, i*15+8,
-			i*15+9, i*15+10, i*15+11, i*15+12, i*15+13, i*15+14, i*15+15,
+			i*15+9, i*15+10, i*15+11, i*15+12, i*15+13, i*15+14, i*15+15, i*15+16,
 		)
 		values = append(values,
 			log.RequestTime,
@@ -88,6 +88,7 @@ func BatchInsertRequestLogs(logs []*RequestLog) error {
 			log.RequestSize,
 			log.ResponseSize,
 			log.RequestHTTPVersion,
+			log.ClientCountry,
 		)
 	}
 
@@ -96,7 +97,8 @@ func BatchInsertRequestLogs(logs []*RequestLog) error {
             request_time, client_ip, method, host, path, query_params, 
             request_headers, response_headers, response_status_origin, 
             response_status_proxy, response_time, tls_version, 
-            request_size, response_size, request_http_version
+            request_size, response_size, request_http_version,
+			client_country
         ) VALUES %s
     `, strings.Join(placeholders, ","))
 
