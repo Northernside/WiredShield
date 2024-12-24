@@ -105,7 +105,9 @@ func queryRegionalWhoisServer(server, ip string, arinIssue bool) (string, error)
 		return "", fmt.Errorf("failed to read from regional WHOIS server: %v", err)
 	}
 
-	services.ProcessService.InfoLog(whoisResponse.String())
+	if ip == "69.244.103.211" {
+		services.ProcessService.InfoLog(whoisResponse.String())
+	}
 
 	for _, line := range strings.Split(whoisResponse.String(), "\n") {
 		if strings.HasPrefix(strings.ToLower(line), "resourcelink:") {
