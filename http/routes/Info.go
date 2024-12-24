@@ -5,12 +5,20 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"wiredshield/modules/whois"
 	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
 
 func Info(ctx *fasthttp.RequestCtx) {
+	country, err := whois.GetCountry(ctx.RemoteIP().String())
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		ctx.SetBodyString(fmt.Sprintf("Error: %v\n", err))
+		return
+	}
+
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("h=%s\n", string(ctx.Request.Header.Peek("host"))))
 	sb.WriteString(fmt.Sprintf("ip=%s\n", ctx.RemoteIP().String()))
@@ -18,7 +26,7 @@ func Info(ctx *fasthttp.RequestCtx) {
 	sb.WriteString(fmt.Sprintf("uag=%s\n", string(ctx.Request.Header.Peek("user-agent"))))
 	sb.WriteString(fmt.Sprintf("colo=%s\n", strings.ToUpper(services.ClientName)))
 	sb.WriteString(fmt.Sprintf("http=%s\n", string(ctx.Request.Header.Protocol())))
-	sb.WriteString(fmt.Sprintf("loc=%s\n", "UNKNOWN"))
+	sb.WriteString(fmt.Sprintf("loc=%s\n", country))
 	sb.WriteString(fmt.Sprintf("tls=%s\n", tlsVersionToString(ctx.TLSConnectionState().Version)))
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
