@@ -1,4 +1,4 @@
-package whois
+package main
 
 import (
 	"bufio"
@@ -12,6 +12,15 @@ var (
 	IPToGeoloc = make(map[string]string)
 	cacheMu    sync.RWMutex
 )
+
+func main() {
+	country, err := GetCountry("69.244.103.211")
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	}
+
+	fmt.Printf("Country: %v\n", country)
+}
 
 func GetCountry(ip string) (string, error) {
 	cacheMu.RLock()
