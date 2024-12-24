@@ -52,13 +52,15 @@ func main() {
 	services.ClientName = env.GetEnv("CLIENT_NAME", "unknown")
 
 	if (env.GetEnv("TMP_BYPASS", "false")) == "false" {
-		dnsService := services.RegisterService("dns", "DNS Server")
-		dnsService.Boot = wireddns.Prepare(dnsService)
-
 		httpsService := services.RegisterService("https", "HTTPS Server")
 		httpsService.Boot = wiredhttps.Prepare(httpsService)
 	} else {
-		services.ProcessService.WarnLog("TMP: Bypassing DNS and HTTPS services")
+		services.ProcessService.WarnLog("TMP: Bypassing HTTPS service")
+	}
+
+	if (env.GetEnv("MASTER", "false")) == "true" {
+		dnsService := services.RegisterService("dns", "DNS Server")
+		dnsService.Boot = wireddns.Prepare(dnsService)
 	}
 
 	commands.Commands = []commands.Command{
