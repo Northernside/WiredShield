@@ -284,6 +284,8 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		service.ErrorLog(fmt.Sprintf("failed to get country for IP %s: %v", ip, err))
 	}
 
+	service.InfoLog(fmt.Sprintf("%s %s", ip, country))
+
 	logging.RequestLogsChannel <- &logging.RequestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             ip,
