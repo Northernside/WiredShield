@@ -276,6 +276,22 @@ func logDNSRequest(log *logging.DNSRequestLog) {
 	logging.DNSLogsChannel <- log
 }
 
+func processRequestLogs() {
+	logWorkers := 512
+	for i := 0; i < logWorkers; i++ {
+		go func() {
+			for log := range logging.DNSLogsChannel {
+				logs := log.CollectAdditionalLogs()
+				if len(logs) > 0 {
+					if err := log.BatchInsert(logs); err != nil {
+						service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
+					}
+				}
+			}
+		}()
+	}
+}
+
 func emptyReply(w dns.ResponseWriter, m *dns.Msg) {
 	m.SetReply(m)
 	m.Rcode = dns.RcodeNameError
@@ -344,6 +360,8 @@ func Prepare(_service *services.Service) func() {
 				service.FatalLog("failed to start tcp server: " + err.Error())
 			}
 		}()
+
+		go processRequestLogs()
 
 		service.InfoLog("Starting DNS server on " + addr)
 		service.OnlineSince = time.Now().Unix()
