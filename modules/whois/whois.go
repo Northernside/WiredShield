@@ -85,7 +85,7 @@ func queryRegionalWhoisServer(server, ip string, arinIssue bool) (string, error)
 
 	var query string
 	if arinIssue && strings.Contains(server, "arin") {
-		query = "z + " + ip + "+\r\n"
+		query = "z " + ip + " +\r\n"
 	} else {
 		query = ip + "\r\n"
 	}
@@ -103,10 +103,6 @@ func queryRegionalWhoisServer(server, ip string, arinIssue bool) (string, error)
 
 	if err := scanner.Err(); err != nil {
 		return "", fmt.Errorf("failed to read from regional WHOIS server: %v", err)
-	}
-
-	if ip == "69.244.103.211" {
-		services.ProcessService.InfoLog(whoisResponse.String())
 	}
 
 	for _, line := range strings.Split(whoisResponse.String(), "\n") {
