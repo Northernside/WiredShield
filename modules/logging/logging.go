@@ -177,7 +177,7 @@ func (log *DNSRequestLog) BatchInsert(logs []*DNSRequestLog) error {
 	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO dns_requests (
+		INSERT INTO dns_request_logs (
 			query_time, client_ip, query_name, query_type, query_class, 
 			response_code, response_time, is_successful, client_country
 		) VALUES %s
