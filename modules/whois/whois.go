@@ -6,7 +6,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"wiredshield/services"
 )
 
 var (
@@ -22,7 +21,7 @@ func GetCountry(ip string) (string, error) {
 		return country, nil
 	}
 
-	country, err := getCountryFromWhois(ip)
+	country, err := getCountryFromWhois("whois.arin.net", ip)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return "", err
@@ -35,8 +34,8 @@ func GetCountry(ip string) (string, error) {
 	return country, nil
 }
 
-func getCountryFromWhois(ip string) (string, error) {
-	conn, err := net.Dial("tcp", "whois.arin.net:43")
+func getCountryFromWhois(server string, ip string) (string, error) {
+	conn, err := net.Dial("tcp", server+":43")
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to WHOIS server: %v", err)
 	}
@@ -57,80 +56,41 @@ func getCountryFromWhois(ip string) (string, error) {
 		return "", fmt.Errorf("failed to read from WHOIS server: %v", err)
 	}
 
-	server := findReferWhoisServer(whoisResponse.String())
-	if server == "" {
-		services.ProcessService.ErrorLog(whoisResponse.String())
-		return "", fmt.Errorf("no referral WHOIS server found")
-	}
+	if strings.Contains(strings.ToLower(whoisResponse.String()), "resourcelink:") {
 
-	if server == "whois" {
-		services.ProcessService.InfoLog(fmt.Sprintf("WHOIS server: %s, %s", server, ip))
-	}
+		// check if theres a ResourceLink:
+		/*
+			Ref:            https://rdap.arin.net/registry/ip/1.0.0.0
 
-	return queryRegionalWhoisServer(server, ip, false)
-}
+			ResourceLink:  http://wq.apnic.net/whois-search/static/search.html
+			ResourceLink:  whois.apnic.net
+		*/
 
-func findReferWhoisServer(whoisData string) string {
-	for _, line := range strings.Split(whoisData, "\n") {
-		if strings.HasPrefix(strings.ToLower(line), "refer:") {
-			return strings.TrimSpace(strings.Split(line, ":")[1])
-		}
-	}
-
-	return ""
-}
-
-func queryRegionalWhoisServer(server, ip string, arinIssue bool) (string, error) {
-	conn, err := net.Dial("tcp", server+":43")
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to regional WHOIS server (%s, %s): %v", server, ip, err)
-	}
-	defer conn.Close()
-
-	var query string
-	if arinIssue && strings.Contains(server, "arin") {
-		query = "z " + ip + " +\r\n"
-	} else {
-		query = ip + "\r\n"
-	}
-
-	_, err = conn.Write([]byte(query))
-	if err != nil {
-		return "", fmt.Errorf("failed to write to regional WHOIS server: %v", err)
-	}
-
-	scanner := bufio.NewScanner(conn)
-	var whoisResponse strings.Builder
-	for scanner.Scan() {
-		whoisResponse.WriteString(scanner.Text() + "\n")
-	}
-
-	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("failed to read from regional WHOIS server: %v", err)
-	}
-
-	for _, line := range strings.Split(whoisResponse.String(), "\n") {
-		if strings.HasPrefix(strings.ToLower(line), "resourcelink:") {
-			if strings.HasPrefix(strings.TrimSpace(strings.Split(line, ":")[1]), "whois") {
-				if server == "whois" {
-					services.ProcessService.InfoLog(fmt.Sprintf("WHOIS server: %s, %s", server, ip))
-				}
-
-				return queryRegionalWhoisServer(strings.TrimSpace(strings.Split(line, ":")[1]), ip, false)
+		// there may be two ResourceLink: in the response, we need to get the second one
+		// get all resourcelink lines and then use the last one from the array
+		var resourceLinks []string
+		for _, line := range strings.Split(whoisResponse.String(), "\n") {
+			if strings.Contains(strings.ToLower(line), "resourcelink:") {
+				resourceLinks = append(resourceLinks, strings.TrimSpace(strings.Split(strings.ToLower(line), "resourcelink:")[1]))
 			}
 		}
 
-		if strings.HasPrefix(strings.ToLower(line), "country:") {
-			return strings.TrimSpace(strings.Split(line, ":")[1]), nil
+		var nextServer string
+		if len(resourceLinks) > 0 {
+			nextServer = strings.Replace(resourceLinks[1], "whois://", "", 1)
+		} else {
+			return "", fmt.Errorf("no ResourceLink found in WHOIS response")
+		}
+
+		if nextServer != "" {
+			return getCountryFromWhois(nextServer, ip)
 		}
 	}
 
-	if !arinIssue {
-		if server == "whois" {
-			services.ProcessService.InfoLog(fmt.Sprintf("WHOIS server: %s, %s", server, ip))
+	for _, line := range strings.Split(whoisResponse.String(), "\n") {
+		if strings.Contains(strings.ToLower(line), "country:") {
+			return strings.TrimSpace(strings.Split(line, ":")[1]), nil
 		}
-
-		return queryRegionalWhoisServer(server, ip, true)
 	}
 
 	return "", fmt.Errorf("country not found in WHOIS response")
