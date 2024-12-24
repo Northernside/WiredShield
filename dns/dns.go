@@ -7,20 +7,29 @@ import (
 	"sync"
 	"time"
 	"wiredshield/modules/db"
+	"wiredshield/modules/logging"
+	"wiredshield/modules/whois"
 	"wiredshield/services"
 
 	"github.com/miekg/dns"
 )
 
 var (
-	service  *services.Service
-	shieldIp *net.IP
-	cache    = make(map[string]cacheEntry)
-	cacheMux sync.RWMutex
+	service     *services.Service
+	cache       = make(map[string]dnsCacheEntry)
+	geoLocCache = make(map[string]geoLocCacheEntry)
+	Resolvers   = map[string][]net.IP{}
+	processIp   string
+	cacheMux    sync.RWMutex
 )
 
-type cacheEntry struct {
+type dnsCacheEntry struct {
 	records    []dns.RR
+	expiration time.Time
+}
+
+type geoLocCacheEntry struct {
+	country    string
 	expiration time.Time
 }
 
@@ -29,10 +38,63 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	m.Authoritative = true
 
+	dnsLog := &logging.DNSRequestLog{
+		QueryTime:     time.Now().Unix(),
+		ClientIP:      strings.Split(w.RemoteAddr().String(), ":")[0],
+		QueryName:     "",
+		QueryType:     "",
+		QueryClass:    "",
+		ResponseCode:  "",
+		ResponseTime:  0,
+		IsSuccessful:  false,
+		ClientCountry: "",
+	}
+
+	startTime := time.Now()
+
 	if len(r.Question) > 0 {
 		for _, question := range r.Question {
 			// prepare
 			lookupName := strings.TrimSuffix(strings.ToLower(question.Name), ".")
+			dnsLog.QueryName = lookupName
+			dnsLog.QueryType = dns.TypeToString[question.Qtype]
+			dnsLog.QueryClass = dns.ClassToString[question.Qclass]
+
+			country, err := whois.GetCountry(strings.Split(w.RemoteAddr().String(), ":")[0])
+			dnsLog.ClientCountry = country
+
+			if lookupName == "wiredshield_info" && dns.TypeToString[question.Qtype] == "TXT" {
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", strings.Split(w.RemoteAddr().String(), ":")[0], err))
+					country = "Unknown (Error)"
+				}
+
+				lines := []string{
+					"WiredShield DNS Server",
+					fmt.Sprintf("DNS Based Geo-Location: " + country),
+				}
+
+				for _, line := range lines {
+					txt := &dns.TXT{
+						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
+						Txt: []string{line},
+					}
+
+					m.Answer = append(m.Answer, txt)
+				}
+
+				err = w.WriteMsg(&m)
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+				}
+
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				dnsLog.IsSuccessful = true
+				logDNSRequest(dnsLog)
+
+				return
+			}
 
 			// check if record is supported
 			var supported bool = false
@@ -44,8 +106,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			if !supported {
-				service.WarnLog(fmt.Sprintf("unsupported record type: %s", dns.TypeToString[question.Qtype]))
 				emptyReply(w, &m)
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				logDNSRequest(dnsLog)
 				return
 			}
 
@@ -62,6 +126,11 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
 				}
 
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				dnsLog.IsSuccessful = true
+				logDNSRequest(dnsLog)
+
 				return
 			}
 
@@ -70,6 +139,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			if err != nil {
 				service.ErrorLog(fmt.Sprintf("failed to get records: %s", err.Error()))
 				emptyReply(w, &m)
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				logDNSRequest(dnsLog)
 				return
 			}
 
@@ -79,28 +151,33 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				var rr dns.RR
 				switch r := record.(type) {
 				case db.ARecord:
-					var ip net.IP
+					var responseIps []net.IP
+
 					if r.Protected {
-						ip = net.ParseIP("45.157.11.82")
+						responseIps = getOptimalResolvers(strings.Split(w.RemoteAddr().String(), ":")[0])
 					} else {
-						ip = net.ParseIP(r.IP)
+						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
 
-					rr = &dns.A{
-						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 300},
-						A:   ip,
+					for _, ip := range responseIps {
+						rr = &dns.A{
+							Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600},
+							A:   ip,
+						}
 					}
 				case db.AAAARecord:
-					var ip net.IP
+					var responseIps []net.IP
 					if r.Protected {
-						ip = net.ParseIP("45.157.11.82")
+						responseIps = getOptimalResolvers(strings.Split(w.RemoteAddr().String(), ":")[0])
 					} else {
-						ip = net.ParseIP(r.IP)
+						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
 
-					rr = &dns.AAAA{
-						Hdr:  dns.RR_Header{Name: question.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 300},
-						AAAA: ip,
+					for _, ip := range responseIps {
+						rr = &dns.AAAA{
+							Hdr:  dns.RR_Header{Name: question.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600},
+							AAAA: ip,
+						}
 					}
 				case db.SOARecord:
 					rr = &dns.SOA{
@@ -116,7 +193,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.CNAMERecord:
 					rr = &dns.CNAME{
 						Hdr:    dns.RR_Header{Name: question.Name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
-						Target: r.Target,
+						Target: r.Target + ".",
 					}
 				case db.NSRecord:
 					rr = &dns.NS{
@@ -127,7 +204,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					rr = &dns.MX{
 						Hdr:        dns.RR_Header{Name: question.Name, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: 300},
 						Preference: r.Priority,
-						Mx:         r.Target,
+						Mx:         r.Target + ".",
 					}
 				case db.TXTRecord:
 					rr = &dns.TXT{
@@ -168,12 +245,15 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			if len(m.Answer) == 0 {
 				emptyReply(w, &m)
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				logDNSRequest(dnsLog)
 				return
 			}
 
 			// update cache
 			cacheMux.Lock()
-			cache[cacheKey] = cacheEntry{
+			cache[cacheKey] = dnsCacheEntry{
 				records:    rrList,
 				expiration: time.Now().Add(1 * time.Hour),
 			}
@@ -183,7 +263,32 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			if err != nil {
 				service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
 			}
+
+			dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+			dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+			dnsLog.IsSuccessful = true
+			logDNSRequest(dnsLog)
 		}
+	}
+}
+
+func logDNSRequest(log *logging.DNSRequestLog) {
+	logging.DNSLogsChannel <- log
+}
+
+func processRequestLogs() {
+	logWorkers := 512
+	for i := 0; i < logWorkers; i++ {
+		go func() {
+			for log := range logging.DNSLogsChannel {
+				logs := log.CollectAdditionalLogs()
+				if len(logs) > 0 {
+					if err := log.BatchInsert(logs); err != nil {
+						service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
+					}
+				}
+			}
+		}()
 	}
 }
 
@@ -216,7 +321,18 @@ func Prepare(_service *services.Service) func() {
 		for _, addr := range addrs {
 			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 				if ipnet.IP.To4() != nil {
-					shieldIp = &ipnet.IP
+					service.InfoLog("Primary IPv4 address: " + ipnet.IP.String())
+
+					country, err := whois.GetCountry(ipnet.IP.String())
+					if err != nil {
+						service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", ipnet.IP.String(), err))
+					} else {
+						service.InfoLog("Primary IPv4 country: " + country)
+					}
+
+					Resolvers[country] = []net.IP{ipnet.IP}
+					processIp = ipnet.IP.String()
+
 					break
 				}
 			}
@@ -245,7 +361,40 @@ func Prepare(_service *services.Service) func() {
 			}
 		}()
 
+		go processRequestLogs()
+
 		service.InfoLog("Starting DNS server on " + addr)
 		service.OnlineSince = time.Now().Unix()
 	}
+}
+
+func getOptimalResolvers(userIp string) []net.IP {
+	cacheMux.RLock()
+	geoEntry, found := geoLocCache[userIp]
+	cacheMux.RUnlock()
+
+	if found && time.Now().Before(geoEntry.expiration) {
+		if resolvers, ok := Resolvers[geoEntry.country]; ok {
+			return resolvers
+		}
+	}
+
+	country, err := whois.GetCountry(userIp)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", userIp, err))
+		return []net.IP{net.ParseIP(processIp)}
+	}
+
+	cacheMux.Lock()
+	geoLocCache[userIp] = geoLocCacheEntry{
+		country:    country,
+		expiration: time.Now().Add(24 * time.Hour),
+	}
+	cacheMux.Unlock()
+
+	if resolvers, ok := Resolvers[country]; ok {
+		return resolvers
+	}
+
+	return []net.IP{net.ParseIP(processIp)}
 }

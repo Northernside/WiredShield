@@ -89,7 +89,7 @@ func UpdateRecord(recordType, domain string, record interface{}) error {
 				return fmt.Errorf("failed to insert records: %v", err)
 			}
 
-			return txn.Commit()
+			return nil
 		}
 
 		if value != nil { // append to array
@@ -309,6 +309,8 @@ func GetRecords(recordType, domain string) ([]interface{}, error) {
 					if err := json.Unmarshal(raw, &cnameRecord); err != nil {
 						return fmt.Errorf("failed to unmarshal CNAME record: %v", err)
 					}
+
+					record = cnameRecord
 				case string(SOA):
 					var soaRecord SOARecord
 					if err := json.Unmarshal(raw, &soaRecord); err != nil {
