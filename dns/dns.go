@@ -81,7 +81,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			if !supported {
-				service.WarnLog(fmt.Sprintf("unsupported record type: %s", dns.TypeToString[question.Qtype]))
+				//service.WarnLog(fmt.Sprintf("unsupported record type: %s", dns.TypeToString[question.Qtype]))
 				emptyReply(w, &m)
 				return
 			}
