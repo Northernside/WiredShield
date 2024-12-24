@@ -36,7 +36,7 @@ func GetCountry(ip string) (string, error) {
 }
 
 func getCountryFromWhois(ip string) (string, error) {
-	conn, err := net.Dial("tcp", "whois.iana.org:43")
+	conn, err := net.Dial("tcp", "whois.arin.net:43")
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to WHOIS server: %v", err)
 	}
