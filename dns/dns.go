@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	"wiredshield/modules/db"
+	"wiredshield/modules/logging"
 	"wiredshield/modules/whois"
 	"wiredshield/services"
 
@@ -37,13 +38,32 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	m.Authoritative = true
 
+	dnsLog := &logging.DNSRequestLog{
+		QueryTime:     time.Now().Unix(),
+		ClientIP:      strings.Split(w.RemoteAddr().String(), ":")[0],
+		QueryName:     "",
+		QueryType:     "",
+		QueryClass:    "",
+		ResponseCode:  "",
+		ResponseTime:  0,
+		IsSuccessful:  false,
+		ClientCountry: "",
+	}
+
+	startTime := time.Now()
+
 	if len(r.Question) > 0 {
 		for _, question := range r.Question {
 			// prepare
 			lookupName := strings.TrimSuffix(strings.ToLower(question.Name), ".")
+			dnsLog.QueryName = lookupName
+			dnsLog.QueryType = dns.TypeToString[question.Qtype]
+			dnsLog.QueryClass = dns.ClassToString[question.Qclass]
+
+			country, err := whois.GetCountry(strings.Split(w.RemoteAddr().String(), ":")[0])
+			dnsLog.ClientCountry = country
 
 			if lookupName == "wiredshield_info" && dns.TypeToString[question.Qtype] == "TXT" {
-				country, err := whois.GetCountry(strings.Split(w.RemoteAddr().String(), ":")[0])
 				if err != nil {
 					service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", strings.Split(w.RemoteAddr().String(), ":")[0], err))
 					country = "Unknown (Error)"
@@ -68,6 +88,11 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
 				}
 
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				dnsLog.IsSuccessful = true
+				logDNSRequest(dnsLog)
+
 				return
 			}
 
@@ -81,8 +106,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			if !supported {
-				//service.WarnLog(fmt.Sprintf("unsupported record type: %s", dns.TypeToString[question.Qtype]))
 				emptyReply(w, &m)
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				logDNSRequest(dnsLog)
 				return
 			}
 
@@ -99,6 +126,11 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
 				}
 
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				dnsLog.IsSuccessful = true
+				logDNSRequest(dnsLog)
+
 				return
 			}
 
@@ -107,6 +139,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			if err != nil {
 				service.ErrorLog(fmt.Sprintf("failed to get records: %s", err.Error()))
 				emptyReply(w, &m)
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				logDNSRequest(dnsLog)
 				return
 			}
 
@@ -210,6 +245,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			if len(m.Answer) == 0 {
 				emptyReply(w, &m)
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				logDNSRequest(dnsLog)
 				return
 			}
 
@@ -225,8 +263,17 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			if err != nil {
 				service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
 			}
+
+			dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+			dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+			dnsLog.IsSuccessful = true
+			logDNSRequest(dnsLog)
 		}
 	}
+}
+
+func logDNSRequest(log *logging.DNSRequestLog) {
+	logging.DNSLogsChannel <- log
 }
 
 func emptyReply(w dns.ResponseWriter, m *dns.Msg) {

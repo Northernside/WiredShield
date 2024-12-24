@@ -284,7 +284,7 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		service.ErrorLog(fmt.Sprintf("failed to get country for IP %s: %v", ip, err))
 	}
 
-	logging.RequestLogsChannel <- &logging.RequestLog{
+	logging.RequestLogsChannel <- &logging.HTTPRequestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             ip,
 		Method:               string(ctx.Method()),
@@ -347,9 +347,9 @@ func processRequestLogs() {
 	for i := 0; i < logWorkers; i++ {
 		go func() {
 			for log := range logging.RequestLogsChannel {
-				logs := logging.CollectAdditionalLogs(log)
+				logs := log.CollectAdditionalLogs()
 				if len(logs) > 0 {
-					if err := logging.BatchInsertRequestLogs(logs); err != nil {
+					if err := log.BatchInsert(logs); err != nil {
 						service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
 					}
 				}

@@ -8,7 +8,7 @@ import (
 	"wiredshield/modules/db"
 )
 
-type RequestLog struct {
+type HTTPRequestLog struct {
 	RequestTime          int64           `json:"request_time"`
 	ClientIP             string          `json:"client_ip"`
 	Method               string          `json:"method"`
@@ -27,14 +27,27 @@ type RequestLog struct {
 	ClientCountry        string          `json:"client_country"`
 }
 
+type DNSRequestLog struct {
+	QueryTime     int64  `json:"query_time"`
+	ClientIP      string `json:"client_ip"`
+	QueryName     string `json:"query_name"`
+	QueryType     string `json:"query_type"`
+	QueryClass    string `json:"query_class"`
+	ResponseCode  string `json:"response_code"`
+	ResponseTime  int64  `json:"response_time"`
+	IsSuccessful  bool   `json:"is_successful"`
+	ClientCountry string `json:"client_country"`
+}
+
 var (
-	RequestLogsChannel = make(chan *RequestLog, (1024^2)*8)
+	RequestLogsChannel = make(chan *HTTPRequestLog, (1024^2)*8)
+	DNSLogsChannel     = make(chan *DNSRequestLog, (1024^2)*8)
 )
 
-func CollectAdditionalLogs(initialLog *RequestLog) []*RequestLog {
-	logs := []*RequestLog{initialLog}
+func (log *HTTPRequestLog) CollectAdditionalLogs() []*HTTPRequestLog {
+	logs := []*HTTPRequestLog{log}
 
-	for len(logs) < 128 {
+	for len(logs) < 256 {
 		select {
 		case log := <-RequestLogsChannel:
 			logs = append(logs, log)
@@ -46,7 +59,7 @@ func CollectAdditionalLogs(initialLog *RequestLog) []*RequestLog {
 	return logs
 }
 
-func BatchInsertRequestLogs(logs []*RequestLog) error {
+func (log *HTTPRequestLog) BatchInsert(logs []*HTTPRequestLog) error {
 	if len(logs) == 0 {
 		return nil
 	}
@@ -93,14 +106,82 @@ func BatchInsertRequestLogs(logs []*RequestLog) error {
 	}
 
 	query := fmt.Sprintf(`
-        INSERT INTO requests (
-            request_time, client_ip, method, host, path, query_params, 
-            request_headers, response_headers, response_status_origin, 
-            response_status_proxy, response_time, tls_version, 
-            request_size, response_size, request_http_version,
+		INSERT INTO requests (
+			request_time, client_ip, method, host, path, query_params, 
+			request_headers, response_headers, response_status_origin, 
+			response_status_proxy, response_time, tls_version, 
+			request_size, response_size, request_http_version,
 			client_country
-        ) VALUES %s
-    `, strings.Join(placeholders, ","))
+		) VALUES %s
+	`, strings.Join(placeholders, ","))
+
+	_, err = transaction.Exec(context.Background(), query, values...)
+	if err != nil {
+		return fmt.Errorf("batch insert failed: %v", err)
+	}
+
+	return transaction.Commit(context.Background())
+}
+
+func (log *DNSRequestLog) CollectAdditionalLogs() []*DNSRequestLog {
+	logs := []*DNSRequestLog{log}
+
+	for len(logs) < 256 {
+		select {
+		case log := <-DNSLogsChannel:
+			logs = append(logs, log)
+		default:
+			return logs
+		}
+	}
+
+	return logs
+}
+
+func (log *DNSRequestLog) BatchInsert(logs []*DNSRequestLog) error {
+	if len(logs) == 0 {
+		return nil
+	}
+
+	conn, err := db.PsqlConn.Acquire(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to acquire connection: %v", err)
+	}
+	defer conn.Release()
+
+	transaction, err := conn.Begin(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer transaction.Rollback(context.Background())
+
+	placeholders := make([]string, len(logs))
+	values := make([]interface{}, 0, len(logs)*9)
+
+	for i, log := range logs {
+		placeholders[i] = fmt.Sprintf(
+			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			i*9+1, i*9+2, i*9+3, i*9+4, i*9+5, i*9+6, i*9+7, i*9+8, i*9+9,
+		)
+		values = append(values,
+			log.QueryTime,
+			log.ClientIP,
+			log.QueryName,
+			log.QueryType,
+			log.QueryClass,
+			log.ResponseCode,
+			log.ResponseTime,
+			log.IsSuccessful,
+			log.ClientCountry,
+		)
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO dns_requests (
+			query_time, client_ip, query_name, query_type, query_class, 
+			response_code, response_time, is_successful, client_country
+		) VALUES %s
+	`, strings.Join(placeholders, ","))
 
 	_, err = transaction.Exec(context.Background(), query, values...)
 	if err != nil {
