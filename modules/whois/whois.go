@@ -63,6 +63,7 @@ func getCountryFromWhois(ip string) (string, error) {
 		return "", fmt.Errorf("no referral WHOIS server found")
 	}
 
+	services.ProcessService.InfoLog(fmt.Sprintf("WHOIS server: %s", server))
 	return queryRegionalWhoisServer(server, ip, false)
 }
 
@@ -108,6 +109,7 @@ func queryRegionalWhoisServer(server, ip string, arinIssue bool) (string, error)
 	for _, line := range strings.Split(whoisResponse.String(), "\n") {
 		if strings.HasPrefix(strings.ToLower(line), "resourcelink:") {
 			if strings.HasPrefix(strings.TrimSpace(strings.Split(line, ":")[1]), "whois") {
+				services.ProcessService.InfoLog(fmt.Sprintf("WHOIS server: %s", server))
 				return queryRegionalWhoisServer(strings.TrimSpace(strings.Split(line, ":")[1]), ip, false)
 			}
 		}
@@ -118,6 +120,7 @@ func queryRegionalWhoisServer(server, ip string, arinIssue bool) (string, error)
 	}
 
 	if !arinIssue {
+		services.ProcessService.InfoLog(fmt.Sprintf("WHOIS server: %s", server))
 		return queryRegionalWhoisServer(server, ip, true)
 	}
 
