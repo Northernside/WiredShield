@@ -18,8 +18,10 @@ var (
 	service     *services.Service
 	cache       = make(map[string]dnsCacheEntry)
 	geoLocCache = make(map[string]geoLocCacheEntry)
-	Resolvers   = map[string][]net.IP{}
-	processIp   string
+	ResolversV4 = map[string][]net.IP{}
+	ResolversV6 = map[string][]net.IP{}
+	processIPv4 string
+	processIPv6 string
 	cacheMux    sync.RWMutex
 )
 
@@ -155,7 +157,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					var responseIps []net.IP
 
 					if r.Protected {
-						responseIps = getOptimalResolvers(clientIp)
+						responseIps = getOptimalResolvers("A", clientIp)
 					} else {
 						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
@@ -169,7 +171,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				case db.AAAARecord:
 					var responseIps []net.IP
 					if r.Protected {
-						responseIps = getOptimalResolvers(clientIp)
+						responseIps = getOptimalResolvers("AAAA", clientIp)
 					} else {
 						responseIps = []net.IP{net.ParseIP(r.IP)}
 					}
@@ -331,8 +333,24 @@ func Prepare(_service *services.Service) func() {
 						service.InfoLog("Primary IPv4 country: " + country)
 					}
 
-					Resolvers[country] = []net.IP{ipnet.IP}
-					processIp = ipnet.IP.String()
+					ResolversV4[country] = []net.IP{ipnet.IP}
+					processIPv4 = ipnet.IP.String()
+
+					break
+				}
+
+				if ipnet.IP.To16() != nil {
+					service.InfoLog("Primary IPv6 address: " + ipnet.IP.String())
+
+					country, err := whois.GetCountry(ipnet.IP.String())
+					if err != nil {
+						service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", ipnet.IP.String(), err))
+					} else {
+						service.InfoLog("Primary IPv6 country: " + country)
+					}
+
+					ResolversV6[country] = []net.IP{ipnet.IP}
+					processIPv6 = ipnet.IP.String()
 
 					break
 				}
@@ -369,21 +387,31 @@ func Prepare(_service *services.Service) func() {
 	}
 }
 
-func getOptimalResolvers(userIp string) []net.IP {
+func getOptimalResolvers(recordType, userIp string) []net.IP {
 	cacheMux.RLock()
 	geoEntry, found := geoLocCache[userIp]
 	cacheMux.RUnlock()
 
 	if found && time.Now().Before(geoEntry.expiration) {
-		if resolvers, ok := Resolvers[geoEntry.country]; ok {
-			return resolvers
+		if recordType == "A" {
+			if resolvers, ok := ResolversV4[geoEntry.country]; ok {
+				return resolvers
+			}
+		} else if recordType == "AAAA" {
+			if resolvers, ok := ResolversV6[geoEntry.country]; ok {
+				return resolvers
+			}
 		}
 	}
 
 	country, err := whois.GetCountry(userIp)
 	if err != nil {
 		service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", userIp, err))
-		return []net.IP{net.ParseIP(processIp)}
+		if recordType == "A" {
+			return []net.IP{net.ParseIP(processIPv4)}
+		} else if recordType == "AAAA" {
+			return []net.IP{net.ParseIP(processIPv6)}
+		}
 	}
 
 	cacheMux.Lock()
@@ -393,9 +421,19 @@ func getOptimalResolvers(userIp string) []net.IP {
 	}
 	cacheMux.Unlock()
 
-	if resolvers, ok := Resolvers[country]; ok {
-		return resolvers
+	if recordType == "A" {
+		if resolvers, ok := ResolversV4[country]; ok {
+			return resolvers
+		}
+
+		return []net.IP{net.ParseIP(processIPv4)}
+	} else if recordType == "AAAA" {
+		if resolvers, ok := ResolversV6[country]; ok {
+			return resolvers
+		}
+
+		return []net.IP{net.ParseIP(processIPv6)}
 	}
 
-	return []net.IP{net.ParseIP(processIp)}
+	return nil
 }
