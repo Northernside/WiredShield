@@ -118,9 +118,16 @@ func Prepare(_service *services.Service) func() {
 			}
 		}()
 
-		err := server.ListenAndServeTLS(addr, "", "")
+		ln, err := net.Listen("tcp", addr)
 		if err != nil {
-			service.FatalLog(err.Error())
+			service.FatalLog(fmt.Sprintf("Error creating listener: %v", err))
+			return
+		}
+
+		tlsListener := tls.NewListener(ln, server.TLSConfig)
+		err = server.Serve(tlsListener)
+		if err != nil {
+			service.FatalLog(fmt.Sprintf("Error serving: %v", err))
 		}
 	}
 }
