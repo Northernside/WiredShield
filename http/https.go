@@ -238,7 +238,7 @@ func handleWebSocketProxy(ctx *fasthttp.RequestCtx) {
 			protocol = "wss"
 		}
 
-		backendAddr := fmt.Sprintf("%s://%s%s", protocol, string(ctx.Host()), ctx.URI().String())
+		backendAddr := fmt.Sprintf("%s://%s%s", protocol, string(ctx.Host()), string(ctx.URI().RequestURI()))
 		service.InfoLog(fmt.Sprintf("upgrading WebSocket to %s", backendAddr))
 		backendConn, _, err := websocket.DefaultDialer.Dial(backendAddr, nil)
 		if err != nil {
