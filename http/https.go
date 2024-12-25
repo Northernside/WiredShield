@@ -17,7 +17,7 @@ import (
 	"wiredshield/modules/whois"
 	"wiredshield/services"
 
-	"github.com/gorilla/websocket"
+	"github.com/fasthttp/websocket"
 	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
 )
@@ -224,38 +224,49 @@ func isWebSocketRequest(ctx *fasthttp.RequestCtx) bool {
 }
 
 func handleWebSocketProxy(ctx *fasthttp.RequestCtx) {
-	backendAddr := "wss://" + string(ctx.Host()) + string(ctx.Path())
-	backendConn, _, err := websocket.DefaultDialer.Dial(backendAddr, nil)
+	upgrader := websocket.FastHTTPUpgrader{
+		CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
+			return true
+		},
+	}
+
+	err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		protocol := "ws"
+		if ctx.IsTLS() {
+			protocol = "wss"
+		}
+
+		backendAddr := fmt.Sprintf("%s://%s%s", protocol, string(ctx.Host()), ctx.URI().String())
+		backendConn, _, err := websocket.DefaultDialer.Dial(backendAddr, nil)
+		if err != nil {
+			service.ErrorLog(fmt.Sprintf("error dialing backend WebSocket: %v", err))
+			return
+		}
+		defer backendConn.Close()
+
+		// relay msgs
+		errc := make(chan error, 2)
+
+		go func() {
+			_, err := io.Copy(conn.UnderlyingConn(), backendConn.UnderlyingConn())
+			errc <- err
+		}()
+
+		go func() {
+			_, err := io.Copy(backendConn.UnderlyingConn(), conn.UnderlyingConn())
+			errc <- err
+		}()
+
+		// wait for one of the copies to finish/end
+		<-errc
+	})
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("error dialing backend WebSocket: %v", err))
-		ctx.Error("Bad Gateway", fasthttp.StatusBadGateway)
+		service.ErrorLog(fmt.Sprintf("error upgrading WebSocket: %v", err))
+		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 		return
 	}
-	defer backendConn.Close()
-
-	upgrader := websocket.FastHTTPUpgrader{}
-	clientConn, err := upgrader.Upgrade(ctx, nil)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("error upgrading client WebSocket: %v", err))
-		return
-	}
-	defer clientConn.Close()
-
-	// relay msgs
-	errc := make(chan error, 2)
-
-	go func() {
-		_, err := io.Copy(clientConn.UnderlyingConn(), backendConn.UnderlyingConn())
-		errc <- err
-	}()
-
-	go func() {
-		_, err := io.Copy(backendConn.UnderlyingConn(), clientConn.UnderlyingConn())
-		errc <- err
-	}()
-
-	// wait for one of the copies to finish/end
-	<-errc
 }
 
 func handleWiredShieldEndpoints(ctx *fasthttp.RequestCtx) {
