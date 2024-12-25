@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"wiredshield/services"
 )
 
 var (
@@ -78,6 +79,7 @@ func getCountryFromWhois(server string, ip string) (string, error) {
 		var resourceLinks []string
 		for _, line := range strings.Split(loweredContent, "\n") {
 			if strings.Contains(line, "resourcelink:") {
+				services.ProcessService.InfoLog("ResourceLink found: " + line + " for " + ip)
 				resourceLinks = append(resourceLinks, strings.TrimSpace(strings.Split(line, "resourcelink:")[1]))
 			}
 		}
