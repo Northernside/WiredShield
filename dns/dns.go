@@ -322,34 +322,41 @@ func Prepare(_service *services.Service) func() {
 		}
 
 		for _, addr := range addrs {
-			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-				service.InfoLog("address: " + ipnet.IP.String())
-				if ipnet.IP.To4() != nil && processIPv4 == "" {
-					service.InfoLog("Primary IPv4 address: " + ipnet.IP.String())
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				// skip loobacks & link-local (fe80::/10)
+				if !ipnet.IP.IsLoopback() && !ipnet.IP.IsLinkLocalUnicast() {
 
-					country, err := whois.GetCountry(ipnet.IP.String())
-					if err != nil {
-						service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", ipnet.IP.String(), err))
-					} else {
-						service.InfoLog("Primary IPv4 country: " + country)
+					service.InfoLog("address: " + ipnet.IP.String())
+
+					// ipv4
+					if ipnet.IP.To4() != nil && processIPv4 == "" {
+						service.InfoLog("Primary IPv4 address: " + ipnet.IP.String())
+
+						country, err := whois.GetCountry(ipnet.IP.String())
+						if err != nil {
+							service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", ipnet.IP.String(), err))
+						} else {
+							service.InfoLog("Primary IPv4 country: " + country)
+						}
+
+						ResolversV4[country] = []net.IP{ipnet.IP}
+						processIPv4 = ipnet.IP.String()
 					}
 
-					ResolversV4[country] = []net.IP{ipnet.IP}
-					processIPv4 = ipnet.IP.String()
-				}
+					// ipv6
+					if ipnet.IP.To16() != nil && ipnet.IP.To4() == nil && processIPv6 == "" {
+						service.InfoLog("Primary IPv6 address: " + ipnet.IP.String())
 
-				if ipnet.IP.To16() != nil && processIPv6 == "" {
-					service.InfoLog("Primary IPv6 address: " + ipnet.IP.String())
+						country, err := whois.GetCountry(ipnet.IP.String())
+						if err != nil {
+							service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", ipnet.IP.String(), err))
+						} else {
+							service.InfoLog("Primary IPv6 country: " + country)
+						}
 
-					country, err := whois.GetCountry(ipnet.IP.String())
-					if err != nil {
-						service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", ipnet.IP.String(), err))
-					} else {
-						service.InfoLog("Primary IPv6 country: " + country)
+						ResolversV6[country] = []net.IP{ipnet.IP}
+						processIPv6 = ipnet.IP.String()
 					}
-
-					ResolversV6[country] = []net.IP{ipnet.IP}
-					processIPv6 = ipnet.IP.String()
 				}
 			}
 		}
