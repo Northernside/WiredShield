@@ -139,10 +139,10 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		if _, ok := wireddns.Resolvers[country]; !ok {
-			wireddns.Resolvers[country] = []net.IP{net.ParseIP(client.IPAddress)}
+		if _, ok := wireddns.ResolversV4[country]; !ok {
+			wireddns.ResolversV4[country] = []net.IP{net.ParseIP(client.IPAddress)}
 		} else {
-			wireddns.Resolvers[country] = append(wireddns.Resolvers[country], net.ParseIP(client.IPAddress))
+			wireddns.ResolversV4[country] = append(wireddns.ResolversV4[country], net.ParseIP(client.IPAddress))
 		}
 
 		ctx.Response.Header.Set("ws-access-token", token)
