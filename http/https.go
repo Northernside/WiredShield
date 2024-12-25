@@ -17,7 +17,6 @@ import (
 	"wiredshield/modules/whois"
 	"wiredshield/services"
 
-	"github.com/fasthttp/websocket"
 	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
 )
@@ -143,11 +142,6 @@ func proxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}()
 
-	if isWebSocketRequest(ctx) {
-		handleWebSocketProxy(ctx)
-		return
-	}
-
 	if strings.HasPrefix(string(ctx.Path()), "/.wiredshield/") {
 		handleWiredShieldEndpoints(ctx)
 		return
@@ -216,58 +210,6 @@ func proxyHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), requestSize, getResponseSize(ctx, resp))
-}
-
-func isWebSocketRequest(ctx *fasthttp.RequestCtx) bool {
-	return strings.EqualFold(string(ctx.Request.Header.Peek("Connection")), "Upgrade") &&
-		strings.EqualFold(string(ctx.Request.Header.Peek("Upgrade")), "websocket")
-}
-
-func handleWebSocketProxy(ctx *fasthttp.RequestCtx) {
-	upgrader := websocket.FastHTTPUpgrader{
-		CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
-			return true
-		},
-	}
-
-	err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
-		defer conn.Close()
-
-		protocol := "ws"
-		if ctx.IsTLS() {
-			protocol = "wss"
-		}
-
-		backendAddr := fmt.Sprintf("%s://%s%s", protocol, string(ctx.Host()), string(ctx.URI().RequestURI()))
-		service.InfoLog(fmt.Sprintf("upgrading WebSocket to %s", backendAddr))
-		backendConn, _, err := websocket.DefaultDialer.Dial(backendAddr, nil)
-		if err != nil {
-			service.ErrorLog(fmt.Sprintf("error dialing backend WebSocket: %v", err))
-			return
-		}
-		defer backendConn.Close()
-
-		// relay msgs
-		errc := make(chan error, 2)
-
-		go func() {
-			_, err := io.Copy(conn.UnderlyingConn(), backendConn.UnderlyingConn())
-			errc <- err
-		}()
-
-		go func() {
-			_, err := io.Copy(backendConn.UnderlyingConn(), conn.UnderlyingConn())
-			errc <- err
-		}()
-
-		// wait for one of the copies to finish/end
-		<-errc
-	})
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("error upgrading WebSocket: %v", err))
-		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
-		return
-	}
 }
 
 func handleWiredShieldEndpoints(ctx *fasthttp.RequestCtx) {
