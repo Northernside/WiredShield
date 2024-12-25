@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"wiredshield/services"
 )
 
 var (
@@ -78,7 +77,6 @@ func getCountryFromWhois(server string, ip string) (string, error) {
 
 	// suggests that the ip is in another whois server
 	if strings.Contains(loweredContent, "netrange:") && strings.Contains(loweredContent, "resourcelink:") {
-		services.ProcessService.InfoLog(ip + " is in another WHOIS server")
 		if strings.Contains(loweredContent, "referralserver:") {
 			referralServer := strings.TrimSpace(strings.Split(strings.Split(loweredContent, "referralserver:")[1], "\n")[0])
 			referralServer = strings.Replace(referralServer, "whois://", "", 1)
