@@ -50,7 +50,7 @@ func Prepare(_service *services.Service) func() {
 	service = _service
 
 	return func() {
-		binding := env.GetEnv("HTTP_BINDING", "0.0.0.0")
+		binding := env.GetEnv("HTTP_BINDING", "")
 		addr := binding + ":" + env.GetEnv("HTTP_PORT", "443")
 
 		service.InfoLog("Starting HTTPS proxy on " + addr)
