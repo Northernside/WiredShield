@@ -335,9 +335,7 @@ func Prepare(_service *services.Service) func() {
 
 					ResolversV4[country] = []net.IP{ipnet.IP}
 					processIPv4 = ipnet.IP.String()
-				}
-
-				if ipnet.IP.To16() != nil && processIPv6 == "" {
+				} else if processIPv6 == "" {
 					service.InfoLog("Primary IPv6 address: " + ipnet.IP.String())
 
 					country, err := whois.GetCountry(ipnet.IP.String())
