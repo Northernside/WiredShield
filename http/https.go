@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"wiredshield/modules/whois"
 	"wiredshield/services"
 
+	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
 	"github.com/valyala/fasthttp"
 )
@@ -24,8 +26,8 @@ var (
 	clientPool = sync.Pool{
 		New: func() interface{} {
 			return &fasthttp.Client{
-				ReadTimeout:     30 * time.Second,
-				WriteTimeout:    30 * time.Second,
+				ReadTimeout:     60 * time.Second,
+				WriteTimeout:    60 * time.Second,
 				MaxConnsPerHost: 1024 * 256,
 				Dial: (&fasthttp.TCPDialer{
 					Concurrency:      1024 * 256,
@@ -141,6 +143,11 @@ func proxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}()
 
+	if isWebSocketRequest(ctx) {
+		handleWebSocketProxy(ctx)
+		return
+	}
+
 	if strings.HasPrefix(string(ctx.Path()), "/.wiredshield/") {
 		handleWiredShieldEndpoints(ctx)
 		return
@@ -195,25 +202,60 @@ func proxyHandler(ctx *fasthttp.RequestCtx) {
 
 	ctx.Response.Header.Set("server", "wiredshield")
 	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
-	ctx.SetStatusCode(resp.StatusCode())
 	ctx.SetBody(resp.Body())
 
-	responseSize := getResponseSize(ctx, resp)
-
-	switch resp.StatusCode() {
-	case http.StatusContinue, http.StatusSwitchingProtocols, http.StatusProcessing, http.StatusEarlyHints:
-	case http.StatusNoContent, http.StatusResetContent:
-	case http.StatusNotModified:
-		ctx.SetStatusCode(resp.StatusCode())
-	default:
+	if bodyStream := resp.BodyStream(); bodyStream != nil {
+		_, err = io.Copy(ctx.Response.BodyWriter(), bodyStream)
 		if err != nil {
-			service.ErrorLog(fmt.Sprintf("%d error streaming response body: %v", resp.StatusCode(), err))
-			logRequest(ctx, resp, timeStart, 604, 0, 0)
+			service.ErrorLog(fmt.Sprintf("error streaming response body: %v", err))
+			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 			return
 		}
+	} else {
+		ctx.SetBody(resp.Body())
 	}
 
-	logRequest(ctx, resp, timeStart, resp.StatusCode(), requestSize, responseSize)
+	logRequest(ctx, resp, timeStart, resp.StatusCode(), requestSize, getResponseSize(ctx, resp))
+}
+
+func isWebSocketRequest(ctx *fasthttp.RequestCtx) bool {
+	return strings.EqualFold(string(ctx.Request.Header.Peek("Connection")), "Upgrade") &&
+		strings.EqualFold(string(ctx.Request.Header.Peek("Upgrade")), "websocket")
+}
+
+func handleWebSocketProxy(ctx *fasthttp.RequestCtx) {
+	backendAddr := "wss://" + string(ctx.Host()) + string(ctx.Path())
+	backendConn, _, err := websocket.DefaultDialer.Dial(backendAddr, nil)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("error dialing backend WebSocket: %v", err))
+		ctx.Error("Bad Gateway", fasthttp.StatusBadGateway)
+		return
+	}
+	defer backendConn.Close()
+
+	upgrader := websocket.FastHTTPUpgrader{}
+	clientConn, err := upgrader.Upgrade(ctx, nil)
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("error upgrading client WebSocket: %v", err))
+		return
+	}
+	defer clientConn.Close()
+
+	// relay msgs
+	errc := make(chan error, 2)
+
+	go func() {
+		_, err := io.Copy(clientConn.UnderlyingConn(), backendConn.UnderlyingConn())
+		errc <- err
+	}()
+
+	go func() {
+		_, err := io.Copy(backendConn.UnderlyingConn(), clientConn.UnderlyingConn())
+		errc <- err
+	}()
+
+	// wait for one of the copies to finish/end
+	<-errc
 }
 
 func handleWiredShieldEndpoints(ctx *fasthttp.RequestCtx) {
