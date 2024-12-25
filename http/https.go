@@ -239,6 +239,7 @@ func handleWebSocketProxy(ctx *fasthttp.RequestCtx) {
 		}
 
 		backendAddr := fmt.Sprintf("%s://%s%s", protocol, string(ctx.Host()), ctx.URI().String())
+		service.InfoLog(fmt.Sprintf("upgrading WebSocket to %s", backendAddr))
 		backendConn, _, err := websocket.DefaultDialer.Dial(backendAddr, nil)
 		if err != nil {
 			service.ErrorLog(fmt.Sprintf("error dialing backend WebSocket: %v", err))
