@@ -323,6 +323,7 @@ func Prepare(_service *services.Service) func() {
 
 		for _, addr := range addrs {
 			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				service.InfoLog("address: " + ipnet.IP.String())
 				if ipnet.IP.To4() != nil && processIPv4 == "" {
 					service.InfoLog("Primary IPv4 address: " + ipnet.IP.String())
 
@@ -335,7 +336,9 @@ func Prepare(_service *services.Service) func() {
 
 					ResolversV4[country] = []net.IP{ipnet.IP}
 					processIPv4 = ipnet.IP.String()
-				} else if processIPv6 == "" {
+				}
+
+				if ipnet.IP.To16() != nil && processIPv6 == "" {
 					service.InfoLog("Primary IPv6 address: " + ipnet.IP.String())
 
 					country, err := whois.GetCountry(ipnet.IP.String())
