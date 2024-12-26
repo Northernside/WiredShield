@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"wiredshield/services"
 )
 
 var (
@@ -79,7 +78,6 @@ func getCountryFromWhois(server string, ip string) (string, error) {
 		var resourceLinks []string
 		for _, line := range strings.Split(loweredContent, "\n") {
 			if strings.Contains(line, "resourcelink:") {
-				services.ProcessService.InfoLog("ResourceLink found: " + line + " for " + ip)
 				resourceLinks = append(resourceLinks, strings.TrimSpace(strings.Split(line, "resourcelink:")[1]))
 			}
 		}
@@ -114,7 +112,7 @@ func getCountryFromWhois(server string, ip string) (string, error) {
 	// check if theres a (NET-X-X-X-X-X) by regex
 	// if there is, connect to arin again with the input being "NET-X-X-X-X-X"
 
-	netRegex := regexp.MustCompile(`net-\d+-\d+-\d+-\d+-\d+`)
+	netRegex := regexp.MustCompile(`(net-\d{1,3}-\d{1,3}-\d{1,3}-\d{1,3}-\d+|net6-[0-9A-Fa-f]{1,4}-[0-9A-Fa-f]{1,4}-\d+)`)
 	netMatch := netRegex.FindStringSubmatch(loweredContent)
 	if len(netMatch) > 0 {
 		arinResult, err := getArinByNet(netMatch[0])
