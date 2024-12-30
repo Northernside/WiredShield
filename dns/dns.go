@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 	"time"
 	"wiredshield/modules/db"
-	"wiredshield/modules/logging"
 	"wiredshield/modules/whois"
 	"wiredshield/services"
 
@@ -16,24 +14,11 @@ import (
 
 var (
 	service     *services.Service
-	cache       = make(map[string]dnsCacheEntry)
-	geoLocCache = make(map[string]geoLocCacheEntry)
 	ResolversV4 = map[string][]net.IP{}
 	ResolversV6 = map[string][]net.IP{}
 	processIPv4 string
 	processIPv6 string
-	cacheMux    sync.RWMutex
 )
-
-type dnsCacheEntry struct {
-	records    []dns.RR
-	expiration time.Time
-}
-
-type geoLocCacheEntry struct {
-	country    string
-	expiration time.Time
-}
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := dns.Msg{}
@@ -41,17 +26,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.Authoritative = true
 
 	clientIp := strings.Split(w.RemoteAddr().String(), ":")[0]
-	dnsLog := &logging.DNSRequestLog{
-		QueryTime:     time.Now().Unix(),
-		ClientIP:      clientIp,
-		QueryName:     "",
-		QueryType:     "",
-		QueryClass:    "",
-		ResponseCode:  "",
-		ResponseTime:  0,
-		IsSuccessful:  false,
-		ClientCountry: "",
-	}
+	dnsLog := newLog()
 
 	startTime := time.Now()
 
@@ -59,36 +34,25 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		for _, question := range r.Question {
 			// prepare
 			lookupName := strings.TrimSuffix(strings.ToLower(question.Name), ".")
+			country, err := whois.GetCountry(clientIp)
+			if err != nil {
+				service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", clientIp, err))
+				country = "Unknown (Error)"
+			}
+
+			dnsLog.ClientIP = clientIp
 			dnsLog.QueryName = lookupName
 			dnsLog.QueryType = dns.TypeToString[question.Qtype]
 			dnsLog.QueryClass = dns.ClassToString[question.Qclass]
-
-			country, err := whois.GetCountry(clientIp)
 			dnsLog.ClientCountry = country
 
+			// debug record
 			if lookupName == "wiredshield_info" && dns.TypeToString[question.Qtype] == "TXT" {
+				err := getDebugRecord(country, question, w, &m)
 				if err != nil {
-					service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", clientIp, err))
-					country = "Unknown (Error)"
-				}
-
-				lines := []string{
-					"WiredShield DNS Server",
-					fmt.Sprintf("DNS Based Geo-Location: " + country),
-				}
-
-				for _, line := range lines {
-					txt := &dns.TXT{
-						Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
-						Txt: []string{line},
-					}
-
-					m.Answer = append(m.Answer, txt)
-				}
-
-				err = w.WriteMsg(&m)
-				if err != nil {
-					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+					service.ErrorLog(fmt.Sprintf("failed to get debug record: %s", err.Error()))
+					emptyReply(w, &m)
+					logDNSRequest(dnsLog)
 				}
 
 				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
@@ -118,12 +82,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			// check cache
 			cacheKey := fmt.Sprintf("%s:%s:%s", dns.TypeToString[question.Qtype], lookupName, clientIp)
-			cacheMux.RLock()
-			entry, found := cache[cacheKey]
-			cacheMux.RUnlock()
-
-			if found && time.Now().Before(entry.expiration) {
-				m.Answer = append(m.Answer, entry.records...)
+			entry, found := getCache(cacheKey)
+			if found {
+				m.Answer = entry
 				err := w.WriteMsg(&m)
 				if err != nil {
 					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
@@ -132,9 +93,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
 				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
 				dnsLog.IsSuccessful = true
-				logDNSRequest(dnsLog)
-
-				return
 			}
 
 			// get record(s) from db
@@ -154,14 +112,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				var rr dns.RR
 				switch r := record.(type) {
 				case db.ARecord:
-					var responseIps []net.IP
-
-					if r.Protected {
-						responseIps = getOptimalResolvers("A", clientIp)
-					} else {
-						responseIps = []net.IP{net.ParseIP(r.IP)}
-					}
-
+					var responseIps = getResponseIps(r, clientIp)
 					for _, ip := range responseIps {
 						rr = &dns.A{
 							Hdr: dns.RR_Header{Name: question.Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600},
@@ -169,13 +120,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						}
 					}
 				case db.AAAARecord:
-					var responseIps []net.IP
-					if r.Protected {
-						responseIps = getOptimalResolvers("AAAA", clientIp)
-					} else {
-						responseIps = []net.IP{net.ParseIP(r.IP)}
-					}
-
+					var responseIps = getResponseIps(r, clientIp)
 					for _, ip := range responseIps {
 						rr = &dns.AAAA{
 							Hdr:  dns.RR_Header{Name: question.Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600},
@@ -183,16 +128,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						}
 					}
 				case db.SOARecord:
-					rr = &dns.SOA{
-						Hdr:     dns.RR_Header{Name: question.Name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
-						Ns:      "woof.ns.wired.rip.",
-						Mbox:    "info.wired.rip.",
-						Serial:  2024122101,
-						Refresh: 7200,
-						Retry:   2400,
-						Expire:  1209600,
-						Minttl:  86400,
-					}
+					rr = buildSoaRecord(lookupName)
 				case db.CNAMERecord:
 					rr = &dns.CNAME{
 						Hdr:    dns.RR_Header{Name: question.Name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
@@ -230,38 +166,25 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
+			// always attach a SOA record if no records found
 			if len(records) == 0 {
-				rr := &dns.SOA{
-					Hdr:     dns.RR_Header{Name: question.Name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
-					Ns:      "woof.ns.wired.rip.",
-					Mbox:    "info.wired.rip.",
-					Serial:  2024122101,
-					Refresh: 7200,
-					Retry:   2400,
-					Expire:  1209600,
-					Minttl:  86400,
-				}
-
+				rr := buildSoaRecord(lookupName) // default SOA record
 				m.Answer = append(m.Answer, rr)
 				rrList = append(rrList, rr)
 			}
 
+			// empty reply
 			if len(m.Answer) == 0 {
 				emptyReply(w, &m)
+
 				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
 				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
 				logDNSRequest(dnsLog)
 				return
 			}
 
-			// update cache
-			cacheMux.Lock()
-			cache[cacheKey] = dnsCacheEntry{
-				records:    rrList,
-				expiration: time.Now().Add(1 * time.Hour),
-			}
-			cacheMux.Unlock()
-
+			// update, send to client, and log
+			updateCache(cacheKey, rrList)
 			err = w.WriteMsg(&m)
 			if err != nil {
 				service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
@@ -272,26 +195,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			dnsLog.IsSuccessful = true
 			logDNSRequest(dnsLog)
 		}
-	}
-}
-
-func logDNSRequest(log *logging.DNSRequestLog) {
-	logging.DNSLogsChannel <- log
-}
-
-func processRequestLogs() {
-	logWorkers := 512
-	for i := 0; i < logWorkers; i++ {
-		go func() {
-			for log := range logging.DNSLogsChannel {
-				logs := log.CollectAdditionalLogs()
-				if len(logs) > 0 {
-					if err := log.BatchInsert(logs); err != nil {
-						service.ErrorLog(fmt.Sprintf("Failed to insert logs: %v", err))
-					}
-				}
-			}
-		}()
 	}
 }
 
