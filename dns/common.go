@@ -10,7 +10,7 @@ import (
 
 func buildSoaRecord(queryName string) *dns.SOA {
 	return &dns.SOA{
-		Hdr:     dns.RR_Header{Name: queryName, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
+		Hdr:     dns.RR_Header{Name: queryName + ".", Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 300},
 		Ns:      "woof.ns.wired.rip.",
 		Mbox:    "info.wired.rip.",
 		Serial:  2024122101,
