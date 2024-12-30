@@ -16,6 +16,11 @@ var (
 		Name:          "wiredshield",
 		MaxConnsPerIP: 1024 ^ 2,
 		ReadTimeout:   5 * time.Second,
+		ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
+			ctx.Error(err.Error(), 500)
+		},
+		LogAllErrors: false,
+		Logger:       nil,
 		TLSConfig: &tls.Config{
 			NextProtos:               []string{"http/1.1"},
 			MinVersion:               tls.VersionTLS10,
