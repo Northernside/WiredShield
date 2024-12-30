@@ -171,23 +171,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
-			// always attach a SOA record if no records found
-			if len(records) == 0 {
-				rr := buildSoaRecord(lookupName) // default SOA record
-				m.Answer = append(m.Answer, rr)
-				rrList = append(rrList, rr)
-			}
-
-			// empty reply
-			if len(m.Answer) == 0 {
-				emptyReply(w, &m)
-
-				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
-				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
-				logDNSRequest(dnsLog)
-				return
-			}
-
 			// update, send to client, and log
 			updateCache(cacheKey, rrList)
 			service.InfoLog(fmt.Sprintf("cache updated for %s, result: %v", cacheKey, rrList))
