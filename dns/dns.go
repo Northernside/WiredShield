@@ -307,7 +307,6 @@ func getOptimalResolvers(recordType, userIp string, country string) []net.IP {
 	if found && time.Now().Before(geoEntry.expiration) {
 		if recordType == "A" {
 			if resolvers, ok := ResolversV4[geoEntry.country]; ok {
-				services.ProcessService.InfoLog(fmt.Sprintf("%v", resolvers))
 				return resolvers
 			}
 		} else if recordType == "AAAA" {
