@@ -117,7 +117,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				var rr dns.RR
 				switch r := record.(type) {
 				case db.ARecord:
-					var responseIps = getResponseIps(r, clientIp)
+					var responseIps = getResponseIps(r, clientIp, country)
 					for _, ip := range responseIps {
 						rr = &dns.A{
 							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600},
@@ -125,7 +125,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						}
 					}
 				case db.AAAARecord:
-					var responseIps = getResponseIps(r, clientIp)
+					var responseIps = getResponseIps(r, clientIp, country)
 					for _, ip := range responseIps {
 						rr = &dns.AAAA{
 							Hdr:  dns.RR_Header{Name: questionName, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600},
@@ -212,7 +212,7 @@ func emptyReply(w dns.ResponseWriter, m *dns.Msg) {
 func Prepare(_service *services.Service) func() {
 	service = _service
 
-	// get shield ipv4 from main ipv4 in network interface
+	// get shield ips from main ips in network interface
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		service.FatalLog("failed to get network interfaces: " + err.Error())
@@ -299,7 +299,7 @@ func Prepare(_service *services.Service) func() {
 	}
 }
 
-func getOptimalResolvers(recordType, userIp string) []net.IP {
+func getOptimalResolvers(recordType, userIp string, country string) []net.IP {
 	cacheMux.RLock()
 	geoEntry, found := geoLocCache[userIp]
 	cacheMux.RUnlock()
@@ -307,6 +307,7 @@ func getOptimalResolvers(recordType, userIp string) []net.IP {
 	if found && time.Now().Before(geoEntry.expiration) {
 		if recordType == "A" {
 			if resolvers, ok := ResolversV4[geoEntry.country]; ok {
+				services.ProcessService.InfoLog(fmt.Sprintf("%v", resolvers))
 				return resolvers
 			}
 		} else if recordType == "AAAA" {
@@ -316,9 +317,7 @@ func getOptimalResolvers(recordType, userIp string) []net.IP {
 		}
 	}
 
-	country, err := whois.GetCountry(userIp)
-	if err != nil {
-		service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", userIp, err))
+	if len(country) != 2 {
 		if recordType == "A" {
 			return []net.IP{net.ParseIP(processIPv4)}
 		} else if recordType == "AAAA" {

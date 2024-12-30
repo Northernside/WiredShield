@@ -21,7 +21,7 @@ func buildSoaRecord(queryName string) *dns.SOA {
 	}
 }
 
-func getResponseIps(_record interface{}, clientIp string) []net.IP {
+func getResponseIps(_record interface{}, clientIp string, country string) []net.IP {
 	var recordType string
 	var protected bool
 	var targetIp string
@@ -41,7 +41,7 @@ func getResponseIps(_record interface{}, clientIp string) []net.IP {
 
 	var responseIps []net.IP
 	if protected {
-		responseIps = getOptimalResolvers(recordType, clientIp)
+		responseIps = getOptimalResolvers(recordType, clientIp, country)
 	} else {
 		responseIps = []net.IP{net.ParseIP(targetIp)}
 	}
