@@ -185,6 +185,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			// update, send to client, and log
 			updateCache(cacheKey, rrList)
+			service.InfoLog(fmt.Sprintf("cache updated for %s, result: %v", cacheKey, rrList))
 			err = w.WriteMsg(&m)
 			if err != nil {
 				service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s", cacheKey, err.Error()))
