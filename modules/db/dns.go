@@ -157,7 +157,6 @@ func DeleteRecord(recordType, domain string, id uint64) error {
 					if r.ID != id {
 						newRecords = append(newRecords, r)
 					}
-					// add aaaa, caa, ns, mx, srv, soa, cname
 				case string(AAAA):
 					var r AAAARecord
 					if err := mapToStruct(rawRecord, &r); err != nil {
