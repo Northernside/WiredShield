@@ -122,6 +122,22 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	switch statusCode := resp.StatusCode(); statusCode {
+	// 301 & 308 -> permanent redirect
+	// 302, 303, 307 -> temporary redirect
+	case 301, 308, 302, 303, 307:
+		location := resp.Header.Peek("Location")
+		if len(location) == 0 {
+			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+			return
+		}
+
+		ctx.Response.Header.Set("Location", string(location))
+		ctx.SetStatusCode(statusCode)
+		logRequest(ctx, resp, timeStart, statusCode, requestSize, getResponseSize(ctx, resp))
+		return
+	}
+
 	resp.Header.VisitAll(func(key, value []byte) {
 		ctx.Response.Header.SetBytesKV(key, value)
 	})
