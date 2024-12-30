@@ -87,7 +87,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				m.Answer = entry
 				err := w.WriteMsg(&m)
 				if err != nil {
-					service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+					service.ErrorLog(fmt.Sprintf("failed to write message (cache, %s) to client: %s", cacheKey, err.Error()))
 				}
 
 				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
@@ -187,7 +187,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			updateCache(cacheKey, rrList)
 			err = w.WriteMsg(&m)
 			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+				service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s", cacheKey, err.Error()))
 			}
 
 			dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]

@@ -66,7 +66,7 @@ func getDebugRecord(country string, question dns.Question, w dns.ResponseWriter,
 
 	err := w.WriteMsg(m)
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("failed to write message to client: %s", err.Error()))
+		service.ErrorLog(fmt.Sprintf("failed to write message (debug, %s) to client: %s", question.Name, err.Error()))
 		return err
 	}
 
