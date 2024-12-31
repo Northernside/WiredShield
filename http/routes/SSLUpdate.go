@@ -60,14 +60,14 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 		certFile := fmt.Sprintf("certs/%s.crt", domain)
 		keyFile := fmt.Sprintf("certs/%s.key", domain)
 
-		certOut, err := os.File(certFile, os.O_CREATE|os.O_WRONLY, 0644)
+		certOut, err := os.Create(certFile)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
 		}
 
-		_, err = certOut.Write(cert)
+		_, err = certOut.WriteString(cert)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
@@ -81,14 +81,14 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		keyOut, err := os.File(keyFile, os.O_CREATE|os.O_WRONLY, 0644)
+		keyOut, err := os.Create(keyFile)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
 		}
 
-		_, err = keyOut.Write(key)
+		_, err = keyOut.WriteString(key)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
