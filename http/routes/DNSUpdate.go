@@ -2,6 +2,7 @@ package routes
 
 import (
 	"fmt"
+	"strconv"
 	"wiredshield/modules/db"
 	"wiredshield/modules/pgp"
 
@@ -59,15 +60,32 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 
 	switch change_action {
 	case "SET":
+		var id, _ = strconv.Atoi(string(ctx.Request.Header.Peek("id")))
 		var domain = string(ctx.Request.Header.Peek("dns_domain"))
 		var ip = string(ctx.Request.Header.Peek("dns_ip"))
 		var protected = string(ctx.Request.Header.Peek("protected"))
 		var text = string(ctx.Request.Header.Peek("text"))
+		var target = string(ctx.Request.Header.Peek("target"))
+		var priority, _ = strconv.Atoi(string(ctx.Request.Header.Peek("priority")))
+		var weight, _ = strconv.Atoi(string(ctx.Request.Header.Peek("weight")))
+		var port, _ = strconv.Atoi(string(ctx.Request.Header.Peek("port")))
+		var flag, _ = strconv.Atoi(string(ctx.Request.Header.Peek("flag")))
+		var tag = string(ctx.Request.Header.Peek("tag"))
+		var value = string(ctx.Request.Header.Peek("value"))
+		var ns = string(ctx.Request.Header.Peek("ns"))
+		var primary_ns = string(ctx.Request.Header.Peek("primary_ns"))
+		var admin_email = string(ctx.Request.Header.Peek("admin_email"))
+		var serial, _ = strconv.Atoi(string(ctx.Request.Header.Peek("serial")))
+		var refresh, _ = strconv.Atoi(string(ctx.Request.Header.Peek("refresh")))
+		var retry, _ = strconv.Atoi(string(ctx.Request.Header.Peek("retry")))
+		var expire, _ = strconv.Atoi(string(ctx.Request.Header.Peek("expire")))
+		var minimum_ttl, _ = strconv.Atoi(string(ctx.Request.Header.Peek("minimum_ttl")))
 
 		// set the record
 		switch change_record_type {
 		case "A":
 			var record db.ARecord
+			record.ID = uint64(id)
 			record.Domain = domain
 			record.IP = ip
 			record.Protected = protected == "true"
@@ -75,6 +93,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			db.UpdateRecord(change_record_type, domain, record)
 		case "AAAA":
 			var record db.AAAARecord
+			record.ID = uint64(id)
 			record.Domain = domain
 			record.IP = ip
 			record.Protected = protected == "true"
@@ -82,13 +101,71 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			db.UpdateRecord(change_record_type, domain, record)
 		case "TXT":
 			var record db.TXTRecord
+			record.ID = uint64(id)
 			record.Domain = domain
 			record.Text = text
 
 			db.UpdateRecord(change_record_type, domain, record)
+		case "CNAME":
+			var record db.CNAMERecord
+			record.ID = uint64(id)
+			record.Domain = domain
+			record.Target = target
+
+			db.UpdateRecord(change_record_type, domain, record)
+		case "CAA":
+			var record db.CAARecord
+			record.ID = uint64(id)
+			record.Domain = domain
+			record.Flag = flag
+			record.Tag = tag
+			record.Value = value
+
+			db.UpdateRecord(change_record_type, domain, record)
+		case "NS":
+			var record db.NSRecord
+			record.ID = uint64(id)
+			record.Domain = domain
+			record.NS = ns
+
+			db.UpdateRecord(change_record_type, domain, record)
+		case "MX":
+			var record db.MXRecord
+			record.ID = uint64(id)
+			record.Domain = domain
+			record.Priority = uint16(priority)
+			record.Target = target
+
+			db.UpdateRecord(change_record_type, domain, record)
+		case "SRV":
+			var record db.SRVRecord
+			record.ID = uint64(id)
+			record.Domain = domain
+			record.Priority = priority
+			record.Weight = weight
+			record.Port = port
+			record.Target = target
+
+			db.UpdateRecord(change_record_type, domain, record)
+		case "SOA":
+			var record db.SOARecord
+			record.ID = uint64(id)
+			record.Domain = domain
+			record.PrimaryNS = primary_ns
+			record.AdminEmail = admin_email
+			record.Serial = uint32(serial)
+			record.Refresh = uint32(refresh)
+			record.Retry = uint32(retry)
+			record.Expire = uint32(expire)
+			record.MinimumTTL = uint32(minimum_ttl)
+
+			db.UpdateRecord(change_record_type, domain, record)
 		}
 	case "DEL":
+		var id, _ = strconv.Atoi(string(ctx.Request.Header.Peek("id")))
+
 		// delete the record
+		db.DeleteRecord(uint64(id))
 	default:
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		ctx.SetBodyString("BAD_REQUEST")

@@ -136,13 +136,13 @@ func dns01Handling(domain string, authzURL string) error {
 		Protected: false,
 	}
 
-	err = db.UpdateRecord("TXT", "_acme-challenge."+domain, dnsRecord)
+	dnsId, err := db.UpdateRecord("TXT", "_acme-challenge."+domain, dnsRecord)
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
 
 	defer func() {
-		err = db.DeleteRecord("TXT", "_acme-challenge."+domain, 0)
+		err = db.DeleteRecord(dnsId)
 		if err != nil {
 			fmt.Printf("failed to delete TXT record: %v", err)
 		}
