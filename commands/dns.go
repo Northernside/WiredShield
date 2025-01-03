@@ -50,7 +50,6 @@ func Dns(model *Model) {
 		if len(list) == 0 {
 			sb.WriteString("No records found for " + split[2] + "\n")
 		} else {
-			var index int = 0
 			for _, record := range list {
 				switch r := record.(type) {
 				case db.ARecord:
@@ -59,48 +58,44 @@ func Dns(model *Model) {
 							return "🔒"
 						}
 						return "🔓"
-					}()+" A %s %s\n", index, r.Domain, r.IP))
-					index++
+					}()+" A %s %s\n", r.ID, r.Domain, r.IP))
 				case db.AAAARecord:
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}()+" AAAA %s %s\n", index, r.Domain, r.IP))
-					index++
+					}()+" AAAA %s %s\n", r.ID, r.Domain, r.IP))
 				case db.SOARecord:
-					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n", index, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
+					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n", r.ID, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
 				case db.TXTRecord:
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}()+" TXT %s \"%s\"\n", index, r.Domain, r.Text))
-					index++
+					}()+" TXT %s \"%s\"\n", r.ID, r.Domain, r.Text))
 				case db.NSRecord:
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}()+" NS %s %s\n", index, r.Domain, r.NS))
-					index++
+					}()+" NS %s %s\n", r.ID, r.Domain, r.NS))
 				case db.MXRecord:
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}()+" MX %s %s %d\n", index, r.Domain, r.Target, r.Priority))
+					}()+" MX %s %s %d\n", r.ID, r.Domain, r.Target, r.Priority))
 				case db.CNAMERecord:
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
-					}()+" CNAME %s %s\n", index, r.Domain, r.Target))
+					}()+" CNAME %s %s\n", r.ID, r.Domain, r.Target))
 				default:
 					sb.WriteString("Unknown record type\n")
 				}
@@ -245,57 +240,34 @@ func Dns(model *Model) {
 			sb.WriteString("Unsupported record type: " + split[2] + "\n")
 		}
 
+		var snowflake uint64
 		if record != nil {
-			_, err = db.UpdateRecord(split[2], split[3], record)
+			snowflake, err = db.UpdateRecord(split[2], split[3], record)
 			if err != nil {
 				sb.WriteString("Failed to update record: " + err.Error() + "\n")
 			}
 		}
-	case "get":
-		sb.WriteString("Get DNS record\n")
-		if len(split) < 3 {
-			sb.WriteString("Usage: dns get <host>\n")
-			break
-		}
 
+		sb.WriteString("Record updated. ID: " + strconv.FormatUint(snowflake, 10) + "\n")
 	case "del":
 		sb.WriteString("Delete DNS record\n")
 
-		if len(split) < 5 {
-			sb.WriteString("Usage: dns del <domain> <recordtype> <index>\n")
+		if len(split) < 3 {
+			sb.WriteString("Usage: dns del <id>\n")
 			break
 		}
 
-		list, err := db.GetAllRecords(split[2])
+		sb.WriteString("Deleting record with id " + split[2] + "\n")
+		id, err := strconv.Atoi(split[2])
 		if err != nil {
-			sb.WriteString("failed to get records: " + err.Error() + "\n")
+			sb.WriteString("Failed to parse id: " + err.Error() + "\n")
 			break
 		}
 
-		if len(list) == 0 {
-			sb.WriteString("No records found for " + split[2] + "\n")
-			break
-		}
-
-		index, err := strconv.Atoi(split[4])
-		if err != nil {
-			sb.WriteString("Failed to parse index: " + err.Error() + "\n")
-			break
-		}
-
-		if index < 0 || index >= len(list) {
-			sb.WriteString("Index out of range\n")
-			break
-		}
-
-		recordType := strings.ToUpper(split[3])
-		sb.WriteString(fmt.Sprintf("Deleting record %s %s %d\n", recordType, split[2], index))
-		err = db.DeleteRecord(uint64(index))
+		err = db.DeleteRecord(uint64(id))
 		if err != nil {
 			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
 		}
-
-		sb.WriteString("Record deleted\n")
 	default:
 		sb.WriteString("Unknown command: " + split[1] + "\n")
 	}
