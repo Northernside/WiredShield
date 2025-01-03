@@ -140,13 +140,15 @@ func DeleteRecord(id uint64) error {
 				return fmt.Errorf("failed to get record: %v", err)
 			}
 
-			var records []interface{}
+			var records []struct {
+				ID uint64 `json:"id"`
+			}
 			if err := json.Unmarshal(value, &records); err != nil {
 				return fmt.Errorf("failed to unmarshal records: %v", err)
 			}
 
 			for i, record := range records {
-				if record.(map[string]interface{})["id"].(uint64) == id {
+				if record.ID == id {
 					records = append(records[:i], records[i+1:]...)
 					break
 				}
