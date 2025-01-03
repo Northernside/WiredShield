@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -145,11 +146,12 @@ func DeleteRecord(id uint64) error {
 				return fmt.Errorf("failed to unmarshal records: %v", err)
 			}
 
-			fmt.Println("records", records)
-			fmt.Println("key", key)
+			services.ProcessService.InfoLog(fmt.Sprintf("key: %s", key))
+			services.ProcessService.InfoLog(fmt.Sprintf("string(key): %s", string(key)))
+			services.ProcessService.InfoLog(fmt.Sprintf("records: %v", records))
 			for _, raw := range records {
-				fmt.Println("raw", raw)
-				fmt.Println("string(raw)", string(raw))
+				services.ProcessService.InfoLog(fmt.Sprintf("raw: %v", raw))
+				services.ProcessService.InfoLog(fmt.Sprintf("string(raw): %v", string(raw)))
 			}
 
 			// delete record
