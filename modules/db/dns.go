@@ -147,10 +147,8 @@ func DeleteRecord(id uint64) error {
 
 			fmt.Println("records", records)
 			for _, raw := range records {
-				var record map[string]interface{}
-				if err := json.Unmarshal(raw, &record); err != nil {
-					return fmt.Errorf("failed to unmarshal record: %v", err)
-				}
+				fmt.Println("raw", raw)
+				fmt.Println("string(raw)", string(raw))
 			}
 
 			// delete record
