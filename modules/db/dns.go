@@ -86,23 +86,15 @@ func UpdateRecord(recordType, domain string, record interface{}) (uint64, error)
 				return fmt.Errorf("failed to get record: %v", err)
 			}
 
-			// ensure `record` can be used safely
-			recordMap, ok := record.(map[string]interface{})
-			if !ok {
-				return fmt.Errorf("invalid record format, expected map[string]interface{}")
-			}
-
 			// create new record
-			recordMap["id"] = id
-			records := []interface{}{recordMap}
-
+			records := []interface{}{record}
 			serialized, err := json.Marshal(records)
 			if err != nil {
-				return fmt.Errorf("failed to serialize records: %v", err)
+				return fmt.Errorf("failed to serialize record: %v", err)
 			}
 
 			if err := txn.Put(db, key, serialized, 0); err != nil {
-				return fmt.Errorf("failed to insert records: %v", err)
+				return fmt.Errorf("failed to update record: %v", err)
 			}
 
 			return nil
@@ -114,24 +106,17 @@ func UpdateRecord(recordType, domain string, record interface{}) (uint64, error)
 				return fmt.Errorf("failed to unmarshal existing records: %v", err)
 			}
 
-			// ensure `record` can be used safely
-			recordMap, ok := record.(map[string]interface{})
-			if !ok {
-				return fmt.Errorf("invalid record format, expected map[string]interface{}")
-			}
-
-			// create new record
-			recordMap["id"] = id
-			records = append(records, recordMap)
-
+			records = append(records, record)
 			serialized, err := json.Marshal(records)
 			if err != nil {
-				return fmt.Errorf("failed to serialize records: %v", err)
+				return fmt.Errorf("failed to serialize updated records: %v", err)
 			}
 
 			if err := txn.Put(db, key, serialized, 0); err != nil {
 				return fmt.Errorf("failed to update records: %v", err)
 			}
+
+			return nil
 		}
 
 		return nil
