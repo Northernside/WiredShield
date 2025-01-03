@@ -132,7 +132,7 @@ func DeleteRecord(id uint64) error {
 		defer cursor.Close()
 
 		for {
-			key, value, err := cursor.Get(nil, nil, lmdb.Next)
+			_, value, err := cursor.Get(nil, nil, lmdb.Next)
 			if err != nil {
 				if strings.Contains(err.Error(), "MDB_NOTFOUND") {
 					break
