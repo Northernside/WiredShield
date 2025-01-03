@@ -140,27 +140,22 @@ func DeleteRecord(id uint64) error {
 				return fmt.Errorf("failed to get record: %v", err)
 			}
 
-			var records []struct {
-				ID uint64 `json:"id"`
-			}
+			var records []json.RawMessage
 			if err := json.Unmarshal(value, &records); err != nil {
 				return fmt.Errorf("failed to unmarshal records: %v", err)
 			}
 
-			for i, record := range records {
-				if record.ID == id {
-					records = append(records[:i], records[i+1:]...)
-					break
+			fmt.Println("records", records)
+			for _, raw := range records {
+				var record map[string]interface{}
+				if err := json.Unmarshal(raw, &record); err != nil {
+					return fmt.Errorf("failed to unmarshal record: %v", err)
 				}
 			}
 
-			serialized, err := json.Marshal(records)
-			if err != nil {
-				return fmt.Errorf("failed to serialize records: %v", err)
-			}
-
-			if err := txn.Put(generalDb, key, serialized, 0); err != nil {
-				return fmt.Errorf("failed to update records: %v", err)
+			// delete record
+			if err := cursor.Del(0); err != nil {
+				return fmt.Errorf("failed to delete record: %v", err)
 			}
 		}
 
