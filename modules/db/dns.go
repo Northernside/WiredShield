@@ -87,7 +87,9 @@ func UpdateRecord(recordType, domain string, record interface{}) (uint64, error)
 			}
 
 			// create new record
-			records := []interface{}{record}
+			recordMap := record.(map[string]interface{})
+			recordMap["id"] = id
+			records := []interface{}{recordMap}
 			serialized, err := json.Marshal(records)
 			if err != nil {
 				return fmt.Errorf("failed to serialize record: %v", err)
@@ -106,7 +108,9 @@ func UpdateRecord(recordType, domain string, record interface{}) (uint64, error)
 				return fmt.Errorf("failed to unmarshal existing records: %v", err)
 			}
 
-			records = append(records, record)
+			recordMap := record.(map[string]interface{})
+			recordMap["id"] = id
+			records = append(records, recordMap)
 			serialized, err := json.Marshal(records)
 			if err != nil {
 				return fmt.Errorf("failed to serialize updated records: %v", err)
