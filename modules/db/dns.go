@@ -4,20 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"wiredshield/modules/epoch"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-func UpdateRecord(recordType, domain string, record interface{}) (uint64, error) {
-	var id uint64
-	snowflake, err := epoch.NewSnowflake(512)
-	if err != nil {
-		return 0, fmt.Errorf("failed to create snowflake: %v", err)
-	}
-
-	id = snowflake.GenerateID()
-	err = env.Update(func(txn *lmdb.Txn) error {
+func UpdateRecord(recordType, domain string, record interface{}) error {
+	err := env.Update(func(txn *lmdb.Txn) error {
 		secondLevelDomain, err := getSecondLevelDomain(domain)
 		if err != nil {
 			return fmt.Errorf("failed to get second level domain: %v", err)
@@ -87,9 +79,7 @@ func UpdateRecord(recordType, domain string, record interface{}) (uint64, error)
 			}
 
 			// create new record
-			recordMap := record.(map[string]interface{})
-			recordMap["id"] = id
-			records := []interface{}{recordMap}
+			records := []interface{}{record}
 			serialized, err := json.Marshal(records)
 			if err != nil {
 				return fmt.Errorf("failed to serialize record: %v", err)
@@ -108,9 +98,7 @@ func UpdateRecord(recordType, domain string, record interface{}) (uint64, error)
 				return fmt.Errorf("failed to unmarshal existing records: %v", err)
 			}
 
-			recordMap := record.(map[string]interface{})
-			recordMap["id"] = id
-			records = append(records, recordMap)
+			records = append(records, record)
 			serialized, err := json.Marshal(records)
 			if err != nil {
 				return fmt.Errorf("failed to serialize updated records: %v", err)
@@ -126,7 +114,7 @@ func UpdateRecord(recordType, domain string, record interface{}) (uint64, error)
 		return nil
 	})
 
-	return id, err
+	return err
 }
 
 func DeleteRecord(id uint64) error {

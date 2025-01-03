@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"wiredshield/modules/db"
+	"wiredshield/modules/epoch"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/acme"
@@ -130,19 +131,27 @@ func dns01Handling(domain string, authzURL string) error {
 		return errors.Errorf("failed to get DNS-01 challenge record: %v", err)
 	}
 
+	var id uint64
+	snowflake, err := epoch.NewSnowflake(512)
+	if err != nil {
+		return errors.Errorf("failed to create snowflake: %v", err)
+	}
+
+	id = snowflake.GenerateID()
 	dnsRecord := &db.TXTRecord{
+		ID:        id,
 		Domain:    "_acme-challenge." + domain,
 		Text:      txtRecord,
 		Protected: false,
 	}
 
-	dnsId, err := db.UpdateRecord("TXT", "_acme-challenge."+domain, dnsRecord)
+	err = db.UpdateRecord("TXT", "_acme-challenge."+domain, dnsRecord)
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
 
 	defer func() {
-		err = db.DeleteRecord(dnsId)
+		err = db.DeleteRecord(id)
 		if err != nil {
 			fmt.Printf("failed to delete TXT record: %v", err)
 		}

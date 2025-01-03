@@ -7,6 +7,7 @@ import (
 	"strings"
 	ssl "wiredshield/commands/libs"
 	"wiredshield/modules/db"
+	"wiredshield/modules/epoch"
 )
 
 func Dns(model *Model) {
@@ -113,10 +114,19 @@ func Dns(model *Model) {
 		protected := split[5] == "true"
 		var err error
 		var record any
+		var id uint64
+		snowflake, err := epoch.NewSnowflake(512)
+		if err != nil {
+			sb.WriteString("Failed to create snowflake: " + err.Error() + "\n")
+			break
+		}
+
+		id = snowflake.GenerateID()
 
 		switch split[2] {
 		case "A":
 			record = db.ARecord{
+				ID:        id,
 				Domain:    split[3],
 				IP:        split[4],
 				Protected: protected,
@@ -154,6 +164,7 @@ func Dns(model *Model) {
 			}
 		case "AAAA":
 			record = db.AAAARecord{
+				ID:        id,
 				Domain:    split[3],
 				IP:        split[4],
 				Protected: protected,
@@ -195,6 +206,7 @@ func Dns(model *Model) {
 			}
 
 			record = db.SOARecord{
+				ID:         id,
 				Domain:     split[3],
 				PrimaryNS:  split[4],
 				AdminEmail: split[5],
@@ -207,12 +219,14 @@ func Dns(model *Model) {
 		case "TXT":
 			text := strings.Join(split[4:], " ")
 			record = db.TXTRecord{
+				ID:        id,
 				Domain:    split[3],
 				Text:      text,
 				Protected: protected,
 			}
 		case "NS":
 			record = db.NSRecord{
+				ID:        id,
 				Domain:    split[3],
 				NS:        split[4],
 				Protected: protected,
@@ -225,6 +239,7 @@ func Dns(model *Model) {
 			}
 
 			record = db.MXRecord{
+				ID:        id,
 				Domain:    split[3],
 				Target:    split[4],
 				Priority:  uint16(prio),
@@ -232,6 +247,7 @@ func Dns(model *Model) {
 			}
 		case "CNAME":
 			record = db.CNAMERecord{
+				ID:        id,
 				Domain:    split[3],
 				Target:    split[4],
 				Protected: protected,
@@ -240,15 +256,14 @@ func Dns(model *Model) {
 			sb.WriteString("Unsupported record type: " + split[2] + "\n")
 		}
 
-		var snowflake uint64
 		if record != nil {
-			snowflake, err = db.UpdateRecord(split[2], split[3], record)
+			err = db.UpdateRecord(split[2], split[3], record)
 			if err != nil {
 				sb.WriteString("Failed to update record: " + err.Error() + "\n")
 			}
 		}
 
-		sb.WriteString("Record updated. ID: " + strconv.FormatUint(snowflake, 10) + "\n")
+		sb.WriteString("Record updated. ID: " + strconv.Itoa(int(id)) + "\n")
 	case "del":
 		sb.WriteString("Delete DNS record\n")
 
