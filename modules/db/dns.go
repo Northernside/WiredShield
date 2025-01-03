@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -119,14 +118,13 @@ func UpdateRecord(recordType, domain string, record interface{}) error {
 }
 
 func DeleteRecord(id uint64) error {
-	return env.Update(func(txn *lmdb.Txn) error {
-		generalDb, err := txn.OpenDBI("wiredshield_general", 0)
+	err := env.Update(func(txn *lmdb.Txn) error {
+		db, err := txn.OpenDBI("wireddns", 0)
 		if err != nil {
-			return fmt.Errorf("failed to open general db: %v", err)
+			return fmt.Errorf("failed to open db: %v", err)
 		}
 
-		// delete by id
-		cursor, err := txn.OpenCursor(generalDb)
+		cursor, err := txn.OpenCursor(db)
 		if err != nil {
 			return fmt.Errorf("failed to open cursor: %v", err)
 		}
@@ -138,30 +136,83 @@ func DeleteRecord(id uint64) error {
 				if strings.Contains(err.Error(), "MDB_NOTFOUND") {
 					break
 				}
+
 				return fmt.Errorf("failed to get record: %v", err)
 			}
 
-			var records []json.RawMessage
+			var records []interface{}
 			if err := json.Unmarshal(value, &records); err != nil {
 				return fmt.Errorf("failed to unmarshal records: %v", err)
 			}
 
-			services.ProcessService.InfoLog(fmt.Sprintf("key: %s", key))
-			services.ProcessService.InfoLog(fmt.Sprintf("string(key): %s", string(key)))
-			services.ProcessService.InfoLog(fmt.Sprintf("records: %v", records))
-			for _, raw := range records {
-				services.ProcessService.InfoLog(fmt.Sprintf("raw: %v", raw))
-				services.ProcessService.InfoLog(fmt.Sprintf("string(raw): %v", string(raw)))
+			for i, record := range records {
+				switch r := record.(type) {
+				case ARecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				case AAAARecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				case CNAMERecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				case MXRecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				case NSRecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				case SOARecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				case SRVRecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				case TXTRecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				case CAARecord:
+					if r.ID == id {
+						records = append(records[:i], records[i+1:]...)
+						break
+					}
+				default:
+					return fmt.Errorf("unknown record type")
+				}
 			}
 
-			// delete record
-			if err := cursor.Del(0); err != nil {
-				return fmt.Errorf("failed to delete record: %v", err)
+			serialized, err := json.Marshal(records)
+			if err != nil {
+				return fmt.Errorf("failed to serialize updated records: %v", err)
 			}
+
+			if err := txn.Put(db, key, serialized, 0); err != nil {
+				return fmt.Errorf("failed to update records: %v", err)
+			}
+
+			return nil
 		}
 
 		return nil
 	})
+
+	return err
 }
 
 func GetRecords(recordType, domain string) ([]interface{}, error) {
