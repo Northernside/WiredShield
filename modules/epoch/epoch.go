@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	epoch         = int64(1161986400000) // 20/12/2024 (DD/MM/YYYY)
+	epoch         = int64(1735928607047)
 	timestampBits = 41
 	machineIDBits = 10
 	sequenceBits  = 12

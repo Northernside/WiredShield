@@ -11,10 +11,13 @@ import (
 
 func UpdateRecord(recordType, domain string, record interface{}) (uint64, error) {
 	var id uint64
-	snowflake, _ := epoch.NewSnowflake(2376654972819)
-	id = snowflake.GenerateID()
+	snowflake, err := epoch.NewSnowflake(512)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create snowflake: %v", err)
+	}
 
-	err := env.Update(func(txn *lmdb.Txn) error {
+	id = snowflake.GenerateID()
+	err = env.Update(func(txn *lmdb.Txn) error {
 		secondLevelDomain, err := getSecondLevelDomain(domain)
 		if err != nil {
 			return fmt.Errorf("failed to get second level domain: %v", err)
