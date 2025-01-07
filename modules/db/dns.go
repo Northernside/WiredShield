@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -146,6 +147,7 @@ func DeleteRecord(id uint64) error {
 			}
 
 			for i, record := range records {
+				services.ProcessService.InfoLog(fmt.Sprintf("record: %v", record))
 				switch r := record.(type) {
 				case ARecord:
 					if r.ID == id {
