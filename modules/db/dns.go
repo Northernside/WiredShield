@@ -193,7 +193,7 @@ func DeleteRecord(id uint64) error {
 						break
 					}
 				default:
-					return fmt.Errorf("unknown record type")
+					return fmt.Errorf("unknown record type %T", r)
 				}
 			}
 
