@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -118,9 +117,14 @@ func UpdateRecord(recordType, domain string, record interface{}) error {
 	return err
 }
 
-func DeleteRecord(id uint64) error {
+func DeleteRecord(id uint64, domain string) error {
 	err := env.Update(func(txn *lmdb.Txn) error {
-		db, err := txn.OpenDBI("wiredshield_general", 0)
+		secondLevelDomain, err := getSecondLevelDomain(domain)
+		if err != nil {
+			return fmt.Errorf("failed to get second level domain: %v", err)
+		}
+
+		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
 		}
@@ -147,7 +151,6 @@ func DeleteRecord(id uint64) error {
 			}
 
 			for i, record := range records {
-				services.ProcessService.InfoLog(fmt.Sprintf("record: %v", record))
 				switch r := record.(type) {
 				case ARecord:
 					if r.ID == id {

@@ -267,8 +267,8 @@ func Dns(model *Model) {
 	case "del":
 		sb.WriteString("Delete DNS record\n")
 
-		if len(split) < 3 {
-			sb.WriteString("Usage: dns del <id>\n")
+		if len(split) < 4 {
+			sb.WriteString("Usage: dns del <id> <domain>\n")
 			break
 		}
 
@@ -279,7 +279,7 @@ func Dns(model *Model) {
 			break
 		}
 
-		err = db.DeleteRecord(uint64(id))
+		err = db.DeleteRecord(uint64(id), split[3])
 		if err != nil {
 			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
 		}
