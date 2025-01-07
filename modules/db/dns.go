@@ -119,7 +119,7 @@ func UpdateRecord(recordType, domain string, record interface{}) error {
 
 func DeleteRecord(id uint64) error {
 	err := env.Update(func(txn *lmdb.Txn) error {
-		db, err := txn.OpenDBI("wireddns", 0)
+		db, err := txn.OpenDBI("wiredshield_general", 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
 		}
