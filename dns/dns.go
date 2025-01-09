@@ -115,7 +115,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			// append records to response and cache
 			var rrList []dns.RR
-			for _, record := range records {
+			for _, record := range *records {
 				var rr dns.RR
 				switch r := record.(type) {
 				case db.ARecord:
@@ -174,7 +174,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			// always attach a SOA record if no records found
-			if len(records) == 0 {
+			if len(*records) == 0 {
 				rr := buildSoaRecord(lookupName) // default SOA record
 				m.Answer = append(m.Answer, rr)
 				rrList = append(rrList, rr)
