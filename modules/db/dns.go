@@ -334,8 +334,15 @@ func GetAllDomains() ([]string, error) {
 }
 
 func GetRecords(recordType, domain string) ([]DNSRecord, error) {
-	records := []DNSRecord{}
-	err := env.View(func(txn *lmdb.Txn) error {
+	var records []DNSRecord
+
+	// get the second-level domain
+	domain, err := getSecondLevelDomain(domain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get second-level domain: %w", err)
+	}
+
+	err = env.View(func(txn *lmdb.Txn) error {
 		entries, err := txn.OpenDBI(entriesDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open entries DB: %w", err)
@@ -344,11 +351,6 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 		domainIndex, err := txn.OpenDBI(domainIndexDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open domain_index DB: %w", err)
-		}
-
-		domain, err := getSecondLevelDomain(domain)
-		if err != nil {
-			return fmt.Errorf("failed to get second level domain: %w", err)
 		}
 
 		// get the list of record ids for the domain
@@ -366,7 +368,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			return fmt.Errorf("failed to unmarshal domain index: %w", err)
 		}
 
-		// fetch all records by id
+		// fetch and filter records by id and type
 		for _, id := range recordIDs {
 			entryData, err := txn.Get(entries, uint64ToByteArray(id))
 			if err != nil {
@@ -377,13 +379,14 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				return fmt.Errorf("failed to fetch record: %w", err)
 			}
 
-			// try unmarshalling into concrete record types
+			// deserialize the record
 			var record DNSRecord
 			if err := unmarshalRecord(entryData, &record); err != nil {
 				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
 
-			if record.GetType() == recordType {
+			// check the record type
+			if GetRecordType(record) == recordType {
 				records = append(records, record)
 			}
 		}
