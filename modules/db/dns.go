@@ -325,7 +325,7 @@ func GetAllDomains() ([]string, error) {
 	return domains, err
 }
 
-func GetRecords(recordType, domain string) (*[]DNSRecord, error) {
+func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 	var records []DNSRecord
 
 	// get the second-level domain
@@ -387,7 +387,7 @@ func GetRecords(recordType, domain string) (*[]DNSRecord, error) {
 	})
 
 	services.ProcessService.InfoLog(fmt.Sprintf("records: %v", records))
-	return &records, err
+	return records, err
 }
 
 func getSecondLevelDomain(domain string) (string, error) {
