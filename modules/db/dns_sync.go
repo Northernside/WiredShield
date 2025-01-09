@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 	"wiredshield/modules/pgp"
@@ -20,54 +21,53 @@ func syncSet(record DNSRecord) error {
 	req.Header.Set("dns_domain", record.GetDomain())
 
 	// now check the type of record and set the appropriate fields
-	switch record.(type) {
+	switch record := record.(type) {
 	case ARecord:
-		aRecord := record.(ARecord)
-		req.Header.Set("dns_ip", aRecord.IP)
-		req.Header.Set("protected", fmt.Sprintf("%t", aRecord.Protected))
+		req.Header.Set("dns_ip", record.IP)
+		req.Header.Set("protected", fmt.Sprintf("%t", record.Protected))
 	case AAAARecord:
-		aaaaRecord := record.(AAAARecord)
-		req.Header.Set("dns_ip", aaaaRecord.IP)
-		req.Header.Set("protected", fmt.Sprintf("%t", aaaaRecord.Protected))
+		req.Header.Set("dns_ip", record.IP)
+		req.Header.Set("protected", fmt.Sprintf("%t", record.Protected))
 	case TXTRecord:
-		txtRecord := record.(TXTRecord)
-		req.Header.Set("text", txtRecord.Text)
+		req.Header.Set("text", record.Text)
 	case CNAMERecord:
-		cnameRecord := record.(CNAMERecord)
-		req.Header.Set("target", cnameRecord.Target)
+		req.Header.Set("target", record.Target)
 	case CAARecord:
-		caaRecord := record.(CAARecord)
-		req.Header.Set("flag", fmt.Sprintf("%d", caaRecord.Flag))
+		req.Header.Set("flag", fmt.Sprintf("%d", record.Flag))
 	case MXRecord:
-		mxRecord := record.(MXRecord)
-		req.Header.Set("priority", fmt.Sprintf("%d", mxRecord.Priority))
-		req.Header.Set("target", mxRecord.Target)
+		req.Header.Set("priority", fmt.Sprintf("%d", record.Priority))
+		req.Header.Set("target", record.Target)
 	case SRVRecord:
-		srvRecord := record.(SRVRecord)
-		req.Header.Set("priority", fmt.Sprintf("%d", srvRecord.Priority))
-		req.Header.Set("weight", fmt.Sprintf("%d", srvRecord.Weight))
-		req.Header.Set("port", fmt.Sprintf("%d", srvRecord.Port))
+		req.Header.Set("priority", fmt.Sprintf("%d", record.Priority))
+		req.Header.Set("weight", fmt.Sprintf("%d", record.Weight))
+		req.Header.Set("port", fmt.Sprintf("%d", record.Port))
 	case SOARecord:
-		soaRecord := record.(SOARecord)
-		req.Header.Set("dns_domain", soaRecord.Domain)
-		req.Header.Set("primary_ns", soaRecord.PrimaryNS)
-		req.Header.Set("admin_email", soaRecord.AdminEmail)
-		req.Header.Set("serial", fmt.Sprintf("%d", soaRecord.Serial))
-		req.Header.Set("refresh", fmt.Sprintf("%d", soaRecord.Refresh))
-		req.Header.Set("retry", fmt.Sprintf("%d", soaRecord.Retry))
-		req.Header.Set("expire", fmt.Sprintf("%d", soaRecord.Expire))
-		req.Header.Set("minimum_ttl", fmt.Sprintf("%d", soaRecord.MinimumTTL))
+		req.Header.Set("dns_domain", record.Domain)
+		req.Header.Set("primary_ns", record.PrimaryNS)
+		req.Header.Set("admin_email", record.AdminEmail)
+		req.Header.Set("serial", fmt.Sprintf("%d", record.Serial))
+		req.Header.Set("refresh", fmt.Sprintf("%d", record.Refresh))
+		req.Header.Set("retry", fmt.Sprintf("%d", record.Retry))
+		req.Header.Set("expire", fmt.Sprintf("%d", record.Expire))
+		req.Header.Set("minimum_ttl", fmt.Sprintf("%d", record.MinimumTTL))
 	case NSRecord:
-		nsRecord := record.(NSRecord)
-		req.Header.Set("ns", nsRecord.NS)
+		req.Header.Set("ns", record.NS)
 	}
 
-	_, err = http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
 	}
+	defer resp.Body.Close()
 
-	return err
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	services.ProcessService.InfoLog(fmt.Sprintf("response: %s", string(bodyBytes)))
+
+	return nil
 }
 
 func syncDel(id uint64, domain string) error {
