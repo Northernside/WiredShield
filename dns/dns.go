@@ -118,7 +118,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			for _, record := range records {
 				var rr dns.RR
 				switch r := (*record).(type) {
-				case db.ARecord:
+				case *db.ARecord:
 					var responseIps = getResponseIps(r, clientIp, country)
 					for _, ip := range responseIps {
 						rr = &dns.A{
@@ -126,7 +126,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 							A:   ip,
 						}
 					}
-				case db.AAAARecord:
+				case *db.AAAARecord:
 					var responseIps = getResponseIps(r, clientIp, country)
 					for _, ip := range responseIps {
 						rr = &dns.AAAA{
@@ -134,30 +134,30 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 							AAAA: ip,
 						}
 					}
-				case db.SOARecord:
+				case *db.SOARecord:
 					rr = buildSoaRecord(lookupName)
-				case db.CNAMERecord:
+				case *db.CNAMERecord:
 					rr = &dns.CNAME{
 						Hdr:    dns.RR_Header{Name: questionName, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
 						Target: r.Target + ".",
 					}
-				case db.NSRecord:
+				case *db.NSRecord:
 					rr = &dns.NS{
 						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
 						Ns:  r.NS + ".",
 					}
-				case db.MXRecord:
+				case *db.MXRecord:
 					rr = &dns.MX{
 						Hdr:        dns.RR_Header{Name: questionName, Rrtype: dns.TypeMX, Class: dns.ClassINET, Ttl: 300},
 						Preference: r.Priority,
 						Mx:         r.Target + ".",
 					}
-				case db.TXTRecord:
+				case *db.TXTRecord:
 					rr = &dns.TXT{
 						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
 						Txt: []string{r.Text},
 					}
-				case db.SRVRecord:
+				case *db.SRVRecord:
 					rr = &dns.SRV{
 						Hdr:      dns.RR_Header{Name: questionName, Rrtype: dns.TypeSRV, Class: dns.ClassINET, Ttl: 300},
 						Priority: uint16(r.Priority),
