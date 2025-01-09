@@ -17,7 +17,6 @@ const (
 
 func InsertRecord(record DNSRecord) error {
 	return env.Update(func(txn *lmdb.Txn) error {
-		// Ensure "entries" and "domain_index" databases exist
 		entries, err := txn.OpenDBI(entriesDB, lmdb.Create)
 		if err != nil {
 			return fmt.Errorf("failed to open entries DB: %w", err)
@@ -34,7 +33,7 @@ func InsertRecord(record DNSRecord) error {
 			return fmt.Errorf("failed to serialize record: %w", err)
 		}
 
-		// Insert into "entries" DB
+		// Insert the record into "entries" DB
 		if err := txn.Put(entries, uint64ToByteArray(record.GetID()), recordBytes, 0); err != nil {
 			return fmt.Errorf("failed to add record to entries DB: %w", err)
 		}
@@ -43,16 +42,20 @@ func InsertRecord(record DNSRecord) error {
 		domain := record.GetDomain()
 		indexData, err := txn.Get(domainIndex, []byte(domain))
 		var recordIDs []uint64
+
+		// If not found, initialize the index
 		if errors.Is(err, lmdb.NotFound) {
-			// Domain is not indexed yet
 			recordIDs = []uint64{}
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch domain index: %w", err)
-		} else if err := json.Unmarshal(indexData, &recordIDs); err != nil {
-			return fmt.Errorf("failed to unmarshal domain index: %w", err)
+		} else {
+			// Unmarshal the existing record IDs
+			if err := json.Unmarshal(indexData, &recordIDs); err != nil {
+				return fmt.Errorf("failed to unmarshal domain index: %w", err)
+			}
 		}
 
-		// Add record ID if not already present
+		// Append the new record ID if not already present
 		exists := false
 		for _, id := range recordIDs {
 			if id == record.GetID() {
@@ -60,10 +63,12 @@ func InsertRecord(record DNSRecord) error {
 				break
 			}
 		}
+
 		if !exists {
 			recordIDs = append(recordIDs, record.GetID())
 		}
 
+		// Serialize the updated list of IDs
 		indexBytes, err := json.Marshal(recordIDs)
 		if err != nil {
 			return fmt.Errorf("failed to serialize updated domain index: %w", err)
@@ -72,26 +77,29 @@ func InsertRecord(record DNSRecord) error {
 			return fmt.Errorf("failed to update domain index: %w", err)
 		}
 
-		// Add the domain to `dns_domains` if not already listed
+		// Ensure the domain is added to `dns_domains` list
 		dnsDomainsData, err := txn.Get(domainIndex, []byte(dnsDomainsKey))
 		var dnsDomains []string
+
+		// If the key doesn't exist, create it
 		if errors.Is(err, lmdb.NotFound) {
-			dnsDomains = []string{} // Initialize if key does not exist
+			dnsDomains = []string{}
 		} else if err != nil {
-			return fmt.Errorf("failed to fetch dns domains list: %w", err)
+			return fmt.Errorf("failed to fetch dns_domains key: %w", err)
 		} else if err := json.Unmarshal(dnsDomainsData, &dnsDomains); err != nil {
-			return fmt.Errorf("failed to unmarshal dns domains list: %w", err)
+			return fmt.Errorf("failed to unmarshal dns_domains list: %w", err)
 		}
 
+		// Add the domain if not already in the list
 		if !stringInSlice(domain, dnsDomains) {
 			dnsDomains = append(dnsDomains, domain)
 			dnsDomainsBytes, err := json.Marshal(dnsDomains)
 			if err != nil {
-				return fmt.Errorf("failed to serialize updated domains list: %w", err)
+				return fmt.Errorf("failed to serialize updated dns_domains list: %w", err)
 			}
 
 			if err := txn.Put(domainIndex, []byte(dnsDomainsKey), dnsDomainsBytes, 0); err != nil {
-				return fmt.Errorf("failed to update dns domains list: %w", err)
+				return fmt.Errorf("failed to update dns_domains key: %w", err)
 			}
 		}
 
