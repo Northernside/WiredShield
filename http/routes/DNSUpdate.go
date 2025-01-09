@@ -30,7 +30,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 	var auth_message = string(ctx.Request.Header.Peek("auth_message"))
 	if signature == "" || auth_message == "" {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-		ctx.SetBodyString("UNAUTHORIZED")
+		ctx.SetBodyString("UNAUTHORIZED v1")
 		return
 	}
 
@@ -52,7 +52,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 	err = pgp.VerifySignature(auth_message, b64SigStr, woofPub)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-		ctx.SetBodyString("UNAUTHORIZED")
+		ctx.SetBodyString("UNAUTHORIZED v2")
 		return
 	}
 
@@ -60,7 +60,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 	timestamp, err := strconv.Atoi(auth_message)
 	if err != nil || timestamp < (int(time.Now().Unix())-10) {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-		ctx.SetBodyString("UNAUTHORIZED")
+		ctx.SetBodyString("UNAUTHORIZED v3")
 		return
 	}
 
