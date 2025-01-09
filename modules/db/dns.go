@@ -157,13 +157,10 @@ func DeleteRecord(id uint64, domain string) error {
 
 func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 	records := []DNSRecord{}
-	services.ProcessService.InfoLog(fmt.Sprintf("GetRecordsByDomain: %s", domain))
 	domain, err := getSecondLevelDomain(domain)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get second level domain: %v", err)
 	}
-
-	services.ProcessService.InfoLog(fmt.Sprintf("GetRecordsByDomain: %s", domain))
 
 	err = env.View(func(txn *lmdb.Txn) error {
 		entries, err := txn.OpenDBI(entriesDB, 0)
