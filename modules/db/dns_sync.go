@@ -72,6 +72,7 @@ func syncSet(record DNSRecord) error {
 		return err
 	}
 
+	services.ProcessService.InfoLog(fmt.Sprintf("signature: %s", signature))
 	req.Header.Set("signature", signature)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
