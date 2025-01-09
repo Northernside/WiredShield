@@ -143,7 +143,8 @@ func Dns(model *Model) {
 			}
 
 			if protected {
-				model.Output += "Generating SSL certificate for " + split[3] + "\n"
+				// model.Output += "Generating SSL certificate for " + split[3] + "\n"
+				services.ProcessService.InfoLog("Generating SSL certificate for " + split[3])
 				go func() {
 					certPEM, keyPEM, err := ssl.GenerateCertificate(split[3])
 					if err != nil {
@@ -302,5 +303,6 @@ func Dns(model *Model) {
 		sb.WriteString("Unknown command: " + split[1] + "\n")
 	}
 
-	model.Output += sb.String()
+	// model.Output += sb.String()
+	services.ProcessService.InfoLog(sb.String())
 }
