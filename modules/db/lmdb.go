@@ -59,12 +59,12 @@ func Init() {
 
 		_, err = txn.Get(domainIndex, []byte(dnsDomainsKey))
 		if errors.Is(err, lmdb.NotFound) {
-			emptyList, err := json.Marshal([]string{})
+			emptyDomains, err := json.Marshal([]string{})
 			if err != nil {
-				return fmt.Errorf("failed to initialize dns_domains key: %w", err)
+				return fmt.Errorf("failed to marshal empty domains: %w", err)
 			}
 
-			if err := txn.Put(domainIndex, []byte(dnsDomainsKey), emptyList, 0); err != nil {
+			if err := txn.Put(domainIndex, []byte(dnsDomainsKey), emptyDomains, 0); err != nil {
 				return fmt.Errorf("failed to initialize dns_domains key: %w", err)
 			}
 		} else if err != nil {
