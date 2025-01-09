@@ -25,7 +25,7 @@ func GetRecordType(record interface{}) string {
 }
 
 func InsertRecord(record DNSRecord) error {
-	return env.Update(func(txn *lmdb.Txn) error {
+	eErr := env.Update(func(txn *lmdb.Txn) error {
 		// open "entries" and "domain_index" dbs
 		entries, err := txn.OpenDBI(entriesDB, lmdb.Create)
 		if err != nil {
@@ -92,10 +92,16 @@ func InsertRecord(record DNSRecord) error {
 
 		return nil
 	})
+
+	if eErr == nil {
+		go syncSet(record)
+	}
+
+	return eErr
 }
 
 func DeleteRecord(id uint64, domain string) error {
-	return env.Update(func(txn *lmdb.Txn) error {
+	eErr := env.Update(func(txn *lmdb.Txn) error {
 		// open "entries" and "domain_index" databases
 		entries, err := txn.OpenDBI(entriesDB, 0)
 		if err != nil {
@@ -153,6 +159,12 @@ func DeleteRecord(id uint64, domain string) error {
 
 		return nil
 	})
+
+	if eErr == nil {
+		go syncDel(id, domain)
+	}
+
+	return eErr
 }
 
 func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
