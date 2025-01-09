@@ -58,29 +58,28 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	var id, _ = strconv.Atoi(string(ctx.Request.Header.Peek("id")))
+	var domain = string(ctx.Request.Header.Peek("dns_domain"))
+	var ip = string(ctx.Request.Header.Peek("dns_ip"))
+	var protected = string(ctx.Request.Header.Peek("protected"))
+	var text = string(ctx.Request.Header.Peek("text"))
+	var target = string(ctx.Request.Header.Peek("target"))
+	var priority, _ = strconv.Atoi(string(ctx.Request.Header.Peek("priority")))
+	var weight, _ = strconv.Atoi(string(ctx.Request.Header.Peek("weight")))
+	var port, _ = strconv.Atoi(string(ctx.Request.Header.Peek("port")))
+	var flag, _ = strconv.Atoi(string(ctx.Request.Header.Peek("flag")))
+	var tag = string(ctx.Request.Header.Peek("tag"))
+	var value = string(ctx.Request.Header.Peek("value"))
+	var ns = string(ctx.Request.Header.Peek("ns"))
+	var primary_ns = string(ctx.Request.Header.Peek("primary_ns"))
+	var admin_email = string(ctx.Request.Header.Peek("admin_email"))
+	var serial, _ = strconv.Atoi(string(ctx.Request.Header.Peek("serial")))
+	var refresh, _ = strconv.Atoi(string(ctx.Request.Header.Peek("refresh")))
+	var retry, _ = strconv.Atoi(string(ctx.Request.Header.Peek("retry")))
+	var expire, _ = strconv.Atoi(string(ctx.Request.Header.Peek("expire")))
+	var minimum_ttl, _ = strconv.Atoi(string(ctx.Request.Header.Peek("minimum_ttl")))
 	switch change_action {
 	case "SET":
-		var id, _ = strconv.Atoi(string(ctx.Request.Header.Peek("id")))
-		var domain = string(ctx.Request.Header.Peek("dns_domain"))
-		var ip = string(ctx.Request.Header.Peek("dns_ip"))
-		var protected = string(ctx.Request.Header.Peek("protected"))
-		var text = string(ctx.Request.Header.Peek("text"))
-		var target = string(ctx.Request.Header.Peek("target"))
-		var priority, _ = strconv.Atoi(string(ctx.Request.Header.Peek("priority")))
-		var weight, _ = strconv.Atoi(string(ctx.Request.Header.Peek("weight")))
-		var port, _ = strconv.Atoi(string(ctx.Request.Header.Peek("port")))
-		var flag, _ = strconv.Atoi(string(ctx.Request.Header.Peek("flag")))
-		var tag = string(ctx.Request.Header.Peek("tag"))
-		var value = string(ctx.Request.Header.Peek("value"))
-		var ns = string(ctx.Request.Header.Peek("ns"))
-		var primary_ns = string(ctx.Request.Header.Peek("primary_ns"))
-		var admin_email = string(ctx.Request.Header.Peek("admin_email"))
-		var serial, _ = strconv.Atoi(string(ctx.Request.Header.Peek("serial")))
-		var refresh, _ = strconv.Atoi(string(ctx.Request.Header.Peek("refresh")))
-		var retry, _ = strconv.Atoi(string(ctx.Request.Header.Peek("retry")))
-		var expire, _ = strconv.Atoi(string(ctx.Request.Header.Peek("expire")))
-		var minimum_ttl, _ = strconv.Atoi(string(ctx.Request.Header.Peek("minimum_ttl")))
-
 		// set the record
 		switch change_record_type {
 		case "A":
