@@ -76,6 +76,7 @@ func syncSet(record DNSRecord) error {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -121,6 +122,7 @@ func syncDel(id uint64, domain string) error {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
+		return err
 	}
 	defer resp.Body.Close()
 
