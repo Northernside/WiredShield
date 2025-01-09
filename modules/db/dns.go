@@ -269,7 +269,7 @@ func unmarshalRecord(data []byte, record *DNSRecord) error {
 
 		*record = &caaRecord
 	default:
-		return fmt.Errorf("unsupported record type: %s", recordType["type"])
+		return fmt.Errorf("unsupported record type: %v", recordType["type"])
 	}
 
 	return nil
