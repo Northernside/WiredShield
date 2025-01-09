@@ -17,7 +17,7 @@ func syncSet(record DNSRecord) error {
 	}
 
 	req.Header.Set("change_action", "SET")
-	req.Header.Set("change_record_type", GetRecordType(record))
+	req.Header.Set("change_record_type", record.GetType())
 	req.Header.Set("id", fmt.Sprintf("%d", record.GetID()))
 	req.Header.Set("dns_domain", record.GetDomain())
 
