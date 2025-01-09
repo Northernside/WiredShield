@@ -28,6 +28,8 @@ type DNSRecord interface {
 	GetType() string
 	GetDomain() string
 	Serialize() (string, error)
+	GetKey() string
+	MarshalJSON() ([]byte, error)
 }
 
 type ARecord struct {
@@ -50,6 +52,16 @@ func (r ARecord) Serialize() (string, error) {
 
 	return string(data), nil
 }
+func (a ARecord) MarshalJSON() ([]byte, error) {
+	type Alias ARecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  a.GetType(),
+		Alias: Alias(a),
+	})
+}
 
 type AAAARecord struct {
 	ID        uint64 `json:"id"`
@@ -70,6 +82,16 @@ func (r AAAARecord) Serialize() (string, error) {
 	}
 
 	return string(data), nil
+}
+func (aaaa AAAARecord) MarshalJSON() ([]byte, error) {
+	type Alias AAAARecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  aaaa.GetType(),
+		Alias: Alias(aaaa),
+	})
 }
 
 type SRVRecord struct {
@@ -93,6 +115,16 @@ func (r SRVRecord) Serialize() (string, error) {
 	}
 
 	return string(data), nil
+}
+func (srv SRVRecord) MarshalJSON() ([]byte, error) {
+	type Alias SRVRecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  srv.GetType(),
+		Alias: Alias(srv),
+	})
 }
 
 type SOARecord struct {
@@ -120,6 +152,16 @@ func (r SOARecord) Serialize() (string, error) {
 
 	return string(data), nil
 }
+func (soa SOARecord) MarshalJSON() ([]byte, error) {
+	type Alias SOARecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  soa.GetType(),
+		Alias: Alias(soa),
+	})
+}
 
 type CNAMERecord struct {
 	ID        uint64 `json:"id"`
@@ -141,6 +183,16 @@ func (r CNAMERecord) Serialize() (string, error) {
 
 	return string(data), nil
 }
+func (cname CNAMERecord) MarshalJSON() ([]byte, error) {
+	type Alias CNAMERecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  cname.GetType(),
+		Alias: Alias(cname),
+	})
+}
 
 type NSRecord struct {
 	ID        uint64 `json:"id"`
@@ -161,6 +213,16 @@ func (r NSRecord) Serialize() (string, error) {
 	}
 
 	return string(data), nil
+}
+func (ns NSRecord) MarshalJSON() ([]byte, error) {
+	type Alias NSRecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  ns.GetType(),
+		Alias: Alias(ns),
+	})
 }
 
 type MXRecord struct {
@@ -184,6 +246,16 @@ func (r MXRecord) Serialize() (string, error) {
 
 	return string(data), nil
 }
+func (mx MXRecord) MarshalJSON() ([]byte, error) {
+	type Alias MXRecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  mx.GetType(),
+		Alias: Alias(mx),
+	})
+}
 
 type TXTRecord struct {
 	ID        uint64 `json:"id"`
@@ -196,7 +268,7 @@ func (r TXTRecord) Type() DNSRecordType { return TXT }
 func (r TXTRecord) GetID() uint64       { return r.ID }
 func (r TXTRecord) GetType() string     { return "TXT" }
 func (r TXTRecord) GetDomain() string   { return r.Domain }
-func (r *TXTRecord) GetKey() string     { return r.Domain + ":" + strconv.Itoa(int(r.ID)) }
+func (r TXTRecord) GetKey() string      { return r.Domain + ":" + strconv.Itoa(int(r.ID)) }
 func (r TXTRecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -204,6 +276,16 @@ func (r TXTRecord) Serialize() (string, error) {
 	}
 
 	return string(data), nil
+}
+func (txt TXTRecord) MarshalJSON() ([]byte, error) {
+	type Alias TXTRecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  txt.GetType(),
+		Alias: Alias(txt),
+	})
 }
 
 type CAARecord struct {
@@ -227,4 +309,14 @@ func (r CAARecord) Serialize() (string, error) {
 	}
 
 	return string(data), nil
+}
+func (caa CAARecord) MarshalJSON() ([]byte, error) {
+	type Alias CAARecord
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Alias
+	}{
+		Type:  caa.GetType(),
+		Alias: Alias(caa),
+	})
 }

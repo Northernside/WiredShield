@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"wiredshield/services"
 
@@ -15,6 +16,13 @@ const (
 	domainIndexDB = "domain_index"
 	dnsDomainsKey = "dns_domains"
 )
+
+func GetRecordType(record interface{}) string {
+	typeName := reflect.TypeOf(record).Name()
+	typeName = strings.TrimSuffix(typeName, "Record")
+
+	return typeName
+}
 
 func InsertRecord(record DNSRecord) error {
 	return env.Update(func(txn *lmdb.Txn) error {
