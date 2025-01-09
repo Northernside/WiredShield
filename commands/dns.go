@@ -288,7 +288,7 @@ func Dns(model *Model) {
 			break
 		}
 
-		err = db.DeleteRecord(id, split[3])
+		err = db.DeleteRecord(id, split[3], false)
 		if err != nil {
 			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
 		}

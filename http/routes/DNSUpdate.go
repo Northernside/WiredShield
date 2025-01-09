@@ -191,7 +191,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 		var domain = string(ctx.Request.Header.Peek("dns_domain"))
 
 		// delete the record
-		db.DeleteRecord(uint64(id), domain)
+		db.DeleteRecord(uint64(id), domain, true)
 	default:
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		ctx.SetBodyString(fmt.Sprintf("BAD_REQUEST: %s", change_action))

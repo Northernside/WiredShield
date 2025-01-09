@@ -100,7 +100,7 @@ func InsertRecord(record DNSRecord, self bool) error {
 	return eErr
 }
 
-func DeleteRecord(id uint64, domain string) error {
+func DeleteRecord(id uint64, domain string, self bool) error {
 	eErr := env.Update(func(txn *lmdb.Txn) error {
 		// open "entries" and "domain_index" databases
 		entries, err := txn.OpenDBI(entriesDB, 0)
@@ -160,7 +160,7 @@ func DeleteRecord(id uint64, domain string) error {
 		return nil
 	})
 
-	if eErr == nil {
+	if eErr == nil && !self {
 		go syncDel(id, domain)
 	}
 
