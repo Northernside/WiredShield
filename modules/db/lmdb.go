@@ -1,8 +1,6 @@
 package db
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 
@@ -25,7 +23,7 @@ func Init() {
 		log.Fatal("failed to set max readers:", err)
 	}
 
-	err = env.SetMaxDBs(2048)
+	err = env.SetMaxDBs(2 ^ 32 - 1)
 	if err != nil {
 		log.Fatal("failed to set max DBs:", err)
 	}
@@ -47,36 +45,14 @@ func Init() {
 			return fmt.Errorf("failed to open db: %v", err)
 		}
 
-		_, err = txn.OpenDBI(entriesDB, lmdb.Create)
+		_, err = txn.OpenDBI("entries", lmdb.Create)
 		if err != nil {
 			return fmt.Errorf("failed to create/open entries DB: %w", err)
 		}
 
-		domainIndex, err := txn.OpenDBI(domainIndexDB, lmdb.Create)
+		_, err = txn.OpenDBI("domain_index", lmdb.Create)
 		if err != nil {
 			return fmt.Errorf("failed to create/open domain_index DB: %w", err)
-		}
-
-		key := []byte(dnsDomainsKey)
-		_, err = txn.Get(domainIndex, key)
-		if errors.Is(err, lmdb.NotFound) {
-			fmt.Println("Key 'dns_domains' does not exist, initializing it.")
-
-			emptyDomains := []string{}
-			emptyDomainsData, err := json.Marshal(emptyDomains)
-			if err != nil {
-				return fmt.Errorf("failed to serialize empty list: %w", err)
-			}
-
-			if err := txn.Put(domainIndex, key, emptyDomainsData, 0); err != nil {
-				return fmt.Errorf("failed to insert dns_domains key: %w", err)
-			}
-
-			fmt.Println("'dns_domains' key initialized with empty list.")
-		} else if err != nil {
-			return fmt.Errorf("failed to fetch dns_domains key: %w", err)
-		} else {
-			fmt.Println("Found existing 'dns_domains' key.")
 		}
 
 		return nil
