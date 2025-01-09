@@ -3,6 +3,7 @@ package routes
 import (
 	"fmt"
 	"strconv"
+	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/pgp"
 	"wiredshield/services"
@@ -18,10 +19,15 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	/*
+		logic:
+			- verify the signature (compare headers: signature and auth_message)
+	*/
+
 	// master auth logic
 	var signature = string(ctx.Request.Header.Peek("signature"))
 	var auth_message = string(ctx.Request.Header.Peek("auth_message"))
-	if signature == "" {
+	if signature == "" || auth_message == "" {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBodyString("UNAUTHORIZED")
 		return
@@ -36,6 +42,14 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 
 	err = pgp.VerifySignature(auth_message, signature, woofPub)
 	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+		ctx.SetBodyString("UNAUTHORIZED")
+		return
+	}
+
+	// auth_message should be the current timestamp in seconds, check if its older than 10s
+	timestamp, err := strconv.Atoi(auth_message)
+	if err != nil || timestamp < (int(time.Now().Unix())-10) {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBodyString("UNAUTHORIZED")
 		return

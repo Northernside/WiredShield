@@ -3,6 +3,8 @@ package db
 import (
 	"fmt"
 	"net/http"
+	"time"
+	"wiredshield/modules/pgp"
 	"wiredshield/services"
 )
 
@@ -77,6 +79,26 @@ func syncDel(id uint64, domain string) error {
 	req.Header.Set("change_action", "DEL")
 	req.Header.Set("id", fmt.Sprintf("%d", id))
 	req.Header.Set("dns_domain", domain)
+
+	/*
+		logic:
+			- send a signature (headers: signature and auth_message)
+			-> auth message should be current timestamp in seconds
+	*/
+
+	timestamp := time.Now().Unix()
+	req.Header.Set("auth_message", fmt.Sprintf("%d", timestamp))
+	meowKey, err := pgp.LoadPrivateKey("certs/master-public.asc", "")
+	if err != nil {
+		return err
+	}
+
+	signature, err := pgp.SignMessage(fmt.Sprintf("%d", timestamp), meowKey)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("signature", signature)
 
 	_, err = http.DefaultClient.Do(req)
 	if err != nil {
