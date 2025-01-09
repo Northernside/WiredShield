@@ -339,6 +339,8 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 		return nil, fmt.Errorf("failed to get records by domain: %v", err)
 	}
 
+	services.ProcessService.InfoLog(fmt.Sprintf("records: %v", records))
+
 	filteredRecords := []DNSRecord{}
 	for _, record := range records {
 		if GetRecordType(record) == recordType {
