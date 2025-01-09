@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -269,6 +270,7 @@ func unmarshalRecord(data []byte, record *DNSRecord) error {
 
 		*record = &caaRecord
 	default:
+		services.ProcessService.Info("unsupported record type: %v", recordType)
 		return fmt.Errorf("unsupported record type: %v", recordType["type"])
 	}
 
