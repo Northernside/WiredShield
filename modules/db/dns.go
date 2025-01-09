@@ -99,11 +99,13 @@ func DeleteRecord(id uint64, domain string) error {
 			return fmt.Errorf("failed to delete record from entries DB: %w", err)
 		}
 
-		// update "domain_index" db
+		// remove from "domain_index" db
 		indexData, err := txn.Get(domainIndex, []byte(domain))
-		if errors.Is(err, lmdb.NotFound) {
-			return nil // no index to update
-		} else if err != nil {
+		if err != nil {
+			if errors.Is(err, lmdb.NotFound) {
+				return nil // no records for this domain
+			}
+
 			return fmt.Errorf("failed to fetch domain index: %w", err)
 		}
 
