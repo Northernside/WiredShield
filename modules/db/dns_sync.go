@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -73,7 +74,8 @@ func syncSet(record DNSRecord) error {
 	}
 
 	services.ProcessService.InfoLog(fmt.Sprintf("signature: %s", signature))
-	req.Header.Set("signature", signature)
+	b64Sig := base64.StdEncoding.EncodeToString([]byte(signature))
+	req.Header.Set("signature", b64Sig)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
@@ -119,7 +121,8 @@ func syncDel(id uint64, domain string) error {
 		return err
 	}
 
-	req.Header.Set("signature", signature)
+	b64Sig := base64.StdEncoding.EncodeToString([]byte(signature))
+	req.Header.Set("signature", b64Sig)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))

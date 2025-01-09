@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"time"
@@ -40,7 +41,15 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	err = pgp.VerifySignature(auth_message, signature, woofPub)
+	b64Sig, err := base64.StdEncoding.DecodeString(signature)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.SetBodyString("BAD_REQUEST")
+		return
+	}
+
+	b64SigStr := string(b64Sig)
+	err = pgp.VerifySignature(auth_message, b64SigStr, woofPub)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBodyString("UNAUTHORIZED")
