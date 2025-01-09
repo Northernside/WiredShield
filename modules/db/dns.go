@@ -396,6 +396,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 		return nil
 	})
 
+	service.InfoLog(fmt.Sprintf("records: %v", records))
 	return records, err
 }
 
