@@ -383,6 +383,8 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				return fmt.Errorf("failed to fetch record: %w", err)
 			}
 
+			services.ProcessService.InfoLog(fmt.Sprintf("entryData: %v", entryData))
+
 			// deserialize the record
 			var record DNSRecord
 			if err := unmarshalRecord(entryData, &record); err != nil {
