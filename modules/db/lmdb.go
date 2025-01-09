@@ -1,6 +1,8 @@
 package db
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 
@@ -50,9 +52,23 @@ func Init() {
 			return fmt.Errorf("failed to create/open entries DB: %w", err)
 		}
 
-		_, err = txn.OpenDBI(domainIndexDB, lmdb.Create)
+		domainIndex, err := txn.OpenDBI(domainIndexDB, lmdb.Create)
 		if err != nil {
 			return fmt.Errorf("failed to create/open domain_index DB: %w", err)
+		}
+
+		_, err = txn.Get(domainIndex, []byte(dnsDomainsKey))
+		if errors.Is(err, lmdb.NotFound) {
+			emptyList, err := json.Marshal([]string{})
+			if err != nil {
+				return fmt.Errorf("failed to initialize dns_domains key: %w", err)
+			}
+
+			if err := txn.Put(domainIndex, []byte(dnsDomainsKey), emptyList, 0); err != nil {
+				return fmt.Errorf("failed to initialize dns_domains key: %w", err)
+			}
+		} else if err != nil {
+			return fmt.Errorf("failed to fetch dns_domains key: %w", err)
 		}
 
 		return nil
