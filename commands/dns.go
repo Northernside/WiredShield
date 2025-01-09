@@ -8,6 +8,7 @@ import (
 	ssl "wiredshield/commands/libs"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
+	"wiredshield/services"
 )
 
 func Dns(model *Model) {
@@ -143,33 +144,38 @@ func Dns(model *Model) {
 
 			if protected {
 				model.Output += "Generating SSL certificate for " + split[3] + "\n"
-				certPEM, keyPEM, err := ssl.GenerateCertificate(split[3])
-				if err != nil {
-					model.Output += "Failed to generate certificate: " + err.Error() + "\n"
-					return
-				}
+				go func() {
+					certPEM, keyPEM, err := ssl.GenerateCertificate(split[3])
+					if err != nil {
+						// model.Output += "Failed to generate certificate: " + err.Error() + "\n"
+						services.ProcessService.ErrorLog("Failed to generate certificate: " + err.Error())
+						return
+					}
 
-				// save to certs/<domain>
-				certFile := fmt.Sprintf("certs/%s.crt", split[3])
-				keyFile := fmt.Sprintf("certs/%s.key", split[3])
+					// save to certs/<domain>
+					certFile := fmt.Sprintf("certs/%s.crt", split[3])
+					keyFile := fmt.Sprintf("certs/%s.key", split[3])
 
-				writer, err := os.Create(certFile)
-				if err != nil {
-					model.Output += "failed to create cert file: " + err.Error() + "\n"
-					return
-				}
-				defer writer.Close()
-				writer.Write(certPEM)
+					writer, err := os.Create(certFile)
+					if err != nil {
+						// model.Output += "failed to create cert file: " + err.Error() + "\n"
+						services.ProcessService.ErrorLog("failed to create cert file: " + err.Error())
+						return
+					}
+					defer writer.Close()
+					writer.Write(certPEM)
 
-				writer, err = os.Create(keyFile)
-				if err != nil {
-					fmt.Printf("failed to create key file: %v", err)
-					return
-				}
-				defer writer.Close()
-				writer.Write(keyPEM)
+					writer, err = os.Create(keyFile)
+					if err != nil {
+						fmt.Printf("failed to create key file: %v", err)
+						return
+					}
+					defer writer.Close()
+					writer.Write(keyPEM)
 
-				model.Output += "SSL certificate for " + split[3] + " generated\n"
+					// model.Output += "SSL certificate for " + split[3] + " generated\n"
+					services.ProcessService.InfoLog("SSL certificate for " + split[3] + " generated")
+				}()
 			}
 		case "AAAA":
 			record = db.AAAARecord{
