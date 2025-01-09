@@ -334,21 +334,59 @@ func GetAllDomains() ([]string, error) {
 }
 
 func GetRecords(recordType, domain string) ([]DNSRecord, error) {
-	records, err := GetRecordsByDomain(domain)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get records by domain: %v", err)
-	}
-
-	services.ProcessService.InfoLog(fmt.Sprintf("records: %v", records))
-
-	filteredRecords := []DNSRecord{}
-	for _, record := range records {
-		if GetRecordType(record) == recordType {
-			filteredRecords = append(filteredRecords, record)
+	records := []DNSRecord{}
+	err := env.View(func(txn *lmdb.Txn) error {
+		entries, err := txn.OpenDBI(entriesDB, 0)
+		if err != nil {
+			return fmt.Errorf("failed to open entries DB: %w", err)
 		}
-	}
 
-	return filteredRecords, nil
+		domainIndex, err := txn.OpenDBI(domainIndexDB, 0)
+		if err != nil {
+			return fmt.Errorf("failed to open domain_index DB: %w", err)
+		}
+
+		// get the list of record ids for the domain
+		indexData, err := txn.Get(domainIndex, []byte(domain))
+		if err != nil {
+			if errors.Is(err, lmdb.NotFound) {
+				return nil // no records for this domain
+			}
+
+			return fmt.Errorf("failed to fetch domain index: %w", err)
+		}
+
+		var recordIDs []uint64
+		if err := json.Unmarshal(indexData, &recordIDs); err != nil {
+			return fmt.Errorf("failed to unmarshal domain index: %w", err)
+		}
+
+		// fetch all records by id
+		for _, id := range recordIDs {
+			entryData, err := txn.Get(entries, uint64ToByteArray(id))
+			if err != nil {
+				if errors.Is(err, lmdb.NotFound) {
+					continue // skip missing records
+				}
+
+				return fmt.Errorf("failed to fetch record: %w", err)
+			}
+
+			// try unmarshalling into concrete record types
+			var record DNSRecord
+			if err := unmarshalRecord(entryData, &record); err != nil {
+				return fmt.Errorf("failed to deserialize record: %w", err)
+			}
+
+			if record.GetType() == recordType {
+				records = append(records, record)
+			}
+		}
+
+		return nil
+	})
+
+	return records, err
 }
 
 func getSecondLevelDomain(domain string) (string, error) {
