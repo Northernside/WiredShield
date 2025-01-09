@@ -325,7 +325,7 @@ func GetAllDomains() ([]string, error) {
 	return domains, err
 }
 
-func GetRecords(recordType, domain string) ([]DNSRecord, error) {
+func GetRecords(recordType, domain string) (*[]DNSRecord, error) {
 	var records []DNSRecord
 
 	// get the second-level domain
@@ -355,14 +355,10 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			return fmt.Errorf("failed to fetch domain index: %w", err)
 		}
 
-		services.ProcessService.InfoLog(fmt.Sprintf("indexData: %v", indexData))
-
 		var recordIDs []uint64
 		if err := json.Unmarshal(indexData, &recordIDs); err != nil {
 			return fmt.Errorf("failed to unmarshal domain index: %w", err)
 		}
-
-		services.ProcessService.InfoLog(fmt.Sprintf("recordIDs: %v", recordIDs))
 
 		// fetch and filter records by id and type
 		for _, id := range recordIDs {
@@ -375,17 +371,11 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				return fmt.Errorf("failed to fetch record: %w", err)
 			}
 
-			services.ProcessService.InfoLog(fmt.Sprintf("entryData: %v", entryData))
-
 			// deserialize the record
 			var record DNSRecord
 			if err := unmarshalRecord(entryData, &record); err != nil {
 				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
-
-			services.ProcessService.InfoLog(fmt.Sprintf("record: %v", record))
-			services.ProcessService.InfoLog(fmt.Sprintf("record type: %v", record.GetType()))
-			services.ProcessService.InfoLog(fmt.Sprintf("record type: %v", recordType))
 
 			// check the record type
 			if record.GetType() == recordType {
@@ -397,7 +387,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 	})
 
 	services.ProcessService.InfoLog(fmt.Sprintf("records: %v", records))
-	return records, err
+	return &records, err
 }
 
 func getSecondLevelDomain(domain string) (string, error) {
