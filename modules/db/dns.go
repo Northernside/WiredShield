@@ -48,7 +48,11 @@ func InsertRecord(record DNSRecord) error {
 		}
 
 		// update "domain_index" db
-		domain := record.GetDomain()
+		domain, err := getSecondLevelDomain(record.GetDomain())
+		if err != nil {
+			return fmt.Errorf("failed to get second level domain: %w", err)
+		}
+
 		indexData, err := txn.Get(domainIndex, []byte(domain))
 
 		// create domain index if not exists
