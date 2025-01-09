@@ -55,7 +55,7 @@ func Dns(model *Model) {
 				// use GetType()
 				switch record.GetType() {
 				case "A":
-					r := record.(db.ARecord)
+					r := record.(*db.ARecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
@@ -63,7 +63,7 @@ func Dns(model *Model) {
 						return "🔓"
 					}()+" A %s %s\n", r.ID, r.Domain, r.IP))
 				case "AAAA":
-					r := record.(db.AAAARecord)
+					r := record.(*db.AAAARecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
@@ -71,10 +71,10 @@ func Dns(model *Model) {
 						return "🔓"
 					}()+" AAAA %s %s\n", r.ID, r.Domain, r.IP))
 				case "SOA":
-					r := record.(db.SOARecord)
+					r := record.(*db.SOARecord)
 					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n", r.ID, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
 				case "TXT":
-					r := record.(db.TXTRecord)
+					r := record.(*db.TXTRecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
@@ -82,7 +82,7 @@ func Dns(model *Model) {
 						return "🔓"
 					}()+" TXT %s \"%s\"\n", r.ID, r.Domain, r.Text))
 				case "NS":
-					r := record.(db.NSRecord)
+					r := record.(*db.NSRecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
@@ -90,7 +90,7 @@ func Dns(model *Model) {
 						return "🔓"
 					}()+" NS %s %s\n", r.ID, r.Domain, r.NS))
 				case "MX":
-					r := record.(db.MXRecord)
+					r := record.(*db.MXRecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
@@ -98,7 +98,7 @@ func Dns(model *Model) {
 						return "🔓"
 					}()+" MX %s %s %d\n", r.ID, r.Domain, r.Target, r.Priority))
 				case "CNAME":
-					r := record.(db.CNAMERecord)
+					r := record.(*db.CNAMERecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
