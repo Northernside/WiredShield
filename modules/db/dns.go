@@ -346,6 +346,11 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			return fmt.Errorf("failed to open domain_index DB: %w", err)
 		}
 
+		domain, err := getSecondLevelDomain(domain)
+		if err != nil {
+			return fmt.Errorf("failed to get second level domain: %w", err)
+		}
+
 		// get the list of record ids for the domain
 		indexData, err := txn.Get(domainIndex, []byte(domain))
 		if err != nil {
