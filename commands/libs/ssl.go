@@ -126,7 +126,7 @@ func dns01Handling(domain string, authzURL string) error {
 		return fmt.Errorf("authorization challenge not available")
 	}
 
-	txtRecord, err := client.DNS01ChallengeRecord(chal.Token)
+	challengeText, err := client.DNS01ChallengeRecord(chal.Token)
 	if err != nil {
 		return errors.Errorf("failed to get DNS-01 challenge record: %v", err)
 	}
@@ -138,20 +138,20 @@ func dns01Handling(domain string, authzURL string) error {
 	}
 
 	id = snowflake.GenerateID()
-	dnsRecord := &db.TXTRecord{
+	txtRecord := &db.TXTRecord{
 		ID:        id,
 		Domain:    "_acme-challenge." + domain,
-		Text:      txtRecord,
+		Text:      challengeText,
 		Protected: false,
 	}
 
-	err = db.UpdateRecord("TXT", "_acme-challenge."+domain, dnsRecord)
+	err = db.InsertRecord(txtRecord)
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
 
 	defer func() {
-		err = db.DeleteRecord(id)
+		err = db.DeleteRecord(id, "acme-challenge."+domain)
 		if err != nil {
 			fmt.Printf("failed to delete TXT record: %v", err)
 		}

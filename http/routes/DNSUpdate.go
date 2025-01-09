@@ -90,7 +90,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.IP = ip
 			record.Protected = protected == "true"
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		case "AAAA":
 			var record db.AAAARecord
 			record.ID = uint64(id)
@@ -98,21 +98,21 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.IP = ip
 			record.Protected = protected == "true"
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		case "TXT":
 			var record db.TXTRecord
 			record.ID = uint64(id)
 			record.Domain = domain
 			record.Text = text
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		case "CNAME":
 			var record db.CNAMERecord
 			record.ID = uint64(id)
 			record.Domain = domain
 			record.Target = target
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		case "CAA":
 			var record db.CAARecord
 			record.ID = uint64(id)
@@ -121,14 +121,14 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Tag = tag
 			record.Value = value
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		case "NS":
 			var record db.NSRecord
 			record.ID = uint64(id)
 			record.Domain = domain
 			record.NS = ns
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		case "MX":
 			var record db.MXRecord
 			record.ID = uint64(id)
@@ -136,7 +136,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Priority = uint16(priority)
 			record.Target = target
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		case "SRV":
 			var record db.SRVRecord
 			record.ID = uint64(id)
@@ -146,7 +146,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Port = port
 			record.Target = target
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		case "SOA":
 			var record db.SOARecord
 			record.ID = uint64(id)
@@ -159,13 +159,14 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Expire = uint32(expire)
 			record.MinimumTTL = uint32(minimum_ttl)
 
-			db.UpdateRecord(change_record_type, domain, record)
+			db.InsertRecord(record)
 		}
 	case "DEL":
 		var id, _ = strconv.Atoi(string(ctx.Request.Header.Peek("id")))
+		var domain = string(ctx.Request.Header.Peek("dns_domain"))
 
 		// delete the record
-		db.DeleteRecord(uint64(id))
+		db.DeleteRecord(uint64(id), domain)
 	default:
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		ctx.SetBodyString("BAD_REQUEST")

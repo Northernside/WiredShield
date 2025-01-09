@@ -42,7 +42,7 @@ func Dns(model *Model) {
 			break
 		}
 
-		list, err := db.GetAllRecords(split[2])
+		list, err := db.GetRecordsByDomain(split[2])
 		if err != nil {
 			sb.WriteString("failed to get (meow) records: " + err.Error() + "\n")
 			break
@@ -113,7 +113,7 @@ func Dns(model *Model) {
 
 		protected := split[5] == "true"
 		var err error
-		var record any
+		var record db.DNSRecord
 		var id uint64
 		snowflake, err := epoch.NewSnowflake(512)
 		if err != nil {
@@ -257,7 +257,7 @@ func Dns(model *Model) {
 		}
 
 		if record != nil {
-			err = db.UpdateRecord(split[2], split[3], record)
+			err = db.InsertRecord(record)
 			if err != nil {
 				sb.WriteString("Failed to update record: " + err.Error() + "\n")
 			}
@@ -268,18 +268,18 @@ func Dns(model *Model) {
 		sb.WriteString("Delete DNS record\n")
 
 		if len(split) < 3 {
-			sb.WriteString("Usage: dns del <id>\n")
+			sb.WriteString("Usage: dns del <id> <host>\n")
 			break
 		}
 
 		sb.WriteString("Deleting record with id " + split[2] + "\n")
-		id, err := strconv.Atoi(split[2])
+		id, err := strconv.ParseUint(split[2], 10, 64)
 		if err != nil {
 			sb.WriteString("Failed to parse id: " + err.Error() + "\n")
 			break
 		}
 
-		err = db.DeleteRecord(uint64(id))
+		err = db.DeleteRecord(id, split[3])
 		if err != nil {
 			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
 		}

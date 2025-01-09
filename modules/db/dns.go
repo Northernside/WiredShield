@@ -2,437 +2,184 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
 
-func UpdateRecord(recordType, domain string, record interface{}) error {
-	err := env.Update(func(txn *lmdb.Txn) error {
-		secondLevelDomain, err := getSecondLevelDomain(domain)
+const (
+	entriesDB     = "entries"
+	domainIndexDB = "domain_index"
+	dnsDomainsKey = "dns_domains"
+)
+
+func InsertRecord(record DNSRecord) error {
+	return env.Update(func(txn *lmdb.Txn) error {
+		// open "entries" and "domain_index" dbs
+		entries, err := txn.OpenDBI(entriesDB, lmdb.Create)
 		if err != nil {
-			return fmt.Errorf("failed to get second level domain: %v", err)
+			return fmt.Errorf("failed to open entries DB: %w", err)
 		}
 
-		var generalDb lmdb.DBI
-		generalDb, err = txn.OpenDBI("wiredshield_general", lmdb.Create)
+		domainIndex, err := txn.OpenDBI(domainIndexDB, lmdb.Create)
 		if err != nil {
-			return fmt.Errorf("failed to open general db: %v", err)
+			return fmt.Errorf("failed to open domain_index DB: %w", err)
 		}
 
-		var db lmdb.DBI
-		db, err = txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
+		recordBytes, err := json.Marshal(record)
 		if err != nil {
-			if strings.Contains(err.Error(), "MDB_NOTFOUND") {
-				// create new db
-				db, err = txn.OpenDBI("wireddns_"+secondLevelDomain, lmdb.Create)
-				if err != nil {
-					return fmt.Errorf("failed to create db: %v", err)
-				}
+			return fmt.Errorf("failed to serialize record: %w", err)
+		}
 
-				domainsKey := []byte("dns_domains")
-				existingDomains := []string{}
+		// insert into "entries" DB
+		if err := txn.Put(entries, uint64ToByteArray(record.GetID()), recordBytes, 0); err != nil {
+			return fmt.Errorf("failed to add record to entries DB: %w", err)
+		}
 
-				value, err := txn.Get(generalDb, domainsKey)
-				if err != nil && !strings.Contains(err.Error(), "MDB_NOTFOUND") {
-					return fmt.Errorf("failed to get domains list: %v", err)
-				}
+		// update "domain_index" db
+		domain := record.GetDomain()
+		indexData, err := txn.Get(domainIndex, []byte(domain))
+		var recordIDs []uint64
+		if err == nil { // domain exists, unmarshal the existing ids
+			if err = json.Unmarshal(indexData, &recordIDs); err != nil {
+				return fmt.Errorf("failed to unmarshal domain index: %w", err)
+			}
+		} else if !errors.Is(err, lmdb.NotFound) {
+			return fmt.Errorf("failed to fetch domain index: %w", err)
+		}
 
-				if value != nil {
-					if err := json.Unmarshal(value, &existingDomains); err != nil {
-						return fmt.Errorf("failed to unmarshal domains list: %v", err)
-					}
-				}
-
-				// check if domain already exists
-				exists := false
-				for _, d := range existingDomains {
-					if d == secondLevelDomain {
-						exists = true
-						break
-					}
-				}
-
-				if !exists {
-					existingDomains = append(existingDomains, secondLevelDomain)
-					serialized, err := json.Marshal(existingDomains)
-					if err != nil {
-						return fmt.Errorf("failed to serialize domains list: %v", err)
-					}
-
-					if err := txn.Put(generalDb, domainsKey, serialized, 0); err != nil {
-						return fmt.Errorf("failed to update domains list: %v", err)
-					}
-				}
-			} else {
-				return fmt.Errorf("failed to open db: %v", err)
+		// append new id if not present
+		exists := false
+		for _, id := range recordIDs {
+			if id == record.GetID() {
+				exists = true
+				break
 			}
 		}
 
-		key := []byte(recordType + ":" + domain)
-		value, err := txn.Get(db, key)
-
-		if err != nil {
-			if !strings.Contains(err.Error(), "MDB_NOTFOUND") {
-				return fmt.Errorf("failed to get record: %v", err)
-			}
-
-			// create new record
-			records := []interface{}{record}
-			serialized, err := json.Marshal(records)
+		if !exists {
+			recordIDs = append(recordIDs, record.GetID())
+			indexBytes, err := json.Marshal(recordIDs)
 			if err != nil {
-				return fmt.Errorf("failed to serialize record: %v", err)
+				return fmt.Errorf("failed to serialize updated domain index: %w", err)
 			}
 
-			if err := txn.Put(db, key, serialized, 0); err != nil {
-				return fmt.Errorf("failed to update record: %v", err)
+			if err := txn.Put(domainIndex, []byte(domain), indexBytes, 0); err != nil {
+				return fmt.Errorf("failed to update domain index: %w", err)
 			}
-
-			return nil
 		}
 
-		if value != nil { // append to array
-			var records []interface{}
-			if err := json.Unmarshal(value, &records); err != nil {
-				return fmt.Errorf("failed to unmarshal existing records: %v", err)
+		return nil
+	})
+}
+
+func DeleteRecord(id uint64, domain string) error {
+	return env.Update(func(txn *lmdb.Txn) error {
+		// open "entries" and "domain_index" databases
+		entries, err := txn.OpenDBI(entriesDB, 0)
+		if err != nil {
+			return fmt.Errorf("failed to open entries DB: %w", err)
+		}
+
+		domainIndex, err := txn.OpenDBI(domainIndexDB, 0)
+		if err != nil {
+			return fmt.Errorf("failed to open domain_index DB: %w", err)
+		}
+
+		// remove from "entries" db
+		if err := txn.Del(entries, uint64ToByteArray(id), nil); err != nil {
+			return fmt.Errorf("failed to delete record from entries DB: %w", err)
+		}
+
+		// update "domain_index" db
+		indexData, err := txn.Get(domainIndex, []byte(domain))
+		if errors.Is(err, lmdb.NotFound) {
+			return nil // no index to update
+		} else if err != nil {
+			return fmt.Errorf("failed to fetch domain index: %w", err)
+		}
+
+		// deserialize, remove the id & reserialize
+		var recordIDs []uint64
+		if err := json.Unmarshal(indexData, &recordIDs); err != nil {
+			return fmt.Errorf("failed to unmarshal domain index: %w", err)
+		}
+
+		newRecordIDs := []uint64{}
+		for _, existingID := range recordIDs {
+			if existingID != id {
+				newRecordIDs = append(newRecordIDs, existingID)
+			}
+		}
+
+		if len(newRecordIDs) == 0 {
+			// no more records for this domain, delete the domain key
+			if err := txn.Del(domainIndex, []byte(domain), nil); err != nil {
+				return fmt.Errorf("failed to delete domain index: %w", err)
+			}
+		} else {
+			// otherwise, update the domains id list
+			indexBytes, err := json.Marshal(newRecordIDs)
+			if err != nil {
+				return fmt.Errorf("failed to serialize updated domain index: %w", err)
+			}
+			if err := txn.Put(domainIndex, []byte(domain), indexBytes, 0); err != nil {
+				return fmt.Errorf("failed to update domain index: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
+	records := []DNSRecord{}
+
+	err := env.View(func(txn *lmdb.Txn) error {
+		entries, err := txn.OpenDBI(entriesDB, 0)
+		if err != nil {
+			return fmt.Errorf("failed to open entries DB: %w", err)
+		}
+		domainIndex, err := txn.OpenDBI(domainIndexDB, 0)
+		if err != nil {
+			return fmt.Errorf("failed to open domain_index DB: %w", err)
+		}
+
+		// get the list of dss for the domain
+		indexData, err := txn.Get(domainIndex, []byte(domain))
+		if err != nil {
+			if errors.Is(err, lmdb.NotFound) {
+				return nil // no records for this domain
+			}
+
+			return fmt.Errorf("failed to fetch domain index: %w", err)
+		}
+
+		var recordIDs []uint64
+		if err := json.Unmarshal(indexData, &recordIDs); err != nil {
+			return fmt.Errorf("failed to unmarshal domain index: %w", err)
+		}
+
+		// fetch all records by id
+		for _, id := range recordIDs {
+			entryData, err := txn.Get(entries, uint64ToByteArray(id))
+			if err != nil {
+				if errors.Is(err, lmdb.NotFound) {
+					continue // skip missing records
+				}
+
+				return fmt.Errorf("failed to fetch record: %w", err)
+			}
+
+			// deserialize the record into a DNSRecord
+			var record DNSRecord
+			if err := json.Unmarshal(entryData, &record); err != nil {
+				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
 
 			records = append(records, record)
-			serialized, err := json.Marshal(records)
-			if err != nil {
-				return fmt.Errorf("failed to serialize updated records: %v", err)
-			}
-
-			if err := txn.Put(db, key, serialized, 0); err != nil {
-				return fmt.Errorf("failed to update records: %v", err)
-			}
-
-			return nil
-		}
-
-		return nil
-	})
-
-	return err
-}
-
-func DeleteRecord(id uint64) error {
-	err := env.Update(func(txn *lmdb.Txn) error {
-		db, err := txn.OpenDBI("wiredshield_general", 0)
-		if err != nil {
-			return fmt.Errorf("failed to open db: %v", err)
-		}
-
-		cursor, err := txn.OpenCursor(db)
-		if err != nil {
-			return fmt.Errorf("failed to open cursor: %v", err)
-		}
-		defer cursor.Close()
-
-		for {
-			key, value, err := cursor.Get(nil, nil, lmdb.Next)
-			if err != nil {
-				if strings.Contains(err.Error(), "MDB_NOTFOUND") {
-					break
-				}
-
-				return fmt.Errorf("failed to get record: %v", err)
-			}
-
-			var records []interface{}
-			if err := json.Unmarshal(value, &records); err != nil {
-				return fmt.Errorf("failed to unmarshal records: %v", err)
-			}
-
-			for i, record := range records {
-				switch r := record.(type) {
-				case ARecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				case AAAARecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				case CNAMERecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				case MXRecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				case NSRecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				case SOARecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				case SRVRecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				case TXTRecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				case CAARecord:
-					if r.ID == id {
-						records = append(records[:i], records[i+1:]...)
-						break
-					}
-				default:
-					return fmt.Errorf("unknown record type")
-				}
-			}
-
-			serialized, err := json.Marshal(records)
-			if err != nil {
-				return fmt.Errorf("failed to serialize updated records: %v", err)
-			}
-
-			if err := txn.Put(db, key, serialized, 0); err != nil {
-				return fmt.Errorf("failed to update records: %v", err)
-			}
-
-			return nil
-		}
-
-		return nil
-	})
-
-	return err
-}
-
-func GetRecords(recordType, domain string) ([]interface{}, error) {
-	var records []interface{}
-	err := env.View(func(txn *lmdb.Txn) error {
-		secondLevelDomain, err := getSecondLevelDomain(domain)
-		if err != nil {
-			return fmt.Errorf("failed to get second level domain: %v", err)
-		}
-
-		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
-		if err != nil {
-			return fmt.Errorf("failed to open db: %v", err)
-		}
-
-		key := []byte(recordType + ":" + domain)
-		value, err := txn.Get(db, key)
-		if err != nil {
-			if strings.Contains(err.Error(), "MDB_NOTFOUND") {
-				return nil
-			}
-
-			return fmt.Errorf("failed to get record: %v", err)
-		}
-
-		if value != nil {
-			var rawRecords []json.RawMessage
-			if err := json.Unmarshal(value, &rawRecords); err != nil {
-				return fmt.Errorf("failed to unmarshal records: %v", err)
-			}
-
-			for _, raw := range rawRecords {
-				var record interface{}
-				switch recordType {
-				case string(A):
-					var aRecord ARecord
-					if err := json.Unmarshal(raw, &aRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal A record: %v", err)
-					}
-
-					record = aRecord
-				case string(AAAA):
-					var aaaaRecord AAAARecord
-					if err := json.Unmarshal(raw, &aaaaRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal AAAA record: %v", err)
-					}
-
-					record = aaaaRecord
-				case string(SRV):
-					var srvRecord SRVRecord
-					if err := json.Unmarshal(raw, &srvRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal SRV record: %v", err)
-					}
-
-					record = srvRecord
-				case string(CNAME):
-					var cnameRecord CNAMERecord
-					if err := json.Unmarshal(raw, &cnameRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal CNAME record: %v", err)
-					}
-
-					record = cnameRecord
-				case string(SOA):
-					var soaRecord SOARecord
-					if err := json.Unmarshal(raw, &soaRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal SOA record: %v", err)
-					}
-					record = soaRecord
-				case string(TXT):
-					var txtRecord TXTRecord
-					if err := json.Unmarshal(raw, &txtRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal TXT record: %v", err)
-					}
-					record = txtRecord
-				case string(NS):
-					var nsRecord NSRecord
-					if err := json.Unmarshal(raw, &nsRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal NS record: %v", err)
-					}
-					record = nsRecord
-				case string(MX):
-					var mxRecord MXRecord
-					if err := json.Unmarshal(raw, &mxRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal MX record: %v", err)
-					}
-					record = mxRecord
-				case string(CAA):
-					var caaRecord CAARecord
-					if err := json.Unmarshal(raw, &caaRecord); err != nil {
-						return fmt.Errorf("failed to unmarshal CAA record: %v", err)
-					}
-					record = caaRecord
-				default:
-					return fmt.Errorf("unsupported record type: %v", recordType)
-				}
-				records = append(records, record)
-			}
-		}
-
-		return nil
-	})
-
-	return records, err
-}
-
-func GetAllRecords(domain string) ([]interface{}, error) {
-	var records []interface{}
-	err := env.View(func(txn *lmdb.Txn) error {
-		secondLevelDomain, err := getSecondLevelDomain(domain)
-		if err != nil {
-			return fmt.Errorf("failed to get second level domain: %v", err)
-		}
-
-		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
-		if err != nil {
-			return fmt.Errorf("failed to open db: %v", err)
-		}
-
-		cursor, err := txn.OpenCursor(db)
-		if err != nil {
-			return fmt.Errorf("failed to open cursor: %v", err)
-		}
-		defer cursor.Close()
-
-		for {
-			key, value, err := cursor.Get(nil, nil, lmdb.Next)
-			if err != nil {
-				if strings.Contains(err.Error(), "MDB_NOTFOUND") {
-					break
-				}
-
-				return fmt.Errorf("failed to get record: %v", err)
-			}
-
-			recordType := strings.Split(string(key), ":")[0]
-			switch recordType {
-			case "A":
-				var _records []ARecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal A records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			case "AAAA":
-				var _records []AAAARecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal AAAA records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			case "CNAME":
-				var _records []CNAMERecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal CNAME records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			case "MX":
-				var _records []MXRecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal MX records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			case "NS":
-				var _records []NSRecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal NS records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			case "SOA":
-				var _records []SOARecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal SOA records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			case "SRV":
-				var _records []SRVRecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal SRV records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			case "TXT":
-				var _records []TXTRecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal TXT records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			case "CAA":
-				var _records []CAARecord
-				if err := json.Unmarshal(value, &_records); err != nil {
-					return fmt.Errorf("failed to unmarshal CAA records: %v", err)
-				}
-
-				for _, r := range _records {
-					records = append(records, r)
-				}
-			default:
-				return fmt.Errorf("unknown record type: %s", recordType)
-			}
 		}
 
 		return nil
@@ -443,32 +190,143 @@ func GetAllRecords(domain string) ([]interface{}, error) {
 
 func GetAllDomains() ([]string, error) {
 	var domains []string
+
 	err := env.View(func(txn *lmdb.Txn) error {
-		generalDb, err := txn.OpenDBI("wiredshield_general", 0)
+		domainIndex, err := txn.OpenDBI(domainIndexDB, 0)
 		if err != nil {
-			return fmt.Errorf("failed to open general db: %v", err)
+			return fmt.Errorf("failed to open domain_index DB: %w", err)
 		}
 
-		domainsKey := []byte("dns_domains")
-		value, err := txn.Get(generalDb, domainsKey)
+		indexData, err := txn.Get(domainIndex, []byte(dnsDomainsKey))
 		if err != nil {
-			if strings.Contains(err.Error(), "MDB_NOTFOUND") {
-				return nil
+			if errors.Is(err, lmdb.NotFound) {
+				return nil // no domains
 			}
 
-			return fmt.Errorf("failed to get domains list: %v", err)
+			return fmt.Errorf("failed to fetch domain index: %w", err)
 		}
 
-		if value != nil {
-			if err := json.Unmarshal(value, &domains); err != nil {
-				return fmt.Errorf("failed to unmarshal domains list: %v", err)
-			}
+		if err := json.Unmarshal(indexData, &domains); err != nil {
+			return fmt.Errorf("failed to unmarshal domain index: %w", err)
 		}
 
 		return nil
 	})
 
 	return domains, err
+}
+
+func GetRecords(recordType, domain string) ([]DNSRecord, error) {
+	var records []DNSRecord
+
+	err := env.View(func(txn *lmdb.Txn) error {
+		secondLevelDomain, err := getSecondLevelDomain(domain)
+		if err != nil {
+			return fmt.Errorf("failed to get second level domain: %v", err)
+		}
+
+		// open the domain-related db
+		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
+		if err != nil {
+			return fmt.Errorf("failed to open database for domain %s: %v", secondLevelDomain, err)
+		}
+
+		// form the key for the desired record type and domain
+		key := []byte(recordType + ":" + domain)
+
+		// retrieve the record data from the db
+		value, err := txn.Get(db, key)
+		if err != nil {
+			if lmdb.IsNotFound(err) {
+				return nil // return an empty result if no records are found
+			}
+			return fmt.Errorf("failed to retrieve record: %v", err)
+		}
+
+		// unmarshal the records into their respective structures
+		var rawRecords []json.RawMessage
+		if err := json.Unmarshal(value, &rawRecords); err != nil {
+			return fmt.Errorf("failed to unmarshal records: %v", err)
+		}
+
+		// parse each raw record into the corresponding DNSRecord type
+		for _, raw := range rawRecords {
+			var record DNSRecord
+			switch recordType {
+			case string(A):
+				var aRecord ARecord
+				if err := json.Unmarshal(raw, &aRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal A record: %v", err)
+				}
+
+				record = &aRecord
+			case string(AAAA):
+				var aaaaRecord AAAARecord
+				if err := json.Unmarshal(raw, &aaaaRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal AAAA record: %v", err)
+				}
+
+				record = &aaaaRecord
+			case string(SRV):
+				var srvRecord SRVRecord
+				if err := json.Unmarshal(raw, &srvRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal SRV record: %v", err)
+				}
+
+				record = &srvRecord
+			case string(CNAME):
+				var cnameRecord CNAMERecord
+				if err := json.Unmarshal(raw, &cnameRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal CNAME record: %v", err)
+				}
+
+				record = &cnameRecord
+			case string(SOA):
+				var soaRecord SOARecord
+				if err := json.Unmarshal(raw, &soaRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal SOA record: %v", err)
+				}
+
+				record = &soaRecord
+			case string(TXT):
+				var txtRecord TXTRecord
+				if err := json.Unmarshal(raw, &txtRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal TXT record: %v", err)
+				}
+
+				record = &txtRecord
+			case string(NS):
+				var nsRecord NSRecord
+				if err := json.Unmarshal(raw, &nsRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal NS record: %v", err)
+				}
+
+				record = &nsRecord
+			case string(MX):
+				var mxRecord MXRecord
+				if err := json.Unmarshal(raw, &mxRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal MX record: %v", err)
+				}
+
+				record = &mxRecord
+			case string(CAA):
+				var caaRecord CAARecord
+				if err := json.Unmarshal(raw, &caaRecord); err != nil {
+					return fmt.Errorf("failed to unmarshal CAA record: %v", err)
+				}
+
+				record = &caaRecord
+			default:
+				return fmt.Errorf("unsupported record type: %v", recordType)
+			}
+
+			records = append(records, record)
+		}
+
+		return nil
+	})
+
+	return records, err
 }
 
 func getSecondLevelDomain(domain string) (string, error) {
@@ -482,4 +340,13 @@ func getSecondLevelDomain(domain string) (string, error) {
 	}
 
 	return strings.Join(parts[len(parts)-2:], "."), nil
+}
+
+func uint64ToByteArray(id uint64) []byte {
+	idBytes := make([]byte, 8)
+	for i := 0; i < 8; i++ {
+		idBytes[i] = byte(id >> uint(8*i))
+	}
+
+	return idBytes
 }

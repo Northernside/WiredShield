@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"strconv"
 )
 
 type DNSRecordType string
@@ -24,6 +25,8 @@ var SupportedRecordTypes = []DNSRecordType{A, AAAA, SOA, CNAME, NS, MX, TXT, CAA
 type DNSRecord interface {
 	Type() DNSRecordType
 	GetID() uint64
+	GetType() string
+	GetDomain() string
 	Serialize() (string, error)
 }
 
@@ -36,18 +39,16 @@ type ARecord struct {
 
 func (r ARecord) Type() DNSRecordType { return A }
 func (r ARecord) GetID() uint64       { return r.ID }
-func (r ARecord) Serialize() (ARecord, error) {
+func (r ARecord) GetType() string     { return "A" }
+func (r ARecord) GetDomain() string   { return r.Domain }
+func (r ARecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
+func (r ARecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return ARecord{}, err
+		return "", err
 	}
 
-	var record ARecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return ARecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
 
 type AAAARecord struct {
@@ -59,18 +60,16 @@ type AAAARecord struct {
 
 func (r AAAARecord) Type() DNSRecordType { return AAAA }
 func (r AAAARecord) GetID() uint64       { return r.ID }
-func (r AAAARecord) Serialize() (AAAARecord, error) {
+func (r AAAARecord) GetType() string     { return "AAAA" }
+func (r AAAARecord) GetDomain() string   { return r.Domain }
+func (r AAAARecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
+func (r AAAARecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return AAAARecord{}, err
+		return "", err
 	}
 
-	var record AAAARecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return AAAARecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
 
 type SRVRecord struct {
@@ -84,18 +83,16 @@ type SRVRecord struct {
 
 func (r SRVRecord) Type() DNSRecordType { return SRV }
 func (r SRVRecord) GetID() uint64       { return r.ID }
-func (r SRVRecord) Serialize() (SRVRecord, error) {
+func (r SRVRecord) GetType() string     { return "SRV" }
+func (r SRVRecord) GetDomain() string   { return r.Domain }
+func (r SRVRecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
+func (r SRVRecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return SRVRecord{}, err
+		return "", err
 	}
 
-	var record SRVRecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return SRVRecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
 
 type SOARecord struct {
@@ -112,18 +109,16 @@ type SOARecord struct {
 
 func (r SOARecord) Type() DNSRecordType { return SOA }
 func (r SOARecord) GetID() uint64       { return r.ID }
-func (r SOARecord) Serialize() (SOARecord, error) {
+func (r SOARecord) GetType() string     { return "SOA" }
+func (r SOARecord) GetDomain() string   { return r.Domain }
+func (r SOARecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
+func (r SOARecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return SOARecord{}, err
+		return "", err
 	}
 
-	var record SOARecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return SOARecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
 
 type CNAMERecord struct {
@@ -135,18 +130,16 @@ type CNAMERecord struct {
 
 func (r CNAMERecord) Type() DNSRecordType { return CNAME }
 func (r CNAMERecord) GetID() uint64       { return r.ID }
-func (r CNAMERecord) Serialize() (CNAMERecord, error) {
+func (r CNAMERecord) GetType() string     { return "CNAME" }
+func (r CNAMERecord) GetDomain() string   { return r.Domain }
+func (r CNAMERecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
+func (r CNAMERecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return CNAMERecord{}, err
+		return "", err
 	}
 
-	var record CNAMERecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return CNAMERecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
 
 type NSRecord struct {
@@ -158,18 +151,16 @@ type NSRecord struct {
 
 func (r NSRecord) Type() DNSRecordType { return NS }
 func (r NSRecord) GetID() uint64       { return r.ID }
-func (r NSRecord) Serialize() (NSRecord, error) {
+func (r NSRecord) GetType() string     { return "NS" }
+func (r NSRecord) GetDomain() string   { return r.Domain }
+func (r NSRecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
+func (r NSRecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return NSRecord{}, err
+		return "", err
 	}
 
-	var record NSRecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return NSRecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
 
 type MXRecord struct {
@@ -182,18 +173,16 @@ type MXRecord struct {
 
 func (r MXRecord) Type() DNSRecordType { return MX }
 func (r MXRecord) GetID() uint64       { return r.ID }
-func (r MXRecord) Serialize() (MXRecord, error) {
+func (r MXRecord) GetType() string     { return "MX" }
+func (r MXRecord) GetDomain() string   { return r.Domain }
+func (r MXRecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
+func (r MXRecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return MXRecord{}, err
+		return "", err
 	}
 
-	var record MXRecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return MXRecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
 
 type TXTRecord struct {
@@ -205,18 +194,16 @@ type TXTRecord struct {
 
 func (r TXTRecord) Type() DNSRecordType { return TXT }
 func (r TXTRecord) GetID() uint64       { return r.ID }
-func (r TXTRecord) Serialize() (TXTRecord, error) {
+func (r TXTRecord) GetType() string     { return "TXT" }
+func (r TXTRecord) GetDomain() string   { return r.Domain }
+func (r *TXTRecord) GetKey() string     { return r.Domain + ":" + strconv.Itoa(int(r.ID)) }
+func (r TXTRecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return TXTRecord{}, err
+		return "", err
 	}
 
-	var record TXTRecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return TXTRecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
 
 type CAARecord struct {
@@ -230,16 +217,14 @@ type CAARecord struct {
 
 func (r CAARecord) Type() DNSRecordType { return CAA }
 func (r CAARecord) GetID() uint64       { return r.ID }
-func (r CAARecord) Serialize() (CAARecord, error) {
+func (r CAARecord) GetType() string     { return "CAA" }
+func (r CAARecord) GetDomain() string   { return r.Domain }
+func (r CAARecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
+func (r CAARecord) Serialize() (string, error) {
 	data, err := json.Marshal(r)
 	if err != nil {
-		return CAARecord{}, err
+		return "", err
 	}
 
-	var record CAARecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return CAARecord{}, err
-	}
-
-	return record, nil
+	return string(data), nil
 }
