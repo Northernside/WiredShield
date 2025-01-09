@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"wiredshield/modules/db"
 	"wiredshield/modules/pgp"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -26,14 +27,14 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	masterPub, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", "master"))
+	woofPub, err := pgp.LoadPublicKey("certs/woof-public.asc")
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 		return
 	}
 
-	err = pgp.VerifySignature(auth_message, signature, masterPub)
+	err = pgp.VerifySignature(auth_message, signature, woofPub)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBodyString("UNAUTHORIZED")
@@ -80,6 +81,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 	var minimum_ttl, _ = strconv.Atoi(string(ctx.Request.Header.Peek("minimum_ttl")))
 	switch change_action {
 	case "SET":
+		services.ProcessService.InfoLog("DNSUpdate: SET action")
 		// set the record
 		switch change_record_type {
 		case "A":
@@ -88,6 +90,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Domain = domain
 			record.IP = ip
 			record.Protected = protected == "true"
+			services.ProcessService.InfoLog(fmt.Sprintf("DNSUpdate: SET A record %v", record))
 
 			db.InsertRecord(record)
 		case "AAAA":
