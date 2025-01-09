@@ -198,11 +198,11 @@ func GetAllDomains() ([]string, error) {
 		}
 
 		indexData, err := txn.Get(domainIndex, []byte(dnsDomainsKey))
-		if err != nil {
-			if errors.Is(err, lmdb.NotFound) {
-				return nil // no domains
-			}
-
+		if errors.Is(err, lmdb.NotFound) {
+			// initialize the key if it doesn't exist
+			domains = []string{}
+			return nil
+		} else if err != nil {
 			return fmt.Errorf("failed to fetch domain index: %w", err)
 		}
 
