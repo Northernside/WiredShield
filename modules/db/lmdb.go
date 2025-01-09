@@ -60,21 +60,23 @@ func Init() {
 		key := []byte(dnsDomainsKey)
 		_, err = txn.Get(domainIndex, key)
 		if errors.Is(err, lmdb.NotFound) {
+			fmt.Println("Key 'dns_domains' does not exist, initializing it.")
+
 			emptyDomains := []string{}
 			emptyDomainsData, err := json.Marshal(emptyDomains)
 			if err != nil {
-				return fmt.Errorf("failed to marshal empty domains list: %w", err)
+				return fmt.Errorf("failed to serialize empty list: %w", err)
 			}
 
 			if err := txn.Put(domainIndex, key, emptyDomainsData, 0); err != nil {
-				return fmt.Errorf("failed to initialize dns_domains key: %w", err)
+				return fmt.Errorf("failed to insert dns_domains key: %w", err)
 			}
 
-			fmt.Println("Initialized 'dns_domains' key with an empty list.")
+			fmt.Println("'dns_domains' key initialized with empty list.")
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch dns_domains key: %w", err)
 		} else {
-			fmt.Println("Found 'dns_domains' key in the domain_index DB.")
+			fmt.Println("Found existing 'dns_domains' key.")
 		}
 
 		return nil
