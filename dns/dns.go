@@ -103,6 +103,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			// get record(s) from db
 			records, err := db.GetRecords(dns.TypeToString[question.Qtype], lookupName)
+			service.InfoLog(fmt.Sprintf("records: %v", records))
 			if err != nil {
 				service.ErrorLog(fmt.Sprintf("failed to get records: %s", err.Error()))
 				emptyReply(w, &m)
