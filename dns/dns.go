@@ -71,7 +71,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			// check if record is supported
 			var supported bool = false
 			for _, recordType := range db.SupportedRecordTypes {
-				if dns.TypeToString[question.Qtype] == string(recordType) {
+				if dns.TypeToString[question.Qtype] == recordType {
 					supported = true
 					break
 				}

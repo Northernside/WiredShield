@@ -20,7 +20,7 @@ const (
 )
 
 // list of supported DNS record types
-var SupportedRecordTypes = []DNSRecordType{A, AAAA, SOA, CNAME, NS, MX, TXT, CAA, SRV}
+var SupportedRecordTypes = []string{"A", "AAAA", "SOA", "CNAME", "NS", "MX", "TXT", "CAA", "SRV"}
 
 type DNSRecord interface {
 	GetID() uint64
