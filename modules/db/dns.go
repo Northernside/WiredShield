@@ -270,7 +270,7 @@ func unmarshalRecord(data []byte, record *DNSRecord) error {
 
 		*record = &caaRecord
 	default:
-		services.ProcessService.Info("unsupported record type: %v", recordType)
+		services.ProcessService.InfoLog("unsupported record type: %v", recordType)
 		return fmt.Errorf("unsupported record type: %v", recordType["type"])
 	}
 
