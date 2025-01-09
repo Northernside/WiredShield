@@ -52,6 +52,20 @@ func Init() {
 	if err != nil {
 		log.Fatal("transaction failed:", err)
 	}
+
+	env.Update(func(txn *lmdb.Txn) error {
+		_, err := txn.OpenDBI(entriesDB, lmdb.Create)
+		if err != nil {
+			return fmt.Errorf("failed to create/open entries DB: %w", err)
+		}
+
+		_, err = txn.OpenDBI(domainIndexDB, lmdb.Create)
+		if err != nil {
+			return fmt.Errorf("failed to create/open domain_index DB: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func SetTarget(host, target string) error {
