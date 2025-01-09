@@ -24,7 +24,7 @@ func Dns(model *Model) {
 		sb.WriteString("List DNS domains\n")
 		domains, err := db.GetAllDomains()
 		if err != nil {
-			sb.WriteString("failed to get domains: " + err.Error() + "\n")
+			sb.WriteString("No domain added yet\n")
 			break
 		}
 
@@ -44,7 +44,7 @@ func Dns(model *Model) {
 
 		list, err := db.GetRecordsByDomain(split[2])
 		if err != nil {
-			sb.WriteString("failed to get (meow) records: " + err.Error() + "\n")
+			sb.WriteString("Domain not found\n")
 			break
 		}
 

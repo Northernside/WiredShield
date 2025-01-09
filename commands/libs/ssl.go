@@ -46,8 +46,7 @@ func getClient() *acme.Client {
 func GenerateCertificate(domain string) ([]byte, []byte, error) {
 	client = getClient()
 	if client == nil {
-		fmt.Println("failed to get ACME client")
-		return nil, nil, nil
+		return nil, nil, fmt.Errorf("failed to get ACME client")
 	}
 
 	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domain))
