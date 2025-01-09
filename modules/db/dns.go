@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"wiredshield/services"
 
@@ -16,13 +15,6 @@ const (
 	domainIndexDB = "domain_index"
 	dnsDomainsKey = "dns_domains"
 )
-
-func GetRecordType(record interface{}) string {
-	typeName := reflect.TypeOf(record).Name()
-	typeName = strings.TrimSuffix(typeName, "Record")
-
-	return typeName
-}
 
 func InsertRecord(record DNSRecord, self bool) error {
 	eErr := env.Update(func(txn *lmdb.Txn) error {
@@ -392,11 +384,11 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			}
 
 			services.ProcessService.InfoLog(fmt.Sprintf("record: %v", record))
-			services.ProcessService.InfoLog(fmt.Sprintf("record type: %v", GetRecordType(record)))
+			services.ProcessService.InfoLog(fmt.Sprintf("record type: %v", record.GetType()))
 			services.ProcessService.InfoLog(fmt.Sprintf("record type: %v", recordType))
 
 			// check the record type
-			if GetRecordType(record) == recordType {
+			if record.GetType() == recordType {
 				records = append(records, record)
 			}
 		}
