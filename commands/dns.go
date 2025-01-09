@@ -98,7 +98,8 @@ func Dns(model *Model) {
 						return "🔓"
 					}()+" CNAME %s %s\n", r.ID, r.Domain, r.Target))
 				default:
-					sb.WriteString("Unknown record type\n")
+					sb.WriteString("Unknown record type " + record.GetType() + "\n")
+					sb.WriteString(fmt.Sprintf("%+v\n", record))
 				}
 			}
 		}
