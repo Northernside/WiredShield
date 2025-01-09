@@ -115,7 +115,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Protected = protected == "true"
 			services.ProcessService.InfoLog(fmt.Sprintf("DNSUpdate: SET A record %v", record))
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		case "AAAA":
 			var record db.AAAARecord
 			record.ID = uint64(id)
@@ -123,21 +123,21 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.IP = ip
 			record.Protected = protected == "true"
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		case "TXT":
 			var record db.TXTRecord
 			record.ID = uint64(id)
 			record.Domain = domain
 			record.Text = text
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		case "CNAME":
 			var record db.CNAMERecord
 			record.ID = uint64(id)
 			record.Domain = domain
 			record.Target = target
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		case "CAA":
 			var record db.CAARecord
 			record.ID = uint64(id)
@@ -146,14 +146,14 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Tag = tag
 			record.Value = value
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		case "NS":
 			var record db.NSRecord
 			record.ID = uint64(id)
 			record.Domain = domain
 			record.NS = ns
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		case "MX":
 			var record db.MXRecord
 			record.ID = uint64(id)
@@ -161,7 +161,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Priority = uint16(priority)
 			record.Target = target
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		case "SRV":
 			var record db.SRVRecord
 			record.ID = uint64(id)
@@ -171,7 +171,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Port = port
 			record.Target = target
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		case "SOA":
 			var record db.SOARecord
 			record.ID = uint64(id)
@@ -184,7 +184,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Expire = uint32(expire)
 			record.MinimumTTL = uint32(minimum_ttl)
 
-			db.InsertRecord(record)
+			db.InsertRecord(record, true)
 		}
 	case "DEL":
 		var id, _ = strconv.Atoi(string(ctx.Request.Header.Peek("id")))

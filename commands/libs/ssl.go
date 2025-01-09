@@ -144,7 +144,7 @@ func dns01Handling(domain string, authzURL string) error {
 		Protected: false,
 	}
 
-	err = db.InsertRecord(txtRecord)
+	err = db.InsertRecord(txtRecordm false)
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}

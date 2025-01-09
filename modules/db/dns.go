@@ -24,7 +24,7 @@ func GetRecordType(record interface{}) string {
 	return typeName
 }
 
-func InsertRecord(record DNSRecord) error {
+func InsertRecord(record DNSRecord, self bool) error {
 	eErr := env.Update(func(txn *lmdb.Txn) error {
 		// open "entries" and "domain_index" dbs
 		entries, err := txn.OpenDBI(entriesDB, lmdb.Create)
@@ -93,7 +93,7 @@ func InsertRecord(record DNSRecord) error {
 		return nil
 	})
 
-	if eErr == nil {
+	if eErr == nil && !self {
 		go syncSet(record)
 	}
 

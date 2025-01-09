@@ -266,7 +266,7 @@ func Dns(model *Model) {
 		}
 
 		if record != nil {
-			err = db.InsertRecord(record)
+			err = db.InsertRecord(record, false)
 			if err != nil {
 				sb.WriteString("Failed to update record: " + err.Error() + "\n")
 			}
