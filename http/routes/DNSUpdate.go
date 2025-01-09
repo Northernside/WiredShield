@@ -76,7 +76,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 	var change_record_type = string(ctx.Request.Header.Peek("change_record_type"))
 
 	var compatible_types = []string{"A", "AAAA", "CAA", "NS", "MX", "SRV", "SOA", "TXT", "CNAME"}
-	if !contains(compatible_types, change_record_type) {
+	if !contains(compatible_types, change_record_type) && change_action == "SET" {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		ctx.SetBodyString(fmt.Sprintf("BAD_REQUEST: %s", change_record_type))
 		return
