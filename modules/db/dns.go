@@ -334,116 +334,19 @@ func GetAllDomains() ([]string, error) {
 }
 
 func GetRecords(recordType, domain string) ([]DNSRecord, error) {
-	var records []DNSRecord
+	records, err := GetRecordsByDomain(domain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get records by domain: %v", err)
+	}
 
-	err := env.View(func(txn *lmdb.Txn) error {
-		secondLevelDomain, err := getSecondLevelDomain(domain)
-		if err != nil {
-			return fmt.Errorf("failed to get second level domain: %v", err)
+	filteredRecords := []DNSRecord{}
+	for _, record := range records {
+		if GetRecordType(record) == recordType {
+			filteredRecords = append(filteredRecords, record)
 		}
+	}
 
-		// open the domain-related db
-		db, err := txn.OpenDBI("wireddns_"+secondLevelDomain, 0)
-		if err != nil {
-			return fmt.Errorf("failed to open database for domain %s: %v", secondLevelDomain, err)
-		}
-
-		// form the key for the desired record type and domain
-		key := []byte(recordType + ":" + domain)
-
-		// retrieve the record data from the db
-		value, err := txn.Get(db, key)
-		if err != nil {
-			if lmdb.IsNotFound(err) {
-				return nil // return an empty result if no records are found
-			}
-			return fmt.Errorf("failed to retrieve record: %v", err)
-		}
-
-		// unmarshal the records into their respective structures
-		var rawRecords []json.RawMessage
-		if err := json.Unmarshal(value, &rawRecords); err != nil {
-			return fmt.Errorf("failed to unmarshal records: %v", err)
-		}
-
-		// parse each raw record into the corresponding DNSRecord type
-		for _, raw := range rawRecords {
-			var record DNSRecord
-			switch recordType {
-			case string(A):
-				var aRecord ARecord
-				if err := json.Unmarshal(raw, &aRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal A record: %v", err)
-				}
-
-				record = &aRecord
-			case string(AAAA):
-				var aaaaRecord AAAARecord
-				if err := json.Unmarshal(raw, &aaaaRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal AAAA record: %v", err)
-				}
-
-				record = &aaaaRecord
-			case string(SRV):
-				var srvRecord SRVRecord
-				if err := json.Unmarshal(raw, &srvRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal SRV record: %v", err)
-				}
-
-				record = &srvRecord
-			case string(CNAME):
-				var cnameRecord CNAMERecord
-				if err := json.Unmarshal(raw, &cnameRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal CNAME record: %v", err)
-				}
-
-				record = &cnameRecord
-			case string(SOA):
-				var soaRecord SOARecord
-				if err := json.Unmarshal(raw, &soaRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal SOA record: %v", err)
-				}
-
-				record = &soaRecord
-			case string(TXT):
-				var txtRecord TXTRecord
-				if err := json.Unmarshal(raw, &txtRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal TXT record: %v", err)
-				}
-
-				record = &txtRecord
-			case string(NS):
-				var nsRecord NSRecord
-				if err := json.Unmarshal(raw, &nsRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal NS record: %v", err)
-				}
-
-				record = &nsRecord
-			case string(MX):
-				var mxRecord MXRecord
-				if err := json.Unmarshal(raw, &mxRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal MX record: %v", err)
-				}
-
-				record = &mxRecord
-			case string(CAA):
-				var caaRecord CAARecord
-				if err := json.Unmarshal(raw, &caaRecord); err != nil {
-					return fmt.Errorf("failed to unmarshal CAA record: %v", err)
-				}
-
-				record = &caaRecord
-			default:
-				return fmt.Errorf("unsupported record type: %v", recordType)
-			}
-
-			records = append(records, record)
-		}
-
-		return nil
-	})
-
-	return records, err
+	return filteredRecords, nil
 }
 
 func getSecondLevelDomain(domain string) (string, error) {
