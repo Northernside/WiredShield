@@ -363,10 +363,14 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			return fmt.Errorf("failed to fetch domain index: %w", err)
 		}
 
+		services.ProcessService.InfoLog(fmt.Sprintf("indexData: %v", indexData))
+
 		var recordIDs []uint64
 		if err := json.Unmarshal(indexData, &recordIDs); err != nil {
 			return fmt.Errorf("failed to unmarshal domain index: %w", err)
 		}
+
+		services.ProcessService.InfoLog(fmt.Sprintf("recordIDs: %v", recordIDs))
 
 		// fetch and filter records by id and type
 		for _, id := range recordIDs {
