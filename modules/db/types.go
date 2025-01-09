@@ -2,7 +2,6 @@ package db
 
 import (
 	"encoding/json"
-	"strconv"
 )
 
 type DNSRecordType string
@@ -23,12 +22,10 @@ const (
 var SupportedRecordTypes = []DNSRecordType{A, AAAA, SOA, CNAME, NS, MX, TXT, CAA, SRV}
 
 type DNSRecord interface {
-	Type() DNSRecordType
 	GetID() uint64
 	GetType() string
 	GetDomain() string
 	Serialize() (string, error)
-	GetKey() string
 	MarshalJSON() ([]byte, error)
 }
 
@@ -39,19 +36,9 @@ type ARecord struct {
 	Protected bool   `json:"protected"`
 }
 
-func (r ARecord) Type() DNSRecordType { return A }
-func (r ARecord) GetID() uint64       { return r.ID }
-func (r ARecord) GetType() string     { return "A" }
-func (r ARecord) GetDomain() string   { return r.Domain }
-func (r ARecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
-func (r ARecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r ARecord) GetID() uint64     { return r.ID }
+func (r ARecord) GetType() string   { return "A" }
+func (r ARecord) GetDomain() string { return r.Domain }
 func (a ARecord) MarshalJSON() ([]byte, error) {
 	type Alias ARecord
 	return json.Marshal(struct {
@@ -70,19 +57,9 @@ type AAAARecord struct {
 	Protected bool   `json:"protected"`
 }
 
-func (r AAAARecord) Type() DNSRecordType { return AAAA }
-func (r AAAARecord) GetID() uint64       { return r.ID }
-func (r AAAARecord) GetType() string     { return "AAAA" }
-func (r AAAARecord) GetDomain() string   { return r.Domain }
-func (r AAAARecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
-func (r AAAARecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r AAAARecord) GetID() uint64     { return r.ID }
+func (r AAAARecord) GetType() string   { return "AAAA" }
+func (r AAAARecord) GetDomain() string { return r.Domain }
 func (aaaa AAAARecord) MarshalJSON() ([]byte, error) {
 	type Alias AAAARecord
 	return json.Marshal(struct {
@@ -103,19 +80,9 @@ type SRVRecord struct {
 	Target   string `json:"target"`
 }
 
-func (r SRVRecord) Type() DNSRecordType { return SRV }
-func (r SRVRecord) GetID() uint64       { return r.ID }
-func (r SRVRecord) GetType() string     { return "SRV" }
-func (r SRVRecord) GetDomain() string   { return r.Domain }
-func (r SRVRecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
-func (r SRVRecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r SRVRecord) GetID() uint64     { return r.ID }
+func (r SRVRecord) GetType() string   { return "SRV" }
+func (r SRVRecord) GetDomain() string { return r.Domain }
 func (srv SRVRecord) MarshalJSON() ([]byte, error) {
 	type Alias SRVRecord
 	return json.Marshal(struct {
@@ -139,19 +106,9 @@ type SOARecord struct {
 	MinimumTTL uint32 `json:"minimum_ttl"`
 }
 
-func (r SOARecord) Type() DNSRecordType { return SOA }
-func (r SOARecord) GetID() uint64       { return r.ID }
-func (r SOARecord) GetType() string     { return "SOA" }
-func (r SOARecord) GetDomain() string   { return r.Domain }
-func (r SOARecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
-func (r SOARecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r SOARecord) GetID() uint64     { return r.ID }
+func (r SOARecord) GetType() string   { return "SOA" }
+func (r SOARecord) GetDomain() string { return r.Domain }
 func (soa SOARecord) MarshalJSON() ([]byte, error) {
 	type Alias SOARecord
 	return json.Marshal(struct {
@@ -170,19 +127,9 @@ type CNAMERecord struct {
 	Protected bool   `json:"protected"`
 }
 
-func (r CNAMERecord) Type() DNSRecordType { return CNAME }
-func (r CNAMERecord) GetID() uint64       { return r.ID }
-func (r CNAMERecord) GetType() string     { return "CNAME" }
-func (r CNAMERecord) GetDomain() string   { return r.Domain }
-func (r CNAMERecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
-func (r CNAMERecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r CNAMERecord) GetID() uint64     { return r.ID }
+func (r CNAMERecord) GetType() string   { return "CNAME" }
+func (r CNAMERecord) GetDomain() string { return r.Domain }
 func (cname CNAMERecord) MarshalJSON() ([]byte, error) {
 	type Alias CNAMERecord
 	return json.Marshal(struct {
@@ -201,19 +148,9 @@ type NSRecord struct {
 	Protected bool   `json:"protected"`
 }
 
-func (r NSRecord) Type() DNSRecordType { return NS }
-func (r NSRecord) GetID() uint64       { return r.ID }
-func (r NSRecord) GetType() string     { return "NS" }
-func (r NSRecord) GetDomain() string   { return r.Domain }
-func (r NSRecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
-func (r NSRecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r NSRecord) GetID() uint64     { return r.ID }
+func (r NSRecord) GetType() string   { return "NS" }
+func (r NSRecord) GetDomain() string { return r.Domain }
 func (ns NSRecord) MarshalJSON() ([]byte, error) {
 	type Alias NSRecord
 	return json.Marshal(struct {
@@ -233,19 +170,9 @@ type MXRecord struct {
 	Protected bool   `json:"protected"`
 }
 
-func (r MXRecord) Type() DNSRecordType { return MX }
-func (r MXRecord) GetID() uint64       { return r.ID }
-func (r MXRecord) GetType() string     { return "MX" }
-func (r MXRecord) GetDomain() string   { return r.Domain }
-func (r MXRecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
-func (r MXRecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r MXRecord) GetID() uint64     { return r.ID }
+func (r MXRecord) GetType() string   { return "MX" }
+func (r MXRecord) GetDomain() string { return r.Domain }
 func (mx MXRecord) MarshalJSON() ([]byte, error) {
 	type Alias MXRecord
 	return json.Marshal(struct {
@@ -264,19 +191,9 @@ type TXTRecord struct {
 	Protected bool   `json:"protected"`
 }
 
-func (r TXTRecord) Type() DNSRecordType { return TXT }
-func (r TXTRecord) GetID() uint64       { return r.ID }
-func (r TXTRecord) GetType() string     { return "TXT" }
-func (r TXTRecord) GetDomain() string   { return r.Domain }
-func (r TXTRecord) GetKey() string      { return r.Domain + ":" + strconv.Itoa(int(r.ID)) }
-func (r TXTRecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r TXTRecord) GetID() uint64     { return r.ID }
+func (r TXTRecord) GetType() string   { return "TXT" }
+func (r TXTRecord) GetDomain() string { return r.Domain }
 func (txt TXTRecord) MarshalJSON() ([]byte, error) {
 	type Alias TXTRecord
 	return json.Marshal(struct {
@@ -297,19 +214,9 @@ type CAARecord struct {
 	Protected bool   `json:"protected"`
 }
 
-func (r CAARecord) Type() DNSRecordType { return CAA }
-func (r CAARecord) GetID() uint64       { return r.ID }
-func (r CAARecord) GetType() string     { return "CAA" }
-func (r CAARecord) GetDomain() string   { return r.Domain }
-func (r CAARecord) GetKey() string      { return r.Domain + strconv.Itoa(int(r.ID)) }
-func (r CAARecord) Serialize() (string, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
+func (r CAARecord) GetID() uint64     { return r.ID }
+func (r CAARecord) GetType() string   { return "CAA" }
+func (r CAARecord) GetDomain() string { return r.Domain }
 func (caa CAARecord) MarshalJSON() ([]byte, error) {
 	type Alias CAARecord
 	return json.Marshal(struct {
