@@ -325,8 +325,8 @@ func GetAllDomains() ([]string, error) {
 	return domains, err
 }
 
-func GetRecords(recordType, domain string) ([]DNSRecord, error) {
-	var records []DNSRecord
+func GetRecords(recordType, domain string) ([]*DNSRecord, error) {
+	var records []*DNSRecord
 
 	// get the second-level domain
 	domain, err := getSecondLevelDomain(domain)
@@ -377,11 +377,11 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
 
-			services.ProcessService.InfoLog(fmt.Sprintf("record: %v", &record))
+			services.ProcessService.InfoLog(fmt.Sprintf("record: %v", record))
 
 			// check the record type
 			if record.GetType() == recordType {
-				records = append(records, record)
+				records = append(records, &record)
 			}
 		}
 
