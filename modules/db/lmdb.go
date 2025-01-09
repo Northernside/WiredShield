@@ -25,7 +25,7 @@ func Init() {
 		log.Fatal("failed to set max readers:", err)
 	}
 
-	err = env.SetMaxDBs(2 ^ 32 - 1)
+	err = env.SetMaxDBs(2048)
 	if err != nil {
 		log.Fatal("failed to set max DBs:", err)
 	}
