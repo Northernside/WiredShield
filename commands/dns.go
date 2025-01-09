@@ -52,45 +52,53 @@ func Dns(model *Model) {
 			sb.WriteString("No records found for " + split[2] + "\n")
 		} else {
 			for _, record := range list {
-				switch r := record.(type) {
-				case db.ARecord:
+				// use GetType()
+				switch record.GetType() {
+				case "A":
+					r := record.(db.ARecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
 					}()+" A %s %s\n", r.ID, r.Domain, r.IP))
-				case db.AAAARecord:
+				case "AAAA":
+					r := record.(db.AAAARecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
 					}()+" AAAA %s %s\n", r.ID, r.Domain, r.IP))
-				case db.SOARecord:
+				case "SOA":
+					r := record.(db.SOARecord)
 					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n", r.ID, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
-				case db.TXTRecord:
+				case "TXT":
+					r := record.(db.TXTRecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
 					}()+" TXT %s \"%s\"\n", r.ID, r.Domain, r.Text))
-				case db.NSRecord:
+				case "NS":
+					r := record.(db.NSRecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
 					}()+" NS %s %s\n", r.ID, r.Domain, r.NS))
-				case db.MXRecord:
+				case "MX":
+					r := record.(db.MXRecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
 						}
 						return "🔓"
 					}()+" MX %s %s %d\n", r.ID, r.Domain, r.Target, r.Priority))
-				case db.CNAMERecord:
+				case "CNAME":
+					r := record.(db.CNAMERecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
