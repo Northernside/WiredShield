@@ -377,6 +377,8 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
 
+			services.ProcessService.InfoLog(fmt.Sprintf("record: %v", record))
+
 			// check the record type
 			if record.GetType() == recordType {
 				records = append(records, record)
