@@ -150,12 +150,13 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 		if err != nil {
 			return fmt.Errorf("failed to open entries DB: %w", err)
 		}
+
 		domainIndex, err := txn.OpenDBI(domainIndexDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open domain_index DB: %w", err)
 		}
 
-		// get the list of dss for the domain
+		// get the list of record ids for the domain
 		indexData, err := txn.Get(domainIndex, []byte(domain))
 		if err != nil {
 			if errors.Is(err, lmdb.NotFound) {
@@ -181,9 +182,9 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				return fmt.Errorf("failed to fetch record: %w", err)
 			}
 
-			// deserialize the record into a DNSRecord
+			// try unmarshalling into concrete record types
 			var record DNSRecord
-			if err := json.Unmarshal(entryData, &record); err != nil {
+			if err := unmarshalRecord(entryData, &record); err != nil {
 				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
 
@@ -194,6 +195,84 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 	})
 
 	return records, err
+}
+
+func unmarshalRecord(data []byte, record *DNSRecord) error {
+	var recordType map[string]interface{}
+	if err := json.Unmarshal(data, &recordType); err != nil {
+		return err
+	}
+
+	// unmarshal to the correct type
+	switch recordType["type"] {
+	case "A":
+		var aRecord ARecord
+		if err := json.Unmarshal(data, &aRecord); err != nil {
+			return err
+		}
+
+		*record = &aRecord
+	case "AAAA":
+		var aaaaRecord AAAARecord
+		if err := json.Unmarshal(data, &aaaaRecord); err != nil {
+			return err
+		}
+
+		*record = &aaaaRecord
+	case "SRV":
+		var srvRecord SRVRecord
+		if err := json.Unmarshal(data, &srvRecord); err != nil {
+			return err
+		}
+
+		*record = &srvRecord
+	case "CNAME":
+		var cnameRecord CNAMERecord
+		if err := json.Unmarshal(data, &cnameRecord); err != nil {
+			return err
+		}
+
+		*record = &cnameRecord
+	case "SOA":
+		var soaRecord SOARecord
+		if err := json.Unmarshal(data, &soaRecord); err != nil {
+			return err
+		}
+
+		*record = &soaRecord
+	case "TXT":
+		var txtRecord TXTRecord
+		if err := json.Unmarshal(data, &txtRecord); err != nil {
+			return err
+		}
+
+		*record = &txtRecord
+	case "NS":
+		var nsRecord NSRecord
+		if err := json.Unmarshal(data, &nsRecord); err != nil {
+			return err
+		}
+
+		*record = &nsRecord
+	case "MX":
+		var mxRecord MXRecord
+		if err := json.Unmarshal(data, &mxRecord); err != nil {
+			return err
+		}
+
+		*record = &mxRecord
+	case "CAA":
+		var caaRecord CAARecord
+		if err := json.Unmarshal(data, &caaRecord); err != nil {
+			return err
+		}
+
+		*record = &caaRecord
+	default:
+		return fmt.Errorf("unsupported record type")
+	}
+
+	return nil
 }
 
 func GetAllDomains() ([]string, error) {
