@@ -57,8 +57,10 @@ func Init() {
 			return fmt.Errorf("failed to create/open domain_index DB: %w", err)
 		}
 
+		fmt.Println("Checking if dns_domains key exists...")
 		_, err = txn.Get(domainIndex, []byte(dnsDomainsKey))
 		if errors.Is(err, lmdb.NotFound) {
+			fmt.Println("dns_domains key not found. Initializing...")
 			emptyDomains, err := json.Marshal([]string{})
 			if err != nil {
 				return fmt.Errorf("failed to marshal empty domains: %w", err)
@@ -67,8 +69,11 @@ func Init() {
 			if err := txn.Put(domainIndex, []byte(dnsDomainsKey), emptyDomains, 0); err != nil {
 				return fmt.Errorf("failed to initialize dns_domains key: %w", err)
 			}
+			fmt.Println("dns_domains key initialized successfully.")
 		} else if err != nil {
 			return fmt.Errorf("failed to fetch dns_domains key: %w", err)
+		} else {
+			fmt.Println("dns_domains key exists.")
 		}
 
 		return nil
