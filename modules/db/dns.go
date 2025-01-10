@@ -306,17 +306,23 @@ func GetAllDomains() ([]string, error) {
 			return fmt.Errorf("failed to open domain_index DB: %w", err)
 		}
 
-		indexData, err := txn.Get(domainIndex, []byte(dnsDomainsKey))
-		if errors.Is(err, lmdb.NotFound) {
-			// initialize the key if it doesn't exist
-			domains = []string{}
-			return nil
-		} else if err != nil {
-			return fmt.Errorf("failed to fetch domain index: %w", err)
+		cursor, err := txn.OpenCursor(domainIndex)
+		if err != nil {
+			return fmt.Errorf("failed to open domain_index cursor: %w", err)
 		}
+		defer cursor.Close()
 
-		if err := json.Unmarshal(indexData, &domains); err != nil {
-			return fmt.Errorf("failed to unmarshal domain index: %w", err)
+		for {
+			key, _, err := cursor.Get(nil, nil, lmdb.Next)
+			if err != nil {
+				if errors.Is(err, lmdb.NotFound) {
+					break
+				}
+
+				return fmt.Errorf("failed to fetch domain index: %w", err)
+			}
+
+			domains = append(domains, string(key))
 		}
 
 		return nil
