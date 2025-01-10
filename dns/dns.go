@@ -41,7 +41,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			country, err := whois.GetCountry(clientIp)
 			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", clientIp, err))
+				// service.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", clientIp, err))
 				country = "Unknown (Error)"
 			}
 
