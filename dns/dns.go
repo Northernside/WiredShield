@@ -119,9 +119,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				switch record.GetType() {
 				case "A":
 					r := record.(*db.ARecord)
-					service.InfoLog(fmt.Sprintf("%v", r))
 					var responseIps = getResponseIps(r, clientIp, country)
-					service.InfoLog(fmt.Sprintf("%v", responseIps))
 					for _, ip := range responseIps {
 						rr = &dns.A{
 							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600},
@@ -176,7 +174,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 
 				if rr != nil {
-					service.InfoLog(fmt.Sprintf("Adding record: %v", rr))
 					m.Answer = append(m.Answer, rr)
 					rrList = append(rrList, rr)
 				}
@@ -244,8 +241,6 @@ func Prepare(_service *services.Service) func() {
 			if ipnet, ok := addr.(*net.IPNet); ok {
 				// skip loobacks & link-local (fe80::/10)
 				if !ipnet.IP.IsLoopback() && !ipnet.IP.IsLinkLocalUnicast() {
-
-					service.InfoLog("address: " + ipnet.IP.String())
 
 					// ipv4
 					if ipnet.IP.To4() != nil && processIPv4 == "" {
