@@ -24,6 +24,7 @@ func Dns(model *Model) {
 	case "domains":
 		sb.WriteString("List DNS domains\n")
 		domains, err := db.GetAllDomains()
+		services.ProcessService.InfoLog(fmt.Sprintf("Domains: %v", domains))
 		if err != nil {
 			sb.WriteString("No domain added yet\n")
 			break
