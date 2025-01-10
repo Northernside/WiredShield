@@ -78,7 +78,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			if !supported {
-				service.ErrorLog(fmt.Sprintf("unsupported record type: %s", dns.TypeToString[question.Qtype]))
+				// service.ErrorLog(fmt.Sprintf("unsupported record type: %s", dns.TypeToString[question.Qtype]))
 				emptyReply(w, &m)
 				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
 				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
@@ -104,7 +104,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			// get record(s) from db
 			records, err := db.GetRecords(dns.TypeToString[question.Qtype], lookupName)
 			if err != nil {
-				service.ErrorLog(fmt.Sprintf("failed to get records: %s", err.Error()))
+				// service.ErrorLog(fmt.Sprintf("failed to get records: %s", err.Error()))
 				emptyReply(w, &m)
 				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
 				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
