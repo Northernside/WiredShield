@@ -86,6 +86,7 @@ func InsertRecord(record DNSRecord, self bool) error {
 	})
 
 	if eErr == nil && !self {
+		services.ProcessService.InfoLog(fmt.Sprintf("syncing record: %v", record))
 		go syncSet(record)
 	}
 
