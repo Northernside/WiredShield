@@ -88,7 +88,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	targetRecord := (*targetRecords[0]).(db.ARecord)
+	targetRecord := targetRecords[0].(db.ARecord)
 	targetURL := "http://" + targetRecord.IP + ":80" + string(ctx.Path())
 
 	requestSize := getRequestSize(ctx)

@@ -117,7 +117,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			var rrList []dns.RR
 			for _, record := range records {
 				var rr dns.RR
-				switch r := (*record).(type) {
+				switch r := record.(type) {
 				case *db.ARecord:
 					var responseIps = getResponseIps(r, clientIp, country)
 					for _, ip := range responseIps {
