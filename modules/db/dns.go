@@ -378,7 +378,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			}
 
 			// check the record type
-			if record.GetType() == recordType {
+			if record.GetType() == recordType && record.GetDomain() == domain {
 				records = append(records, record)
 			}
 		}
