@@ -26,7 +26,7 @@ func Dns(model *Model) {
 		domains, err := db.GetAllDomains()
 		services.ProcessService.InfoLog(fmt.Sprintf("Domains: %v", domains))
 		if err != nil {
-			sb.WriteString("No domain added yet\n")
+			sb.WriteString("Error fetching domains: " + err.Error() + "\n")
 			break
 		}
 
