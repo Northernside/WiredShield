@@ -7,7 +7,6 @@ import (
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/pgp"
-	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -104,7 +103,6 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 	var minimum_ttl, _ = strconv.Atoi(string(ctx.Request.Header.Peek("minimum_ttl")))
 	switch change_action {
 	case "SET":
-		services.ProcessService.InfoLog("DNSUpdate: SET action")
 		// set the record
 		switch change_record_type {
 		case "A":
@@ -113,7 +111,6 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.Domain = domain
 			record.IP = ip
 			record.Protected = protected == "true"
-			services.ProcessService.InfoLog(fmt.Sprintf("DNSUpdate: SET A record %v", record))
 
 			db.InsertRecord(record, true)
 		case "AAAA":

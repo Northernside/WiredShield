@@ -52,13 +52,11 @@ func Dns(model *Model) {
 		if len(list) == 0 {
 			sb.WriteString("No records found for " + split[2] + "\n")
 		} else {
-			services.ProcessService.InfoLog(fmt.Sprintf("%v", list))
 			for _, record := range list {
 				// use GetType()
 				switch record.GetType() {
 				case "A":
 					r := record.(*db.ARecord)
-					services.ProcessService.InfoLog(fmt.Sprintf("%v", r))
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"

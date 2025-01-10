@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"wiredshield/modules/db"
-	"wiredshield/services"
 
 	"github.com/miekg/dns"
 )
@@ -46,10 +45,8 @@ func getResponseIps(_record db.DNSRecord, clientIp string, country string) []net
 	var responseIps []net.IP
 	if protected {
 		responseIps = getOptimalResolvers(recordType, clientIp, country)
-		services.ProcessService.InfoLog(fmt.Sprintf("Protected record: %s, %s, %s, %s", recordType, clientIp, country, responseIps))
 	} else {
 		responseIps = []net.IP{net.ParseIP(targetIp)}
-		services.ProcessService.InfoLog(fmt.Sprintf("Unprotected record: %s, %s, %s, %s", recordType, clientIp, country, responseIps))
 	}
 
 	return responseIps
