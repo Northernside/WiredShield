@@ -324,8 +324,6 @@ func GetAllDomains() ([]string, error) {
 
 			domains = append(domains, string(key))
 		}
-
-		return nil
 	})
 
 	return domains, err
