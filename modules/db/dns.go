@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -86,7 +85,6 @@ func InsertRecord(record DNSRecord, self bool) error {
 	})
 
 	if eErr == nil && !self {
-		services.ProcessService.InfoLog(fmt.Sprintf("syncing record: %v", record))
 		go syncSet(record)
 	}
 
@@ -291,7 +289,7 @@ func unmarshalRecord(data []byte, record *DNSRecord) error {
 
 		*record = &caaRecord
 	default:
-		services.ProcessService.InfoLog(fmt.Sprintf("unsupported record type: %v", recordType))
+		// services.ProcessService.InfoLog(fmt.Sprintf("unsupported record type: %v", recordType))
 		return fmt.Errorf("unsupported record type: %v", recordType["type"])
 	}
 

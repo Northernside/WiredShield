@@ -11,7 +11,6 @@ import (
 	"log"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
-	"wiredshield/services"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/acme"
@@ -151,14 +150,13 @@ func dns01Handling(domain string, authzURL string) error {
 		Protected: false,
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("inserting TXT record: %v", txtRecord))
 	err = db.InsertRecord(txtRecord, false)
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
 
 	defer func() {
-		err = db.DeleteRecord(id, "acme-challenge."+domain, false)
+		err = db.DeleteRecord(id, "_acme-challenge."+domain, false)
 		if err != nil {
 			fmt.Printf("failed to delete TXT record: %v", err)
 		}

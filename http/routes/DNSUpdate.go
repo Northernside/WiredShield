@@ -7,7 +7,6 @@ import (
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/pgp"
-	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -127,7 +126,6 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 			record.ID = uint64(id)
 			record.Domain = domain
 			record.Text = text
-			services.ProcessService.InfoLog(fmt.Sprintf("receiving text record: %v", record))
 
 			db.InsertRecord(record, true)
 		case "CNAME":
