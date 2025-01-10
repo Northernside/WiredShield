@@ -120,6 +120,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				switch record.GetType() {
 				case "A":
 					r := record.(*db.ARecord)
+					service.InfoLog(fmt.Sprintf("%v", r))
 					var responseIps = getResponseIps(r, clientIp, country)
 					for _, ip := range responseIps {
 						rr = &dns.A{

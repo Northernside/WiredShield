@@ -58,6 +58,7 @@ func Dns(model *Model) {
 				switch record.GetType() {
 				case "A":
 					r := record.(*db.ARecord)
+					services.ProcessService.InfoLog(fmt.Sprintf("%v", r))
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
 						if r.Protected {
 							return "🔒"
