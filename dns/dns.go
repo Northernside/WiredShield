@@ -176,6 +176,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 
 				if rr != nil {
+					service.InfoLog(fmt.Sprintf("Adding record: %v", rr))
 					m.Answer = append(m.Answer, rr)
 					rrList = append(rrList, rr)
 				}
