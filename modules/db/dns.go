@@ -316,7 +316,7 @@ func GetAllDomains() ([]string, error) {
 			key, _, err := cursor.Get(nil, nil, lmdb.Next)
 			if err != nil {
 				if errors.Is(err, lmdb.NotFound) {
-					break
+					return nil // no more records
 				}
 
 				return fmt.Errorf("failed to fetch domain index: %w", err)
