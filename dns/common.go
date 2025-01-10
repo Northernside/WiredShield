@@ -22,20 +22,23 @@ func buildSoaRecord(queryName string) *dns.SOA {
 	}
 }
 
-func getResponseIps(_record interface{}, clientIp string, country string) []net.IP {
+func getResponseIps(_record db.DNSRecord, clientIp string, country string) []net.IP {
 	var recordType string
 	var protected bool
 	var targetIp string
 
-	switch r := _record.(type) {
-	case db.ARecord:
+	r := _record.GetType()
+	switch r {
+	case "A":
 		recordType = "A"
-		protected = r.Protected
-		targetIp = r.IP
-	case db.AAAARecord:
+		record := _record.(*db.ARecord)
+		protected = record.Protected
+		targetIp = record.IP
+	case "AAAA":
 		recordType = "AAAA"
-		protected = r.Protected
-		targetIp = r.IP
+		record := _record.(*db.AAAARecord)
+		protected = record.Protected
+		targetIp = record.IP
 	default:
 		return nil
 	}
