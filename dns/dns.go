@@ -122,6 +122,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					r := record.(*db.ARecord)
 					service.InfoLog(fmt.Sprintf("%v", r))
 					var responseIps = getResponseIps(r, clientIp, country)
+					service.InfoLog(fmt.Sprintf("%v", responseIps))
 					for _, ip := range responseIps {
 						rr = &dns.A{
 							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 3600},
