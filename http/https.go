@@ -23,13 +23,11 @@ var (
 	certLoadMutex sync.RWMutex
 )
 
-func init() {
-	env.LoadEnvFile()
-	time.Sleep(500 * time.Millisecond)
-}
-
 func Prepare(_service *services.Service) func() {
 	service = _service
+	binding := env.GetEnv("HTTP_BINDING", "")
+	httpsAddr := binding + ":" + env.GetEnv("HTTP_PORT", "443")
+	httpAddr := binding + ":" + env.GetEnv("HTTP_REDIRECT_PORT", "80")
 
 	return func() {
 		// logging

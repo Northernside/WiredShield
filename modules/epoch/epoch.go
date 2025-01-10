@@ -29,7 +29,7 @@ type Snowflake struct {
 
 func NewSnowflake(machineID int64) (*Snowflake, error) {
 	if machineID < 0 || machineID > machineIDMax {
-		return nil, ErrInvalidMachineID
+		return nil, fmt.Errorf("machine ID must be between 0 and %d", machineIDMax)
 	}
 
 	return &Snowflake{
@@ -67,5 +67,3 @@ func (s *Snowflake) GenerateID() uint64 {
 
 	return uint64(id)
 }
-
-var ErrInvalidMachineID = fmt.Errorf("machine ID must be between 0 and %d", machineIDMax)

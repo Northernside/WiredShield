@@ -31,6 +31,16 @@ var (
 	CommandHistoryIndex int = 0
 )
 
+func init() {
+	Commands = []Command{
+		{Key: "help", Desc: "Show this help message", Fn: Help},
+		{Key: "clear", Desc: "Clear the output", Fn: Clear},
+		{Key: "boot", Desc: "Boot all services", Fn: Boot},
+		{Key: "info", Desc: "Show service info", Fn: Info},
+		{Key: "dns", Desc: "DNS server", Fn: Dns},
+	}
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -55,7 +65,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// cmd not found
-			m.Output += fmt.Sprintf("Command not found: %s\n", m.TextInput.Value()[0:strings.Index(m.TextInput.Value(), " ")])
+			index := strings.Index(m.TextInput.Value(), " ")
+			if index != -1 {
+				m.Output += fmt.Sprintf("Command not found: %s\n", m.TextInput.Value()[0:index])
+			}
+
 			m.TextInput.SetValue("")
 		case tea.KeyUp:
 			if len(CommandHistory) == 0 {

@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"sync"
 	"time"
-	"wiredshield/modules/env"
 
 	"github.com/valyala/fasthttp"
 )
@@ -75,7 +74,4 @@ var (
 			}
 		},
 	}
-	binding   = env.GetEnv("HTTP_BINDING", "")
-	httpsAddr = binding + ":" + env.GetEnv("HTTP_PORT", "443")
-	httpAddr  = binding + ":" + env.GetEnv("HTTP_REDIRECT_PORT", "80")
 )

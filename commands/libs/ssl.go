@@ -32,7 +32,7 @@ func getClient() *acme.Client {
 	}
 
 	_, err = _client.Register(context.Background(), &acme.Account{
-		Contact: []string{"mailto:ssl@northernsi.de"},
+		Contact: []string{"mailto:ssl@wired.rip"},
 	}, func(tosURL string) bool {
 		return true
 	})
@@ -92,10 +92,16 @@ func GenerateCertificate(domain string) ([]byte, []byte, error) {
 
 	var certPEM []byte
 	for _, cert := range certDER {
-		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})...)
+		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert,
+		})...)
 	}
 
-	privKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(certKey)})
+	privKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(certKey),
+	})
 	if privKeyPEM == nil {
 		return nil, nil, fmt.Errorf("failed to encode private key to PEM")
 	}

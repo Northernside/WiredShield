@@ -8,6 +8,4 @@ func Boot(model *Model) {
 			go service.Boot()
 		}
 	}
-
-	//model.Output = "All services started\n"
 }

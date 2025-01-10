@@ -73,7 +73,8 @@ func Dns(model *Model) {
 					}()+" AAAA %s %s\n", r.ID, r.Domain, r.IP))
 				case "SOA":
 					r := record.(*db.SOARecord)
-					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n", r.ID, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
+					sb.WriteString(fmt.Sprintf("[%d] SOA %s %s %s %d %d %d %d %d\n",
+						r.ID, r.Domain, r.PrimaryNS, r.AdminEmail, r.Serial, r.Refresh, r.Retry, r.Expire, r.MinimumTTL))
 				case "TXT":
 					r := record.(*db.TXTRecord)
 					sb.WriteString(fmt.Sprintf("[%d] "+func() string {
@@ -143,12 +144,10 @@ func Dns(model *Model) {
 			}
 
 			if protected {
-				// model.Output += "Generating SSL certificate for " + split[3] + "\n"
 				services.ProcessService.InfoLog("Generating SSL certificate for " + split[3])
 				go func() {
 					certPEM, keyPEM, err := ssl.GenerateCertificate(split[3])
 					if err != nil {
-						// model.Output += "Failed to generate certificate: " + err.Error() + "\n"
 						services.ProcessService.ErrorLog("Failed to generate certificate: " + err.Error())
 						return
 					}
@@ -159,7 +158,6 @@ func Dns(model *Model) {
 
 					writer, err := os.Create(certFile)
 					if err != nil {
-						// model.Output += "failed to create cert file: " + err.Error() + "\n"
 						services.ProcessService.ErrorLog("failed to create cert file: " + err.Error())
 						return
 					}
@@ -174,7 +172,6 @@ func Dns(model *Model) {
 					defer writer.Close()
 					writer.Write(keyPEM)
 
-					// model.Output += "SSL certificate for " + split[3] + " generated\n"
 					services.ProcessService.InfoLog("SSL certificate for " + split[3] + " generated")
 				}()
 			}
@@ -187,7 +184,8 @@ func Dns(model *Model) {
 			}
 		case "SOA":
 			if len(split) < 11 {
-				sb.WriteString("Usage: dns set SOA <host> <primary> <admin> <serial> <refresh> <retry> <expire> <minimum> <protected>\n")
+				sb.WriteString("Usage: dns set SOA <host> <primary> <admin> <serial>" +
+					"<refresh> <retry> <expire> <minimum> <protected>\n")
 				break
 			}
 

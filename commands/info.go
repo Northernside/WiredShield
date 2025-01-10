@@ -12,7 +12,8 @@ func Info(model *Model) {
 
 	sb.WriteString("\033[1;34mServices:\033[0m\n")
 	for _, service := range services.ServiceRegistry {
-		sb.WriteString(fmt.Sprintf("  \033[1;32m[%s]\033[0m -> \033[1;33m%s\033[0m\n", service.Name, service.DisplayName))
+		sb.WriteString(fmt.Sprintf("  \033[1;32m[%s]\033[0m -> \033[1;33m%s\033[0m\n",
+			service.Name, service.DisplayName))
 		if service.OnlineSince == 0 {
 			sb.WriteString("    \033[0;31mOnline Since: Not Online\033[0m\n")
 			sb.WriteString("\n")

@@ -132,7 +132,8 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 
 		country, err := whois.GetCountry(client.IPAddress)
 		if err != nil {
-			services.ProcessService.ErrorLog(fmt.Sprintf("failed to get country for %s: %v", client.IPAddress, err))
+			services.ProcessService.ErrorLog(fmt.Sprintf("failed to get country for %s: %v",
+				client.IPAddress, err))
 
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
@@ -142,7 +143,8 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 		if _, ok := wireddns.ResolversV4[country]; !ok {
 			wireddns.ResolversV4[country] = []net.IP{net.ParseIP(client.IPAddress)}
 		} else {
-			wireddns.ResolversV4[country] = append(wireddns.ResolversV4[country], net.ParseIP(client.IPAddress))
+			wireddns.ResolversV4[country] = append(wireddns.ResolversV4[country],
+				net.ParseIP(client.IPAddress))
 		}
 
 		ctx.Response.Header.Set("ws-access-token", token)
