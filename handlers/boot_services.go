@@ -7,7 +7,7 @@ import (
 	"wiredshield/services"
 )
 
-func BootServices() {
+func PrepareServices() {
 	if env.GetEnv("TMP_BYPASS", "false") == "false" {
 		httpsService := services.RegisterService("https", "HTTPS Server")
 		httpsService.Boot = wiredhttps.Prepare(httpsService)

@@ -41,7 +41,7 @@ func main() {
 	}
 
 	// boot services
-	handlers.BootServices()
+	handlers.PrepareServices()
 
 	// start TUI
 	model := commands.InitialModel()
