@@ -86,7 +86,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 	var domain = string(ctx.Request.Header.Peek("dns_domain"))
 	var ip = string(ctx.Request.Header.Peek("dns_ip"))
 	var protected = string(ctx.Request.Header.Peek("protected"))
-	var text = string(ctx.Request.Header.Peek("text"))
+	var text = string(ctx.Request.Header.Peek("dns_text"))
 	var target = string(ctx.Request.Header.Peek("target"))
 	var priority, _ = strconv.Atoi(string(ctx.Request.Header.Peek("priority")))
 	var weight, _ = strconv.Atoi(string(ctx.Request.Header.Peek("weight")))
