@@ -101,6 +101,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			// get record(s) from db
+			service.InfoLog(fmt.Sprintf("DNS query: %s %s %s %s", clientIp, dns.TypeToString[question.Qtype], lookupName, country))
 			records, err := db.GetRecords(dns.TypeToString[question.Qtype], lookupName)
 			if err != nil {
 				emptyReply(w, &m)
