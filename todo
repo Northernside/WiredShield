@@ -1,0 +1,5 @@
+[ERROR] → DNS Server → Failed to insert logs: batch insert failed: ERROR: invalid input syntax for type inet: "[2001" (SQLSTATE 22P02)
+[ERROR] → HTTPS Server → error contacting backend (http://85.202.163.62:80/88x31/ray.rip): error when dialing 85.202.163.62:80: dialing to the given TCP address timed out
+[ERROR] → HTTPS Server → failed to get country for IP 185.209.196.138: failed to connect to WHOIS server: dial tcp: lookup whois.arin.net: Temporary failure in name resolution
+[ERROR] → HTTPS Server → error contacting backend (http://85.202.163.62:80/88x31/goldenstack.net): error when dialing 85.202.163.62:80: dial tcp4 85.202.163.62:80: i/o timeout
+2025/01/15 20:12:11 error when serving connection "45.157.11.82:443"<->"3.65.196.122:37415": tls: unsupported SSLv2 handshake received

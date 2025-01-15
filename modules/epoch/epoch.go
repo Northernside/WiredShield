@@ -61,9 +61,7 @@ func (s *Snowflake) GenerateID() uint64 {
 
 	s.lastTime = now
 
-	id := ((now - epoch) << timestampShift) |
+	return uint64(((now - epoch) << timestampShift) |
 		(s.machineID << machineIDShift) |
-		s.sequence
-
-	return uint64(id)
+		s.sequence)
 }
