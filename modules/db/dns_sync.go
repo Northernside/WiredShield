@@ -54,6 +54,8 @@ func syncSet(record DNSRecord) error {
 		req.Header.Set("minimum_ttl", fmt.Sprintf("%d", record.MinimumTTL))
 	case NSRecord:
 		req.Header.Set("ns", record.NS)
+	default:
+		services.ProcessService.ErrorLog(fmt.Sprintf("unknown record type: %T", record))
 	}
 
 	/*
