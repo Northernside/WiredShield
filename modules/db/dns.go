@@ -330,13 +330,7 @@ func GetAllDomains() ([]string, error) {
 func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 	var records []DNSRecord
 
-	// get the second-level domain
-	domain, err := getSecondLevelDomain(domain)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get second-level domain: %w", err)
-	}
-
-	err = env.View(func(txn *lmdb.Txn) error {
+	err := env.View(func(txn *lmdb.Txn) error {
 		entries, err := txn.OpenDBI(entriesDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open entries DB: %w", err)
