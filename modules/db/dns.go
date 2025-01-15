@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -33,9 +32,6 @@ func InsertRecord(record DNSRecord, self bool) error {
 		if err != nil {
 			return fmt.Errorf("failed to serialize record: %w", err)
 		}
-
-		services.ProcessService.InfoLog(fmt.Sprintf("inserting recordbytes: %s", recordBytes))
-		services.ProcessService.InfoLog(fmt.Sprintf("inserting record: %v", record))
 
 		// insert into "entries" DB
 		if err := txn.Put(entries, uint64ToByteArray(record.GetID()), recordBytes, 0); err != nil {
@@ -293,7 +289,6 @@ func unmarshalRecord(data []byte, record *DNSRecord) error {
 
 		*record = &caaRecord
 	default:
-		// services.ProcessService.InfoLog(fmt.Sprintf("unsupported record type: %v", recordType))
 		return fmt.Errorf("unsupported record type: %v", recordType["type"])
 	}
 

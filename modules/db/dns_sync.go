@@ -30,7 +30,7 @@ func syncSet(record DNSRecord) error {
 		req.Header.Set("dns_ip", record.IP)
 		req.Header.Set("protected", fmt.Sprintf("%t", record.Protected))
 	case TXTRecord:
-		services.ProcessService.InfoLog(fmt.Sprintf("sync TXT record: %v", record))
+	case *TXTRecord:
 		req.Header.Set("dns_text", record.Text)
 	case CNAMERecord:
 		req.Header.Set("target", record.Target)
@@ -78,10 +78,6 @@ func syncSet(record DNSRecord) error {
 
 	b64Sig := base64.StdEncoding.EncodeToString([]byte(signature))
 	req.Header.Set("signature", b64Sig)
-
-	// log headers
-	services.ProcessService.InfoLog(fmt.Sprintf("headers: %v", req.Header))
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))

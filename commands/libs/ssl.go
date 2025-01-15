@@ -143,7 +143,7 @@ func dns01Handling(domain string, authzURL string) error {
 	}
 
 	id = snowflake.GenerateID()
-	txtRecord := &db.TXTRecord{
+	txtRecord := db.TXTRecord{
 		ID:        id,
 		Domain:    "_acme-challenge." + domain,
 		Text:      challengeText,
