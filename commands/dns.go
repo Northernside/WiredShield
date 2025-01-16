@@ -41,6 +41,7 @@ func Dns(model *Model) {
 
 		list, err := db.GetRecordsByDomain(split[2])
 		if err != nil {
+			sb.WriteString("Failed to get records: " + err.Error() + "\n")
 			sb.WriteString("Domain not found\n")
 			break
 		}
