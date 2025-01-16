@@ -155,7 +155,7 @@ func DeleteRecord(id uint64, domain string, self bool) error {
 }
 
 func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
-	records := []DNSRecord{}
+	var records []DNSRecord
 
 	err := env.View(func(txn *lmdb.Txn) error {
 		entries, err := txn.OpenDBI(entriesDB, 0)
@@ -168,39 +168,59 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 			return fmt.Errorf("failed to open domain_index DB: %w", err)
 		}
 
-		// get the list of record ids for the domain
-		indexData, err := txn.Get(domainIndex, []byte(domain))
+		// get all domains
+		cursor, err := txn.OpenCursor(domainIndex)
 		if err != nil {
-			if errors.Is(err, lmdb.NotFound) {
-				return nil // no records for this domain
-			}
-
-			return fmt.Errorf("failed to fetch domain index: %w", err)
+			return fmt.Errorf("failed to open domain_index cursor: %w", err)
 		}
+		defer cursor.Close()
 
-		var recordIDs []uint64
-		if err := json.Unmarshal(indexData, &recordIDs); err != nil {
-			return fmt.Errorf("failed to unmarshal domain index: %w", err)
-		}
-
-		// fetch all records by id
-		for _, id := range recordIDs {
-			entryData, err := txn.Get(entries, uint64ToByteArray(id))
+		for {
+			key, _, err := cursor.Get(nil, nil, lmdb.Next)
 			if err != nil {
 				if errors.Is(err, lmdb.NotFound) {
-					continue // skip missing records
+					break // no more records
 				}
 
-				return fmt.Errorf("failed to fetch record: %w", err)
+				return fmt.Errorf("failed to fetch domain index: %w", err)
 			}
 
-			// try unmarshalling into concrete record types
-			var record DNSRecord
-			if err := unmarshalRecord(entryData, &record); err != nil {
-				return fmt.Errorf("failed to deserialize record: %w", err)
-			}
+			if strings.HasSuffix(string(key), "."+domain) {
+				// get the list of record ids for the domain
+				indexData, err := txn.Get(domainIndex, key)
+				if err != nil {
+					if errors.Is(err, lmdb.NotFound) {
+						continue // no records for this domain
+					}
 
-			records = append(records, record)
+					return fmt.Errorf("failed to fetch domain index: %w", err)
+				}
+
+				var recordIDs []uint64
+				if err := json.Unmarshal(indexData, &recordIDs); err != nil {
+					return fmt.Errorf("failed to unmarshal domain index: %w", err)
+				}
+
+				// fetch all records by id
+				for _, id := range recordIDs {
+					entryData, err := txn.Get(entries, uint64ToByteArray(id))
+					if err != nil {
+						if errors.Is(err, lmdb.NotFound) {
+							continue // skip missing records
+						}
+
+						return fmt.Errorf("failed to fetch record: %w", err)
+					}
+
+					// try unmarshalling into concrete record types
+					var record DNSRecord
+					if err := unmarshalRecord(entryData, &record); err != nil {
+						return fmt.Errorf("failed to deserialize record: %w", err)
+					}
+
+					records = append(records, record)
+				}
+			}
 		}
 
 		return nil
