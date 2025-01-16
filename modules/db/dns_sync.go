@@ -30,7 +30,6 @@ func syncSet(record DNSRecord) error {
 		req.Header.Set("dns_ip", record.IP)
 		req.Header.Set("protected", fmt.Sprintf("%t", record.Protected))
 	case TXTRecord:
-	case *TXTRecord:
 		req.Header.Set("dns_text", record.Text)
 	case CNAMERecord:
 		req.Header.Set("target", record.Target)
