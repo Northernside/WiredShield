@@ -161,13 +161,6 @@ func dns01Handling(domain string, authzURL string) error {
 
 	time.Sleep(1500 * time.Millisecond)
 
-	/*defer func() {
-		err = db.DeleteRecord(id, "_acme-challenge."+domain, false)
-		if err != nil {
-			fmt.Printf("failed to delete TXT record: %v", err)
-		}
-	}()*/
-
 	_, err = client.Accept(ctx, chal)
 	if err != nil {
 		return errors.Errorf("failed to accept challenge: %v", err)
@@ -177,6 +170,13 @@ func dns01Handling(domain string, authzURL string) error {
 	if err != nil {
 		return errors.Errorf("failed to wait for authorization: %v", err)
 	}
+
+	defer func() {
+		err = db.DeleteRecord(id, "_acme-challenge."+domain, false)
+		if err != nil {
+			fmt.Printf("failed to delete TXT record: %v", err)
+		}
+	}()
 
 	return nil
 }
