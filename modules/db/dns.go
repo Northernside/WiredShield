@@ -194,8 +194,6 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 					if errors.Is(err, lmdb.NotFound) {
 						continue // no records for this domain
 					}
-
-					return fmt.Errorf("failed to fetch domain index: %w", err)
 				}
 
 				var recordIDs []uint64
