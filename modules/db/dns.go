@@ -182,6 +182,8 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				if errors.Is(err, lmdb.NotFound) {
 					break // no more records
 				}
+
+				return nil
 			}
 
 			services.ProcessService.InfoLog(fmt.Sprintf("key: %s", key))
@@ -192,6 +194,8 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 					if errors.Is(err, lmdb.NotFound) {
 						continue // no records for this domain
 					}
+
+					return nil
 				}
 
 				var recordIDs []uint64
