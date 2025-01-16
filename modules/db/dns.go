@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -42,19 +43,27 @@ func InsertRecord(record DNSRecord, self bool) error {
 		domain := record.GetDomain()
 		indexData, err := txn.Get(domainIndex, []byte(domain))
 
+		services.ProcessService.InfoLog(fmt.Sprintf("Inserting record %d for domain %s with indexData %s", record.GetID(), domain, indexData))
+
 		// create domain index if not exists
 		if err != nil {
 			if lmdb.IsNotFound(err) {
+				services.ProcessService.InfoLog(fmt.Sprintf("Creating new domain index for %s", domain))
 				indexData = []byte("[]")
 			} else {
+				services.ProcessService.ErrorLog(fmt.Sprintf("Failed to get domain index: %v", err))
 				return fmt.Errorf("failed to get domain index: %w", err)
 			}
 		}
+
+		services.ProcessService.InfoLog(fmt.Sprintf("Domain index for %s: %s", domain, indexData))
 
 		var recordIDs []uint64
 		if err := json.Unmarshal(indexData, &recordIDs); err != nil {
 			return fmt.Errorf("failed to deserialize domain index: %w", err)
 		}
+
+		services.ProcessService.InfoLog(fmt.Sprintf("Domain index for %s: %v", domain, recordIDs))
 
 		// append new id if not present
 		exists := false
