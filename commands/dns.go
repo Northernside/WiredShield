@@ -228,7 +228,7 @@ func Dns(model *Model) {
 				MinimumTTL: uint32(minimum),
 			}
 		case "TXT":
-			text := strings.Join(split[4:], " ")
+			text := strings.Join(split[4:], " ")[1 : len(strings.Join(split[4:], " "))-1]
 			record = db.TXTRecord{
 				ID:        id,
 				Domain:    split[3],
