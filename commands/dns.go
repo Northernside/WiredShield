@@ -112,8 +112,8 @@ func Dns(model *Model) {
 		}
 	case "set":
 		sb.WriteString("Set DNS record\n")
-		if len(split) < 6 {
-			sb.WriteString("Usage: dns set <recordtype> <host> <target> <protected>\n")
+		if len(split) < 5 {
+			sb.WriteString("Usage: dns set <recordtype> <host> <...>\n")
 			break
 		}
 
