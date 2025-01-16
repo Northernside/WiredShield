@@ -119,7 +119,11 @@ func Dns(model *Model) {
 
 		split[2] = strings.ToUpper(split[2])
 
-		protected := split[5] == "true"
+		var protected bool
+		if len(split) > 5 {
+			protected = split[5] == "true"
+		}
+
 		var err error
 		var record db.DNSRecord
 		var id uint64
@@ -243,6 +247,11 @@ func Dns(model *Model) {
 				Protected: protected,
 			}
 		case "MX":
+			if len(split) < 6 {
+				sb.WriteString("Usage: dns set MX <host> <target> <priority> <protected>\n")
+				break
+			}
+
 			prio, err := strconv.Atoi(split[5])
 			if err != nil {
 				sb.WriteString("Failed to parse priority: " + err.Error() + "\n")
