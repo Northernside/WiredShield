@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -186,7 +185,6 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				return nil
 			}
 
-			services.ProcessService.InfoLog(fmt.Sprintf("key: %s", key))
 			if strings.HasSuffix(string(key), "."+domain) {
 				// get the list of record ids for the domain
 				indexData, err := txn.Get(domainIndex, key)
