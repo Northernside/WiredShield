@@ -187,11 +187,7 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 		for {
 			key, _, err := cursor.Get(nil, nil, lmdb.Next)
 			if err != nil {
-				if errors.Is(err, lmdb.NotFound) {
-					break // no more records
-				}
-
-				return nil
+				continue
 			}
 
 			services.ProcessService.InfoLog(fmt.Sprintf("Checking domain %s", string(key)))
@@ -199,9 +195,7 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				// get the list of record ids for the domain
 				indexData, err := txn.Get(domainIndex, key)
 				if err != nil {
-					if errors.Is(err, lmdb.NotFound) {
-						continue // no records for this domain
-					}
+					continue
 				}
 
 				var recordIDs []uint64
