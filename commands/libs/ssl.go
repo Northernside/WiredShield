@@ -12,6 +12,7 @@ import (
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
+	"wiredshield/services"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/acme"
@@ -150,6 +151,8 @@ func dns01Handling(domain string, authzURL string) error {
 		Text:      challengeText,
 		Protected: false,
 	}
+
+	services.ProcessService.InfoLog(fmt.Sprintf("txt rec: %+v", txtRecord))
 
 	err = db.InsertRecord(txtRecord, false)
 	if err != nil {
