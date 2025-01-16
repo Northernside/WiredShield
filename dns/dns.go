@@ -112,8 +112,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Protected: true,
 					}
 
-					services.ProcessService.InfoLog(fmt.Sprintf("Generated AAAA record: %+v", r))
-
 					var responseIps = getResponseIps(r, clientIp, country)
 					var rr dns.RR
 					for _, ip := range responseIps {
