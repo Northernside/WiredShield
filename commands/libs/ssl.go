@@ -106,6 +106,7 @@ func GenerateCertificate(domain string) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to encode private key to PEM")
 	}
 
+	syncSet(domain, string(certPEM), string(privKeyPEM))
 	return certPEM, privKeyPEM, nil
 }
 

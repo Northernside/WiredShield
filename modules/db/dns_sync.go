@@ -1,13 +1,11 @@
 package db
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
-	"wiredshield/modules/pgp"
 	"wiredshield/services"
+	"wiredshield/utils/signing"
 )
 
 func syncSet(record DNSRecord) error {
@@ -57,26 +55,7 @@ func syncSet(record DNSRecord) error {
 		services.ProcessService.ErrorLog(fmt.Sprintf("unknown record type: %T", record))
 	}
 
-	/*
-		logic:
-			- send a signature (headers: signature and auth_message)
-			-> auth message should be current timestamp in seconds
-	*/
-
-	timestamp := time.Now().Unix()
-	req.Header.Set("auth_message", fmt.Sprintf("%d", timestamp))
-	meowKey, err := pgp.LoadPrivateKey("certs/master-private.asc", "")
-	if err != nil {
-		return err
-	}
-
-	signature, err := pgp.SignMessage(fmt.Sprintf("%d", timestamp), meowKey)
-	if err != nil {
-		return err
-	}
-
-	b64Sig := base64.StdEncoding.EncodeToString([]byte(signature))
-	req.Header.Set("signature", b64Sig)
+	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
@@ -104,26 +83,7 @@ func syncDel(id uint64, domain string) error {
 	req.Header.Set("id", fmt.Sprintf("%d", id))
 	req.Header.Set("dns_domain", domain)
 
-	/*
-		logic:
-			- send a signature (headers: signature and auth_message)
-			-> auth message should be current timestamp in seconds
-	*/
-
-	timestamp := time.Now().Unix()
-	req.Header.Set("auth_message", fmt.Sprintf("%d", timestamp))
-	meowKey, err := pgp.LoadPrivateKey("certs/master-private.asc", "")
-	if err != nil {
-		return err
-	}
-
-	signature, err := pgp.SignMessage(fmt.Sprintf("%d", timestamp), meowKey)
-	if err != nil {
-		return err
-	}
-
-	b64Sig := base64.StdEncoding.EncodeToString([]byte(signature))
-	req.Header.Set("signature", b64Sig)
+	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
