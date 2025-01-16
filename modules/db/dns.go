@@ -182,8 +182,6 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				if errors.Is(err, lmdb.NotFound) {
 					break // no more records
 				}
-
-				return fmt.Errorf("failed to fetch domain index: %w", err)
 			}
 
 			services.ProcessService.InfoLog(fmt.Sprintf("key: %s", key))
