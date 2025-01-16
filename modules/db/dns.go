@@ -181,8 +181,6 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				if errors.Is(err, lmdb.NotFound) {
 					break // no more records
 				}
-
-				return nil
 			}
 
 			if strings.HasSuffix(string(key), "."+domain) {
@@ -192,8 +190,6 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 					if errors.Is(err, lmdb.NotFound) {
 						continue // no records for this domain
 					}
-
-					return nil
 				}
 
 				var recordIDs []uint64
