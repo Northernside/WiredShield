@@ -207,11 +207,7 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				for _, id := range recordIDs {
 					entryData, err := txn.Get(entries, uint64ToByteArray(id))
 					if err != nil {
-						if errors.Is(err, lmdb.NotFound) {
-							continue // skip missing records
-						}
-
-						return fmt.Errorf("failed to fetch record: %w", err)
+						continue
 					}
 
 					// try unmarshalling into concrete record types
