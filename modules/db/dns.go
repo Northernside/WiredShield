@@ -187,7 +187,11 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 		for {
 			key, _, err := cursor.Get(nil, nil, lmdb.Next)
 			if err != nil {
-				continue
+				if strings.Contains(err.Error(), "MDB_NOTFOUND") {
+					return nil // no more records
+				}
+
+				return fmt.Errorf("failed to fetch domain index: %w", err)
 			}
 
 			services.ProcessService.InfoLog(fmt.Sprintf("Checking domain %s", string(key)))
@@ -195,7 +199,11 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				// get the list of record ids for the domain
 				indexData, err := txn.Get(domainIndex, key)
 				if err != nil {
-					continue
+					if strings.Contains(err.Error(), "MDB_NOTFOUND") {
+						continue // no records for this domain
+					}
+
+					return fmt.Errorf("failed to fetch domain index: %w", err)
 				}
 
 				var recordIDs []uint64
@@ -207,7 +215,11 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				for _, id := range recordIDs {
 					entryData, err := txn.Get(entries, uint64ToByteArray(id))
 					if err != nil {
-						continue
+						if strings.Contains(err.Error(), "MDB_NOTFOUND") {
+							continue // skip missing records
+						}
+
+						return fmt.Errorf("failed to fetch record: %w", err)
 					}
 
 					// try unmarshalling into concrete record types
