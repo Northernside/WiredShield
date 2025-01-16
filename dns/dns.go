@@ -103,41 +103,39 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			var rrList []dns.RR
 			if dns.TypeToString[question.Qtype] == "AAAA" {
 				// check if AAAA exists, if yes, return it, if not, return return getResponseIps with AAAA set in record
-				records, err := db.GetRecords("AAAA", lookupName)
-				if err != nil {
-					if len(records) == 0 {
-						r := &db.AAAARecord{
-							ID:        0,
-							Domain:    lookupName,
-							IP:        getOptimalResolvers("AAAA", clientIp, country)[0].String(),
-							Protected: true,
-						}
-
-						services.ProcessService.InfoLog(fmt.Sprintf("Generated AAAA record: %+v", r))
-
-						var responseIps = getResponseIps(r, clientIp, country)
-						var rr dns.RR
-						for _, ip := range responseIps {
-							rr = &dns.AAAA{
-								Hdr:  dns.RR_Header{Name: questionName, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600},
-								AAAA: ip,
-							}
-						}
-
-						rrList = append(rrList, rr)
-						m.Answer = append(m.Answer, rr)
-						updateCache(cacheKey, rrList)
-						err = w.WriteMsg(&m)
-						if err != nil {
-							service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s",
-								cacheKey, err.Error()))
-						}
-
-						dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
-						dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
-						dnsLog.IsSuccessful = true
-						logDNSRequest(dnsLog)
+				records, _ := db.GetRecords("AAAA", lookupName)
+				if len(records) == 0 {
+					r := &db.AAAARecord{
+						ID:        0,
+						Domain:    lookupName,
+						IP:        getOptimalResolvers("AAAA", clientIp, country)[0].String(),
+						Protected: true,
 					}
+
+					services.ProcessService.InfoLog(fmt.Sprintf("Generated AAAA record: %+v", r))
+
+					var responseIps = getResponseIps(r, clientIp, country)
+					var rr dns.RR
+					for _, ip := range responseIps {
+						rr = &dns.AAAA{
+							Hdr:  dns.RR_Header{Name: questionName, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600},
+							AAAA: ip,
+						}
+					}
+
+					rrList = append(rrList, rr)
+					m.Answer = append(m.Answer, rr)
+					updateCache(cacheKey, rrList)
+					err = w.WriteMsg(&m)
+					if err != nil {
+						service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s",
+							cacheKey, err.Error()))
+					}
+
+					dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+					dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+					dnsLog.IsSuccessful = true
+					logDNSRequest(dnsLog)
 				}
 			}
 
