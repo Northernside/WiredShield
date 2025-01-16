@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -41,10 +40,6 @@ func InsertRecord(record DNSRecord, self bool) error {
 
 		// update "domain_index" db
 		domain := record.GetDomain()
-		if err != nil {
-			return fmt.Errorf("failed to get second level domain: %w", err)
-		}
-
 		indexData, err := txn.Get(domainIndex, []byte(domain))
 
 		// create domain index if not exists
@@ -371,7 +366,6 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			}
 
 			// check the record type
-			services.ProcessService.InfoLog(fmt.Sprintf("record domain: %s, %s", record.GetDomain(), domain))
 			if record.GetType() == recordType && record.GetDomain() == domain {
 				records = append(records, record)
 			}
