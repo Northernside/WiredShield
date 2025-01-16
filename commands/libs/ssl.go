@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
 
@@ -155,12 +156,14 @@ func dns01Handling(domain string, authzURL string) error {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
 
-	defer func() {
+	time.Sleep(1500 * time.Millisecond)
+
+	/*defer func() {
 		err = db.DeleteRecord(id, "_acme-challenge."+domain, false)
 		if err != nil {
 			fmt.Printf("failed to delete TXT record: %v", err)
 		}
-	}()
+	}()*/
 
 	_, err = client.Accept(ctx, chal)
 	if err != nil {
