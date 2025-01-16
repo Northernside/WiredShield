@@ -9,7 +9,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
-	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
 
@@ -155,8 +154,6 @@ func dns01Handling(domain string, authzURL string) error {
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
-
-	time.Sleep(1500 * time.Millisecond)
 
 	_, err = client.Accept(ctx, chal)
 	if err != nil {
