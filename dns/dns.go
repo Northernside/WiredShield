@@ -106,7 +106,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				records, err := db.GetRecords("AAAA", lookupName)
 				if err != nil {
 					if len(records) == 0 {
-						r := db.AAAARecord{
+						r := &db.AAAARecord{
 							ID:        0,
 							Domain:    lookupName,
 							IP:        getOptimalResolvers("AAAA", clientIp, country)[0].String(),
