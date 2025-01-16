@@ -194,7 +194,7 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 				return nil
 			}
 
-			service.ProcessService.InfoLog(fmt.Sprintf("Checking domain %s", string(key)))
+			services.ProcessService.InfoLog(fmt.Sprintf("Checking domain %s", string(key)))
 			if strings.HasSuffix(string(key), "."+domain) || string(key) == domain {
 				// get the list of record ids for the domain
 				indexData, err := txn.Get(domainIndex, key)
