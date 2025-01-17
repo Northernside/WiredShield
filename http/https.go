@@ -37,9 +37,8 @@ func Prepare(_service *services.Service) func() {
 		go func() {
 			service.InfoLog("Starting HTTP redirect server on " + httpAddr)
 			httpServer := &http.Server{
-				Addr:           httpAddr,
-				Handler:        http.HandlerFunc(redirectToHTTPS),
-				MaxHeaderBytes: 1 << 19, // 512KB
+				Addr:    httpAddr,
+				Handler: http.HandlerFunc(redirectToHTTPS),
 			}
 
 			err := httpServer.ListenAndServe()

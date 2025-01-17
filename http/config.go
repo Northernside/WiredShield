@@ -10,11 +10,12 @@ import (
 
 var (
 	server = &fasthttp.Server{
-		Concurrency:   1024 ^ 2,
-		Handler:       httpsProxyHandler,
-		Name:          "wiredshield",
-		MaxConnsPerIP: 1024 ^ 2,
-		ReadTimeout:   5 * time.Second,
+		Concurrency:    1024 ^ 2,
+		Handler:        httpsProxyHandler,
+		ReadBufferSize: 1 << 19, // 512KB,
+		Name:           "wiredshield",
+		MaxConnsPerIP:  1024 ^ 2,
+		ReadTimeout:    5 * time.Second,
 		ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
 			ctx.Error(err.Error(), 500)
 		},
