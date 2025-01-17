@@ -82,11 +82,10 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
 	if err != nil || len(targetRecords) != 0 {
 		// ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
-		errorPage := ErrorPage{Code: 601, Message: Error601,}
+		errorPage := ErrorPage{Code: 601, Message: Error601}
 		ctx.SetStatusCode(fasthttp.StatusBadGateway)
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
-		if err != nil {
 		logRequest(ctx, nil, timeStart, 601, 0, 0)
 		return
 	}
