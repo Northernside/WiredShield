@@ -10,7 +10,6 @@ import (
 )
 
 var env *lmdb.Env
-var db lmdb.DBI
 
 func Init() {
 	var err error
@@ -41,9 +40,19 @@ func Init() {
 	}
 
 	err = env.Update(func(txn *lmdb.Txn) error {
-		db, err = txn.OpenDBI("wiredshield", lmdb.Create)
+		_, err := txn.OpenDBI("wiredshield", lmdb.Create)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
+		}
+
+		_, err = txn.OpenDBI("entries", lmdb.Create)
+		if err != nil {
+			return fmt.Errorf("failed to create/open entries DB: %w", err)
+		}
+
+		_, err = txn.OpenDBI("domain_index", lmdb.Create)
+		if err != nil {
+			return fmt.Errorf("failed to create/open domain_index DB: %w", err)
 		}
 
 		return nil
@@ -52,42 +61,4 @@ func Init() {
 	if err != nil {
 		log.Fatal("transaction failed:", err)
 	}
-}
-
-func SetTarget(host, target string) error {
-	err := env.Update(func(txn *lmdb.Txn) error {
-		err := txn.Put(db, []byte(host), []byte(target), 0)
-		if err != nil {
-			return fmt.Errorf("failed to put key: %v", err)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func GetTarget(host string) string {
-	var target string
-
-	err := env.View(func(txn *lmdb.Txn) error {
-		val, err := txn.Get(db, []byte(host))
-		if err != nil {
-			return fmt.Errorf("failed to get key: %v", err)
-		}
-
-		target = string(val)
-
-		return nil
-	})
-
-	if err != nil {
-		return ""
-	}
-
-	return target
 }

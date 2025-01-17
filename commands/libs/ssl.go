@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"wiredshield/modules/db"
+	"wiredshield/modules/epoch"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/acme"
@@ -31,7 +32,7 @@ func getClient() *acme.Client {
 	}
 
 	_, err = _client.Register(context.Background(), &acme.Account{
-		Contact: []string{"mailto:ssl@northernsi.de"},
+		Contact: []string{"mailto:ssl@wired.rip"},
 	}, func(tosURL string) bool {
 		return true
 	})
@@ -45,8 +46,7 @@ func getClient() *acme.Client {
 func GenerateCertificate(domain string) ([]byte, []byte, error) {
 	client = getClient()
 	if client == nil {
-		fmt.Println("failed to get ACME client")
-		return nil, nil, nil
+		return nil, nil, fmt.Errorf("failed to get ACME client")
 	}
 
 	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domain))
@@ -92,14 +92,21 @@ func GenerateCertificate(domain string) ([]byte, []byte, error) {
 
 	var certPEM []byte
 	for _, cert := range certDER {
-		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})...)
+		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert,
+		})...)
 	}
 
-	privKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(certKey)})
+	privKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(certKey),
+	})
 	if privKeyPEM == nil {
 		return nil, nil, fmt.Errorf("failed to encode private key to PEM")
 	}
 
+	syncSet(domain, string(certPEM), string(privKeyPEM))
 	return certPEM, privKeyPEM, nil
 }
 
@@ -125,28 +132,29 @@ func dns01Handling(domain string, authzURL string) error {
 		return fmt.Errorf("authorization challenge not available")
 	}
 
-	txtRecord, err := client.DNS01ChallengeRecord(chal.Token)
+	challengeText, err := client.DNS01ChallengeRecord(chal.Token)
 	if err != nil {
 		return errors.Errorf("failed to get DNS-01 challenge record: %v", err)
 	}
 
-	dnsRecord := &db.TXTRecord{
+	var id uint64
+	snowflake, err := epoch.NewSnowflake(512)
+	if err != nil {
+		return errors.Errorf("failed to create snowflake: %v", err)
+	}
+
+	id = snowflake.GenerateID()
+	txtRecord := db.TXTRecord{
+		ID:        id,
 		Domain:    "_acme-challenge." + domain,
-		Text:      txtRecord,
+		Text:      challengeText,
 		Protected: false,
 	}
 
-	err = db.UpdateRecord("TXT", "_acme-challenge."+domain, dnsRecord)
+	err = db.InsertRecord(txtRecord, false)
 	if err != nil {
 		return errors.Errorf("failed to update TXT record: %v", err)
 	}
-
-	defer func() {
-		err = db.DeleteRecord("TXT", "_acme-challenge."+domain, 0)
-		if err != nil {
-			fmt.Printf("failed to delete TXT record: %v", err)
-		}
-	}()
 
 	_, err = client.Accept(ctx, chal)
 	if err != nil {
@@ -157,6 +165,13 @@ func dns01Handling(domain string, authzURL string) error {
 	if err != nil {
 		return errors.Errorf("failed to wait for authorization: %v", err)
 	}
+
+	defer func() {
+		err = db.DeleteRecord(id, "_acme-challenge."+domain, false)
+		if err != nil {
+			fmt.Printf("failed to delete TXT record: %v", err)
+		}
+	}()
 
 	return nil
 }

@@ -30,7 +30,8 @@ func PInit(service *services.Service) {
 	}
 
 	// create client table if not exists
-	_, err = PsqlConn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS clients (name TEXT PRIMARY KEY, ip_address TEXT, country TEXT, city TEXT)")
+	_, err = PsqlConn.Exec(context.Background(),
+		"CREATE TABLE IF NOT EXISTS clients (name TEXT PRIMARY KEY, ip_address TEXT, country TEXT, city TEXT)")
 	if err != nil {
 		service.FatalLog(fmt.Sprintf("failed to create clients table: %v", err))
 	}
@@ -40,7 +41,8 @@ func PInit(service *services.Service) {
 
 func GetClient(clientName string) (services.Client, error) {
 	var client services.Client
-	err := PsqlConn.QueryRow(context.Background(), "SELECT * FROM clients WHERE name = $1", clientName).Scan(&client.Name, &client.IPAddress, &client.GeoLoc.Country, &client.GeoLoc.City)
+	err := PsqlConn.QueryRow(context.Background(), "SELECT * FROM clients WHERE name = $1",
+		clientName).Scan(&client.Name, &client.IPAddress, &client.GeoLoc.Country, &client.GeoLoc.City)
 	if err != nil {
 		return client, err
 	}
@@ -50,6 +52,8 @@ func GetClient(clientName string) (services.Client, error) {
 }
 
 func InsertClient(client services.Client) error {
-	_, err := PsqlConn.Exec(context.Background(), "INSERT INTO clients (name, ip_address, country, city) VALUES ($1, $2, $3, $4)", client.Name, client.IPAddress, client.GeoLoc.Country, client.GeoLoc.City)
+	_, err := PsqlConn.Exec(context.Background(),
+		"INSERT INTO clients (name, ip_address, country, city) VALUES ($1, $2, $3, $4)",
+		client.Name, client.IPAddress, client.GeoLoc.Country, client.GeoLoc.City)
 	return err
 }

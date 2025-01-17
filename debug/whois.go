@@ -77,6 +77,12 @@ func getCountryFromWhois(server string, ip string) (string, error) {
 
 	// suggests that the ip is in another whois server
 	if strings.Contains(loweredContent, "netrange:") && strings.Contains(loweredContent, "resourcelink:") {
+		if strings.Contains(loweredContent, "referralserver:") {
+			referralServer := strings.TrimSpace(strings.Split(strings.Split(loweredContent, "referralserver:")[1], "\n")[0])
+			referralServer = strings.Replace(referralServer, "whois://", "", 1)
+			return getCountryFromWhois(referralServer, ip)
+		}
+
 		// there may be more than one ResourceLink: in the response, we need to get the second one
 		// get all resourcelink lines and then use the last one from the array
 		var resourceLinks []string
@@ -110,13 +116,16 @@ func getCountryFromWhois(server string, ip string) (string, error) {
 		....
 		Comcast Cable Communications, LLC JUMPSTART-4 (NET-69-240-0-0-1) 69.240.0.0 - 69.255.255.255
 		Comcast Cable Communications, Inc. PA-WEST-22 (NET-69-244-96-0-1) 69.244.96.0 - 69.244.127.255
+
+		Akamai Technologies, Inc. LINODE-US (NET6-2600-3C00-1) 2600:3C00:: - 2600:3CFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF
+		Linode NET6-2600-3C00-2 (NET6-2600-3C00-2) 2600:3C00:: - 2600:3CFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF
 		....
 	*/
 
-	// check if theres a (NET-X-X-X-X-X) by regex
-	// if there is, connect to arin again with the input being "NET-X-X-X-X-X"
+	// check if theres a NET-69-240-0-0-1 or NET6-2600-3C00-1 in the response (regex)
+	// if there is, connect to arin again with the input being the NET-... found
 
-	netRegex := regexp.MustCompile(`net-\d+-\d+-\d+-\d+-\d+`)
+	netRegex := regexp.MustCompile(`(net-\d{1,3}-\d{1,3}-\d{1,3}-\d{1,3}-\d+|net6-[0-9A-Fa-f]{1,4}-[0-9A-Fa-f]{1,4}-\d+)`)
 	netMatch := netRegex.FindStringSubmatch(loweredContent)
 	if len(netMatch) > 0 {
 		arinResult, err := getArinByNet(netMatch[0])
