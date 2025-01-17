@@ -121,11 +121,19 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		if err == fasthttp.ErrTimeout {
 			service.ErrorLog(fmt.Sprintf("timeout contacting backend (%s): %v", targetURL, err))
-			ctx.Error("timeout contacting backend", fasthttp.StatusBadGateway)
+
+			errorPage := ErrorPage{Code: 605, Message: Error605}
+			ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
+			ctx.Response.Header.Set("Content-Type", "text/html")
+			ctx.SetBodyString(errorPage.ToHTML())
 			logRequest(ctx, resp, timeStart, 605, 0, 0)
 		} else {
 			service.ErrorLog(fmt.Sprintf("error contacting backend (%s): %v", targetURL, err))
-			ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
+
+			errorPage := ErrorPage{Code: 603, Message: Error603}
+			ctx.SetStatusCode(fasthttp.StatusBadGateway)
+			ctx.Response.Header.Set("Content-Type", "text/html")
+			ctx.SetBodyString(errorPage.ToHTML())
 			logRequest(ctx, resp, timeStart, 603, 0, 0)
 		}
 
