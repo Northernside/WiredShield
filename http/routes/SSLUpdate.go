@@ -3,6 +3,8 @@ package routes
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 	"wiredshield/modules/pgp"
 	"wiredshield/utils/b64"
 
@@ -20,23 +22,39 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 	// master auth logic
 	var signature = string(ctx.Request.Header.Peek("signature"))
 	var auth_message = string(ctx.Request.Header.Peek("auth_message"))
-	if signature == "" {
+	if signature == "" || auth_message == "" {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-		ctx.SetBodyString("UNAUTHORIZED")
+		ctx.SetBodyString("UNAUTHORIZED v1")
 		return
 	}
 
-	masterPub, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", "master"))
+	woofPub, err := pgp.LoadPublicKey("certs/woof-public.asc")
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 		return
 	}
 
-	err = pgp.VerifySignature(auth_message, signature, masterPub)
+	b64Sig, err := b64.Decode(signature)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.SetBodyString("BAD_REQUEST")
+		return
+	}
+
+	b64SigStr := string(b64Sig)
+	err = pgp.VerifySignature(auth_message, b64SigStr, woofPub)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-		ctx.SetBodyString("UNAUTHORIZED")
+		ctx.SetBodyString("UNAUTHORIZED v2")
+		return
+	}
+
+	// auth_message should be the current timestamp in seconds, check if its older than 10s
+	timestamp, err := strconv.Atoi(auth_message)
+	if err != nil || timestamp < (int(time.Now().Unix())-10) {
+		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+		ctx.SetBodyString("UNAUTHORIZED v3")
 		return
 	}
 

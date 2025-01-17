@@ -1,12 +1,12 @@
 package routes
 
 import (
-	"encoding/base64"
 	"fmt"
 	"strconv"
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/pgp"
+	"wiredshield/utils/b64"
 
 	"github.com/valyala/fasthttp"
 )
@@ -40,7 +40,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	b64Sig, err := base64.StdEncoding.DecodeString(signature)
+	b64Sig, err := b64.Decode(signature)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		ctx.SetBodyString("BAD_REQUEST")
