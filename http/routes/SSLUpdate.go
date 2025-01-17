@@ -133,7 +133,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 		}
 	default:
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		ctx.SetBodyString("BAD_REQUEST")
+		ctx.SetBodyString(fmt.Sprintf("BAD_REQUEST: %s", change_action))
 		return
 	}
 

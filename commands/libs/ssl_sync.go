@@ -10,7 +10,7 @@ import (
 )
 
 func syncSet(domain, certContent, keyContent string) error {
-	req, err := http.NewRequest("GET", "https://meow.wired.rip/.wiredshield/dns-update", nil) // TODO: load urls by nodes
+	req, err := http.NewRequest("GET", "https://meow.wired.rip/.wiredshield/ssl-update", nil) // TODO: load urls by nodes
 	if err != nil {
 		return err
 	}
