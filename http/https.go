@@ -80,8 +80,13 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	timeStart := time.Now()
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
-	if err != nil || len(targetRecords) == 0 {
-		ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
+	if err != nil || len(targetRecords) != 0 {
+		// ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
+		errorPage := ErrorPage{Code: 601, Message: Error601,}
+		ctx.SetStatusCode(fasthttp.StatusBadGateway)
+		ctx.Response.Header.Set("Content-Type", "text/html")
+		ctx.SetBodyString(errorPage.ToHTML())
+		if err != nil {
 		logRequest(ctx, nil, timeStart, 601, 0, 0)
 		return
 	}
@@ -112,11 +117,19 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(resp)
 
-	err = client.Do(req, resp)
+	timeout := 10 * time.Second
+	err = client.DoTimeout(req, resp, timeout)
 	if err != nil {
-		service.ErrorLog(fmt.Sprintf("error contacting backend (%s): %v", targetURL, err))
-		ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
-		logRequest(ctx, resp, timeStart, 603, 0, 0)
+		if err == fasthttp.ErrTimeout {
+			service.ErrorLog(fmt.Sprintf("timeout contacting backend (%s): %v", targetURL, err))
+			ctx.Error("timeout contacting backend", fasthttp.StatusBadGateway)
+			logRequest(ctx, resp, timeStart, 605, 0, 0)
+		} else {
+			service.ErrorLog(fmt.Sprintf("error contacting backend (%s): %v", targetURL, err))
+			ctx.Error("error contacting backend", fasthttp.StatusBadGateway)
+			logRequest(ctx, resp, timeStart, 603, 0, 0)
+		}
+
 		return
 	}
 
