@@ -80,7 +80,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	timeStart := time.Now()
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
-	if err != nil || len(targetRecords) != 0 {
+	if err != nil || len(targetRecords) == 0 {
 		// ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
 		errorPage := ErrorPage{Code: 601, Message: Error601}
 		ctx.SetStatusCode(fasthttp.StatusBadGateway)
