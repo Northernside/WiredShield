@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"wiredshield/modules/pgp"
+	"wiredshield/utils/b64"
 
 	"github.com/valyala/fasthttp"
 )
@@ -53,8 +54,19 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 	switch change_action {
 	case "SET":
-		var cert = string(ctx.Request.Header.Peek("cert"))
-		var key = string(ctx.Request.Header.Peek("key"))
+		cert, err := b64.Decode(string(ctx.Request.Header.Peek("cert")))
+		if err != nil {
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
+			return
+		}
+
+		key, err := b64.Decode(string(ctx.Request.Header.Peek("key")))
+		if err != nil {
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
+			return
+		}
 
 		// write to disk
 		certFile := fmt.Sprintf("certs/%s.crt", domain)

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"wiredshield/services"
+	"wiredshield/utils/b64"
 	"wiredshield/utils/signing"
 )
 
@@ -16,8 +17,8 @@ func syncSet(domain, certContent, keyContent string) error {
 
 	req.Header.Set("change_action", "SET")
 	req.Header.Set("domain", domain)
-	req.Header.Set("cert", certContent)
-	req.Header.Set("key", keyContent)
+	req.Header.Set("cert", b64.Encode(certContent))
+	req.Header.Set("key", b64.Encode(keyContent))
 
 	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
