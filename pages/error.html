@@ -8,6 +8,7 @@
 </head>
 <style>
     * {
+        box-sizing: border-box;
         color: #ffffff;
     }
 
@@ -15,15 +16,20 @@
         background-color: #000000;
         font-family: Arial, sans-serif;
         height: 100vh;
+        width: 100vw;
         margin: 0;
         display: flex;
         flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
     }
 
     .page {
         flex: 1;
         display: flex;
         flex-direction: column;
+        width: 100%;
+        height: 100%;
     }
 
     .header {
@@ -34,6 +40,8 @@
 
     .header img {
         margin-right: 16px;
+        max-width: 100%;
+        height: auto;
     }
 
     .header h1 {
@@ -67,20 +75,21 @@
 
     .footer p {
         color: #CBCBCB;
+        margin: 0;
     }
 
     @media (max-width: 768px) {
-        .header {
-            justify-content: center;
+        .header h1 {
+            font-size: 32px;
         }
 
         .header img {
             width: 64px;
-            height: 64px;
+            height: auto;
         }
 
-        .header h1 {
-            font-size: 32px;
+        .error p {
+            font-size: 18px;
         }
     }
 </style>
