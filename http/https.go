@@ -212,6 +212,10 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		certCache.Store(domain, &c)
 	}
 
+	if strings.Contains(err.Error(), "no such file or directory") {
+		return nil, nil
+	}
+
 	return &c, err
 }
 
