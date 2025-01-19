@@ -2,6 +2,8 @@ package wiredhttps
 
 import (
 	"crypto/tls"
+	"io"
+	"log"
 	"sync"
 	"time"
 
@@ -9,7 +11,8 @@ import (
 )
 
 var (
-	server = &fasthttp.Server{
+	noOpLogger = log.New(io.Discard, "", 0)
+	server     = &fasthttp.Server{
 		Concurrency:    1024 ^ 2,
 		Handler:        httpsProxyHandler,
 		ReadBufferSize: 1 << 19, // 512KB,
@@ -17,10 +20,17 @@ var (
 		MaxConnsPerIP:  1024 ^ 2,
 		ReadTimeout:    5 * time.Second,
 		ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
-			ctx.Error(err.Error(), 500)
+			errorPage := ErrorPage{
+				Code:    500,
+				Message: Error500,
+			}
+
+			ctx.SetContentType("text/html")
+			ctx.SetStatusCode(500)
+			ctx.SetBodyString(errorPage.ToHTML())
 		},
 		LogAllErrors: false,
-		Logger:       nil,
+		Logger:       noOpLogger,
 		TLSConfig: &tls.Config{
 			NextProtos:               []string{"http/1.1"},
 			MinVersion:               tls.VersionTLS10,

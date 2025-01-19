@@ -7,6 +7,9 @@ import (
 )
 
 var (
+	Error500 = []string{
+		"An internal server error has occurred. Please try again later.",
+	}
 	Error601 = []string{
 		"An internal DNS issue has occurred. Please try again later.",
 	}
