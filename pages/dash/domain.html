@@ -143,8 +143,6 @@
                 .then(response => response.json())
                 .then(data => data);
 
-            alert(domainData);
-
             const table = document.getElementById("record-table");
             domainData.forEach(record => {
                 const row = table.insertRow();
