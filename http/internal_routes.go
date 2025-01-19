@@ -28,14 +28,10 @@ func init() {
 
 func passThroughHandler(path string, handler fasthttp.RequestHandler) {
 	EndpointList[path] = handler
-	fasthttp.ListenAndServe(path, func(ctx *fasthttp.RequestCtx) {
-		handler(ctx)
-	})
 }
 
 func userHandler(path string, handler fasthttp.RequestHandler, method string) {
-	EndpointList[path] = handler
-	fasthttp.ListenAndServe(path, func(ctx *fasthttp.RequestCtx) {
+	EndpointList[path] = func(ctx *fasthttp.RequestCtx) {
 		if string(ctx.Method()) != method {
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
@@ -73,5 +69,5 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 		ctx.Response.Header.Set("Content-Type", "application/json")
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBody([]byte(`{"message": "Unauthorized"}`))
-	})
+	}
 }
