@@ -1,10 +1,12 @@
 package wiredhttps
 
 import (
+	"fmt"
 	internal_routes "wiredshield/http/routes/.wiredshield"
 	auth_routes "wiredshield/http/routes/api/auth"
 	domain_routes "wiredshield/http/routes/api/domains"
 	"wiredshield/modules/jwt"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -48,6 +50,8 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 			ctx.SetBody([]byte(`{"message": "Unauthorized"}`))
 			return
 		}
+
+		services.ProcessService.InfoLog(fmt.Sprintf("Authorization: %s", authorization))
 
 		token := authorization[6:] // @Northernside TODO: gotta add proper cookie parsing later
 		claims, err := jwt.ValidateToken(token)
