@@ -8,7 +8,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var EndpointList map[string]func(*fasthttp.RequestCtx)
+var EndpointList = make(map[string]func(*fasthttp.RequestCtx))
 
 func init() {
 	passThroughHandler("/.wiredshield/proxy-auth", internal_routes.ProxyAuth)
