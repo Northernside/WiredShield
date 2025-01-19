@@ -162,6 +162,9 @@ func (log *DNSRequestLog) BatchInsert(logs []*DNSRequestLog) error {
 	values := make([]interface{}, 0, len(logs)*9)
 
 	for i, log := range logs {
+		log.ClientIP = strings.ReplaceAll(log.ClientIP, "[", "")
+		log.ClientIP = strings.ReplaceAll(log.ClientIP, "]", "")
+
 		placeholders[i] = fmt.Sprintf(
 			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			i*9+1, i*9+2, i*9+3, i*9+4, i*9+5, i*9+6, i*9+7, i*9+8, i*9+9,
