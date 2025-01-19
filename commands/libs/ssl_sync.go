@@ -4,13 +4,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"wiredshield/modules/env"
 	"wiredshield/services"
 	"wiredshield/utils/b64"
 	"wiredshield/utils/signing"
 )
 
 func syncSet(domain, certContent, keyContent string) error {
-	req, err := http.NewRequest("GET", "https://meow.wired.rip/.wiredshield/ssl-update", nil) // TODO: load urls by nodes
+	var partnerMaster string
+	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
+		partnerMaster = "meow"
+	} else {
+		partnerMaster = "woof"
+	}
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.wired.rip/.wiredshield/ssl-update", partnerMaster), nil)
 	if err != nil {
 		return err
 	}
@@ -39,7 +47,14 @@ func syncSet(domain, certContent, keyContent string) error {
 }
 
 func syncDel(domain string) error {
-	req, err := http.NewRequest("GET", "https://meow.wired.rip/.wiredshield/dns-update", nil) // TODO: load urls by nodes
+	var partnerMaster string
+	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
+		partnerMaster = "meow"
+	} else {
+		partnerMaster = "woof"
+	}
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.wired.rip/.wiredshield/ssl-update", partnerMaster), nil)
 	if err != nil {
 		return err
 	}
