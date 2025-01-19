@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	wireddns "wiredshield/dns"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
 	pages "wiredshield/pages"
@@ -93,10 +92,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// check if the target == dns.ProcessIPv4
-	service.InfoLog(fmt.Sprintf("target: %v", targetRecords[0].(*db.ARecord).IP))
-	service.InfoLog(fmt.Sprintf("wireddns.ProcessIPv4: %v", wireddns.ProcessIPv4))
-	if targetRecords[0].(*db.ARecord).IP == wireddns.ProcessIPv4 {
+	if targetRecords[0].(*db.ARecord).IP == "45.157.11.82" || targetRecords[0].(*db.ARecord).IP == "85.117.241.142" {
 		errorPage := pages.ErrorPage{Code: 604, Message: pages.Error604}
 		ctx.SetStatusCode(fasthttp.StatusBadGateway)
 		ctx.Response.Header.Set("Content-Type", "text/html")
