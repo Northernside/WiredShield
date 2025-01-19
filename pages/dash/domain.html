@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiredShield - Error {{code}}</title>
+    <title>WiredShield - Domain Management</title>
 </head>
 <style>
     * {
@@ -137,6 +137,8 @@
             alert("No domain specified");
             window.location.href = "/.wiredshield/dash/domains";
         }
+
+        document.title = `WiredShield - ${domain}`;
 
         (async () => {
             const domainData = await fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`)
