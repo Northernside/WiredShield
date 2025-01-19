@@ -94,6 +94,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	// check if the target == dns.ProcessIPv4
+	service.InfoLog(fmt.Sprintf("target: %v", targetRecords[0].(*db.ARecord).IP))
+	service.InfoLog(fmt.Sprintf("wireddns.ProcessIPv4: %v", wireddns.ProcessIPv4))
 	if targetRecords[0].(*db.ARecord).IP == wireddns.ProcessIPv4 {
 		errorPage := pages.ErrorPage{Code: 604, Message: pages.Error604}
 		ctx.SetStatusCode(fasthttp.StatusBadGateway)
