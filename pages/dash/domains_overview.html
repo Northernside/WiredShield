@@ -112,7 +112,7 @@
     </div>
     <script>
         (async () => {
-            const domainList = await fetch(`https://dash.as214428.net/.wiredshield/api/domains`)
+            let domainList = await fetch(`https://dash.as214428.net/.wiredshield/api/domains`)
                 .then(response => response.json())
                 .then(data => data);
 
