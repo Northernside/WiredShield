@@ -85,7 +85,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	if err != nil || len(targetRecords) == 0 {
 		// ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
 		errorPage := pages.ErrorPage{Code: 601, Message: pages.Error601}
-		ctx.SetStatusCode(fasthttp.StatusBadGateway)
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
 		logRequest(ctx, nil, timeStart, 601, 0, 0)
@@ -94,7 +94,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	if targetRecords[0].(*db.ARecord).IP == "45.157.11.82" || targetRecords[0].(*db.ARecord).IP == "85.117.241.142" {
 		errorPage := pages.ErrorPage{Code: 604, Message: pages.Error604}
-		ctx.SetStatusCode(fasthttp.StatusBadGateway)
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
 		logRequest(ctx, nil, timeStart, 604, 0, 0)

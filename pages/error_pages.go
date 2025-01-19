@@ -13,6 +13,9 @@ var (
 	Error601 = []string{
 		"An internal DNS issue has occurred. Please try again later.",
 	}
+	Error602 = []string{
+		"The website you're trying to reach is currently not able to handle your request.",
+	}
 	Error603 = []string{
 		"The website you're trying to reach is currently not able to accept any connections.",
 		"This could occur due to a few different reasons, very likely due to the server being offline.",
