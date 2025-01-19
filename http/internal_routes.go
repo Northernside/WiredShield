@@ -4,6 +4,7 @@ import (
 	internal_routes "wiredshield/http/routes/.wiredshield"
 	auth_routes "wiredshield/http/routes/api/auth"
 	domain_routes "wiredshield/http/routes/api/domains"
+	record_routes "wiredshield/http/routes/api/domains/records"
 	"wiredshield/modules/jwt"
 
 	"github.com/valyala/fasthttp"
@@ -22,7 +23,7 @@ func init() {
 	passThroughHandler("/.wiredshield/api/auth/discord/callback", auth_routes.AuthDiscordCallback)
 
 	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
-	userHandler("/.wiredshield/api/domains/records", domain_routes.GetRecords, "GET")
+	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "GET")
 }
 
 func passThroughHandler(path string, handler fasthttp.RequestHandler) {
