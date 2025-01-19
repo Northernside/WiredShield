@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiredShield - Error {{code}}</title>
+</head>
+<style>
+    * {
+        box-sizing: border-box;
+        color: #ffffff;
+    }
+
+    body {
+        background-color: #000000;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+    }
+
+    .header {
+        display: flex;
+        align-items: center;
+        padding: 32px;
+    }
+
+    .header img {
+        margin-right: 16px;
+        width: 64px;
+        height: auto;
+    }
+
+    .header h1 {
+        font-size: 32px;
+        font-weight: 900;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .domain-list {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 16px;
+        padding: 16px;
+        user-select: none;
+    }
+
+    .domain-name h2 {
+        margin: 0;
+    }
+
+    .domain {
+        background-color: #1C1C1C;
+        border: 1px solid #3b3b3b;
+        border-radius: 8px;
+        padding: 16px;
+        text-decoration: none;
+    }
+
+    .domain:hover {
+        background-color: #2C2C2C;
+        transition: background-color 0.2s;
+        cursor: pointer;
+    }
+
+    .footer {
+        width: 100%;
+        text-align: center;
+        padding: 16px;
+        margin-top: auto;
+        background-color: #000000;
+        box-sizing: border-box;
+    }
+
+    .footer p {
+        color: #CBCBCB;
+        margin: 0;
+    }
+</style>
+
+<body>
+    <div class="page">
+        <div class="header">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGVsbGlwc2UgY3g9IjQ4LjIwMzQiIGN5PSI0OC4yMDQxIiByeD0iOC4xNzAxOSIgcnk9IjguMTcwMTkiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSIzMS44NjM2IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjYwLjQ1OTEiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSI2NC41NDQ1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSI2MC40NTk1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjY0LjU0NSIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iNjAuNDU5MSIgY3k9IjYwLjQ1OTUiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iMzEuODYzNCIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSI0Ny45OTk5IiBjeT0iMTEuNjQyNSIgcj0iMTEuNjQyNSIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSIyMS4wMzciIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9Ijc0Ljk2MDkiIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjQ3Ljk5OTkiIGN5PSI4NC4zNTcxIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjIxLjAzNyIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iODQuMzU3NCIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iNzQuOTYwOSIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iMTEuNjQyNSIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPC9zdmc+"
+                alt="WiredShield Logo" width="96px" height="96px">
+            <h1>WiredShield</h1>
+        </div>
+        <div class="domain-list">
+            <a id="domain-northernsi.de" class="domain" href="/.wiredshield/dash/northernsi.de">
+                <div class="domain-name">
+                    <h2>northernsi.de</h2>
+                </div>
+            </a>
+            <a id="domain-wired.rip" class="domain" href="/.wiredshield/dash/wired.rip">
+                <div class="domain-name">
+                    <h2>wired.rip</h2>
+                </div>
+            </a>
+            <a id="domain-as214428.net" class="domain" href="/.wiredshield/dash/as214428.net">
+                <div class="domain-name">
+                    <h2>as214428.net</h2>
+                </div>
+            </a>
+        </div>
+        <div class="footer">
+            <p>
+                protected & managed by
+                <span>
+                    <a href="https://github.com/Northernside/WiredShield">WiredShield</a>
+                </span>
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>

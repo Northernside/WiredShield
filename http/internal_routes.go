@@ -2,6 +2,7 @@ package wiredhttps
 
 import (
 	internal_routes "wiredshield/http/routes/.wiredshield"
+	pages_routes "wiredshield/http/routes/.wiredshield/pages"
 	auth_routes "wiredshield/http/routes/api/auth"
 	domain_routes "wiredshield/http/routes/api/domains"
 	record_routes "wiredshield/http/routes/api/domains/records"
@@ -24,6 +25,9 @@ func init() {
 
 	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
 	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "GET")
+
+	userHandler("/.wiredshield/dash/domains", pages_routes.GetDomainsOverview, "GET")
+	userHandler("/.wiredshield/dash/domain", pages_routes.GetDomain, "GET")
 }
 
 func passThroughHandler(path string, handler fasthttp.RequestHandler) {

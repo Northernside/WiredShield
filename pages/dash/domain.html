@@ -34,34 +34,53 @@
     .header {
         display: flex;
         align-items: center;
-        padding: 32px 32px 0 32px;
+        padding: 32px;
     }
 
     .header img {
         margin-right: 16px;
-        max-width: 100%;
+        width: 64px;
         height: auto;
     }
 
     .header h1 {
-        font-size: 48px;
+        font-size: 32px;
         font-weight: 900;
         margin: 0;
         line-height: 1;
     }
 
-    .error {
-        margin: 16px 32px 0 32px;
+    .record-list table {
+        width: 60%;
+        max-width: 600px;
+        margin: auto;
+        border-collapse: collapse;
     }
 
-    .error h1 {
-        color: #CBCBCB;
-        margin-bottom: 4px;
+    .record-list td {
+        padding: 8px 16px;
+        white-space: nowrap;
+        text-align: left;
+
+        border: 1px solid #2a2a2a;
     }
 
-    .error p {
-        color: #CBCBCB;
-        font-size: 22px;
+    .record-list tr {
+        background-color: #0c0c0c;
+    }
+
+    .record-list td:last-child {
+        text-align: right;
+    }
+
+    .record {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        gap: 32px;
+    }
+
+    .record p {
         margin: 0;
     }
 
@@ -80,17 +99,12 @@
     }
 
     @media (max-width: 768px) {
-        .header h1 {
-            font-size: 32px;
+        .record-list table {
+            width: 90%;
         }
 
-        .header img {
-            width: 64px;
-            height: auto;
-        }
-
-        .error p {
-            font-size: 18px;
+        .record-list td {
+            padding: 6px 12px;
         }
     }
 </style>
@@ -102,9 +116,9 @@
                 alt="WiredShield Logo" width="96px" height="96px">
             <h1>WiredShield</h1>
         </div>
-        <div class="error">
-            <h1>Error {{code}}</h1>
-            {{info-lines}}
+        <div class="record-list">
+            <table id="record-table">
+            </table>
         </div>
         <div class="footer">
             <p>
@@ -115,6 +129,33 @@
             </p>
         </div>
     </div>
+
+    <script>
+        // load from query
+        const domain = new URLSearchParams(window.location.search).get("domain");
+        if (!domain) {
+            alert("No domain specified");
+            window.location.href = "/.wiredshield/dash/domains";
+        }
+
+        (async () => {
+            const domainData = await fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`)
+                .then(response => response.json())
+                .then(data => data);
+
+            alert(domainData);
+
+            const table = document.getElementById("record-table");
+            domainData.forEach(record => {
+                const row = table.insertRow();
+                const keys = Object.keys(record);
+                keys.forEach(key => {
+                    const cell = row.insertCell();
+                    cell.appendChild(document.createTextNode(record[key]));
+                });
+            });
+        })();
+    </script>
 </body>
 
 </html>

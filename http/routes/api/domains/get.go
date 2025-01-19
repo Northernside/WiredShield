@@ -3,7 +3,7 @@ package routes
 import (
 	"encoding/json"
 	"wiredshield/modules/db"
-	pages "wiredshield/pages"
+	errorpages "wiredshield/pages/error"
 
 	"github.com/valyala/fasthttp"
 )
@@ -15,9 +15,9 @@ func GetDomains(ctx *fasthttp.RequestCtx) {
 	jsonDomains, err := json.Marshal(domains)
 	if err != nil {
 		var errorLines []string
-		errorLines = append(errorLines, pages.Error500...)
+		errorLines = append(errorLines, errorpages.Error500...)
 		errorLines = append(errorLines, err.Error())
-		errorPage := pages.ErrorPage{Code: 500, Message: errorLines}
+		errorPage := errorpages.ErrorPage{Code: 500, Message: errorLines}
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
