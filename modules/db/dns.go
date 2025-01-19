@@ -336,7 +336,19 @@ func GetAllDomains() ([]string, error) {
 		}
 	})
 
-	return domains, err
+	// filter for second-level domains
+	var filteredDomains []string
+	for _, domain := range domains {
+		secondLevelDomain, err := getSecondLevelDomain(domain)
+		if err != nil {
+			services.ProcessService.ErrorLog(fmt.Sprintf("Failed to get second-level domain: %v", err))
+			continue
+		}
+
+		filteredDomains = append(filteredDomains, secondLevelDomain)
+	}
+
+	return filteredDomains, err
 }
 
 func GetRecords(recordType, domain string) ([]DNSRecord, error) {
