@@ -36,6 +36,7 @@ func main() {
 	// setup master/node handling
 	if env.GetEnv("MASTER", "false") == "true" {
 		handlers.MasterHandling()
+		services.ClientName = env.GetEnv("CLIENT_NAME", "unknown")
 	} else {
 		handlers.NodeHandling()
 	}
