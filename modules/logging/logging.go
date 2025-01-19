@@ -191,7 +191,7 @@ func (log *DNSRequestLog) BatchInsert(logs []*DNSRequestLog) error {
 
 	_, err = transaction.Exec(context.Background(), query, values...)
 	if err != nil {
-		return fmt.Errorf("batch insert failed: %v", err)
+		return fmt.Errorf("batch insert failed (w/ ip %s): %v", log.ClientIP, err)
 	}
 
 	return transaction.Commit(context.Background())
