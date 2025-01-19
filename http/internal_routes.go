@@ -16,8 +16,9 @@ func init() {
 	passThroughHandler("/.wiredshield/ssl-update", internal_routes.SSLUpdate)
 	passThroughHandler("/.wiredshield/info", internal_routes.Info)
 
-	passThroughHandler("/api/auth", routes.Auth)
-	passThroughHandler("/api/auth/discord", routes.AuthDiscord)
+	passThroughHandler("/.wiredshield/api/auth", routes.Auth)
+	passThroughHandler("/.wiredshield/api/auth/discord", routes.AuthDiscord)
+	passThroughHandler("/.wiredshield/api/auth/discord/callback", routes.AuthDiscordCallback)
 }
 
 func passThroughHandler(path string, handler fasthttp.RequestHandler) {
