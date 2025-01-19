@@ -20,7 +20,7 @@ var (
 
 func init() {
 	AuthService.Boot = func() {
-		services.ProcessService.OnlineSince = time.Now().Unix()
+		AuthService.OnlineSince = time.Now().Unix()
 
 		file, err := os.OpenFile("whitelist.txt", os.O_RDONLY, 0644)
 		if err != nil {
