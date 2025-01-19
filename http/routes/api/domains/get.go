@@ -9,20 +9,15 @@ import (
 )
 
 func GetDomains(ctx *fasthttp.RequestCtx) {
-	domains, err := db.GetAllDomains()
-	if err != nil {
-		errorPage := pages.ErrorPage{Code: 500, Message: pages.Error500}
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.Response.Header.Set("Content-Type", "text/html")
-		ctx.SetBodyString(errorPage.ToHTML())
-		return
-	}
-
+	domains, _ := db.GetAllDomains()
 	ctx.Response.Header.Set("Content-Type", "application/json")
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	jsonDomains, err := json.Marshal(domains)
 	if err != nil {
-		errorPage := pages.ErrorPage{Code: 500, Message: pages.Error500}
+		var errorLines []string
+		errorLines = append(errorLines, pages.Error500...)
+		errorLines = append(errorLines, err.Error())
+		errorPage := pages.ErrorPage{Code: 500, Message: errorLines}
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
