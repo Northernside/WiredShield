@@ -144,6 +144,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	// 301 & 308 -> permanent redirect
 	// 302, 303, 307 -> temporary redirect
 	case 301, 308, 302, 303, 307:
+		service.InfoLog(fmt.Sprintf("redirecting %s to %s", ctx.Host(), resp.Header.Peek("Location")))
 		location := resp.Header.Peek("Location")
 		if len(location) == 0 {
 			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
