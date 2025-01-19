@@ -73,8 +73,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	}()
 
 	// internal routes
-	if strings.HasPrefix(string(ctx.Path()), "/.wiredshield/") {
-		handleWiredShieldEndpoints(ctx)
+	if handler, exists := EndpointList[string(ctx.Path())]; exists {
+		handler(ctx)
 		return
 	}
 
