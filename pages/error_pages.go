@@ -17,6 +17,9 @@ var (
 		"The website you're trying to reach is currently not able to accept any connections.",
 		"This could occur due to a few different reasons, very likely due to the server being offline.",
 	}
+	Error604 = []string{ // error occurs when requesting internal pages not available
+		"The website you're trying to reach lies within the internal WiredShield infrastructure and is not available to the public.",
+	}
 	Error605 = []string{
 		"The website you're trying to reach is currently not responding (Timeout exceeded).",
 		"This could occur due to a few different reasons, very likely due to the server being offline.",
