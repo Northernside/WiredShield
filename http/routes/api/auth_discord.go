@@ -2,8 +2,6 @@ package routes
 
 import (
 	"fmt"
-
-	"fmt"
 	"wiredshield/modules/env"
 
 	"github.com/valyala/fasthttp"
