@@ -112,12 +112,13 @@
     </div>
     <script>
         (async () => {
-            const domainData = await fetch(`https://dash.as214428.net/.wiredshield/api/domains`)
+            const domainList = await fetch(`https://dash.as214428.net/.wiredshield/api/domains`)
                 .then(response => response.json())
                 .then(data => data);
 
-            const domainList = document.querySelector(".domain-list");
-            domainData.forEach(domain => {
+            const listContainer = document.querySelector(".domain-list");
+            domainList = domainList.sort((a, b) => a.localeCompare(b));
+            domainList.forEach(domain => {
                 const domainElement = document.createElement("a");
                 domainElement.id = `domain-${domain}`;
                 domainElement.className = "domain";
@@ -127,7 +128,8 @@
                         <h2>${domain}</h2>
                     </div>
                 `;
-                domainList.appendChild(domainElement);
+
+                listContainer.appendChild(domainElement);
             });
         })();
     </script>
