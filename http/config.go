@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	pages "wiredshield/pages"
+
 	"github.com/valyala/fasthttp"
 )
 
@@ -20,9 +22,9 @@ var (
 		MaxConnsPerIP:  1024 ^ 2,
 		ReadTimeout:    5 * time.Second,
 		ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
-			errorPage := ErrorPage{
+			errorPage := pages.ErrorPage{
 				Code:    500,
-				Message: Error500,
+				Message: pages.Error500,
 			}
 
 			ctx.SetContentType("text/html")

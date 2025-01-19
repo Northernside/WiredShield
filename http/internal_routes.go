@@ -2,7 +2,8 @@ package wiredhttps
 
 import (
 	internal_routes "wiredshield/http/routes/.wiredshield"
-	routes "wiredshield/http/routes/api"
+	auth_routes "wiredshield/http/routes/api/auth"
+	domain_routes "wiredshield/http/routes/api/domains"
 	"wiredshield/modules/jwt"
 
 	"github.com/valyala/fasthttp"
@@ -16,9 +17,11 @@ func init() {
 	passThroughHandler("/.wiredshield/ssl-update", internal_routes.SSLUpdate)
 	passThroughHandler("/.wiredshield/info", internal_routes.Info)
 
-	passThroughHandler("/.wiredshield/api/auth", routes.Auth)
-	passThroughHandler("/.wiredshield/api/auth/discord", routes.AuthDiscord)
-	passThroughHandler("/.wiredshield/api/auth/discord/callback", routes.AuthDiscordCallback)
+	passThroughHandler("/.wiredshield/api/auth", auth_routes.Auth)
+	passThroughHandler("/.wiredshield/api/auth/discord", auth_routes.AuthDiscord)
+	passThroughHandler("/.wiredshield/api/auth/discord/callback", auth_routes.AuthDiscordCallback)
+
+	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
 }
 
 func passThroughHandler(path string, handler fasthttp.RequestHandler) {
@@ -56,7 +59,7 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 		}
 
 		// routes.WhitelistedIds
-		for _, id := range routes.WhitelistedIds {
+		for _, id := range auth_routes.WhitelistedIds {
 			if id == claims["discord_id"] {
 				handler(ctx)
 				return

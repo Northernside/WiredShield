@@ -6,7 +6,6 @@ import (
 
 	"wiredshield/modules/env"
 	"wiredshield/modules/jwt"
-	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -100,7 +99,5 @@ func AuthDiscordCallback(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("User %s authenticated", user.ID))
-	services.ProcessService.InfoLog(fmt.Sprintf("token: %s", jwtToken))
 	ctx.Redirect(fmt.Sprintf("%s/.wiredshield/api/auth?token="+jwtToken, env.GetEnv("SERVICE_URL", "")), fasthttp.StatusFound)
 }

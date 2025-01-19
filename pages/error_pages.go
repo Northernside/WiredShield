@@ -1,4 +1,4 @@
-package wiredhttps
+package errorpages
 
 import (
 	"bytes"

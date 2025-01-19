@@ -11,6 +11,7 @@ import (
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
+	pages "wiredshield/pages"
 	"wiredshield/services"
 
 	_ "github.com/lib/pq"
@@ -83,7 +84,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
 	if err != nil || len(targetRecords) == 0 {
 		// ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
-		errorPage := ErrorPage{Code: 601, Message: Error601}
+		errorPage := pages.ErrorPage{Code: 601, Message: pages.Error601}
 		ctx.SetStatusCode(fasthttp.StatusBadGateway)
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
@@ -123,7 +124,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		if err == fasthttp.ErrTimeout {
 			service.ErrorLog(fmt.Sprintf("timeout contacting backend (%s): %v", targetURL, err))
 
-			errorPage := ErrorPage{Code: 605, Message: Error605}
+			errorPage := pages.ErrorPage{Code: 605, Message: pages.Error605}
 			ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 			ctx.Response.Header.Set("Content-Type", "text/html")
 			ctx.SetBodyString(errorPage.ToHTML())
@@ -131,7 +132,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		} else {
 			service.ErrorLog(fmt.Sprintf("error contacting backend (%s): %v", targetURL, err))
 
-			errorPage := ErrorPage{Code: 603, Message: Error603}
+			errorPage := pages.ErrorPage{Code: 603, Message: pages.Error603}
 			ctx.SetStatusCode(fasthttp.StatusBadGateway)
 			ctx.Response.Header.Set("Content-Type", "text/html")
 			ctx.SetBodyString(errorPage.ToHTML())
