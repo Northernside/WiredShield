@@ -80,6 +80,9 @@ func (log *HTTPRequestLog) BatchInsert(logs []*HTTPRequestLog) error {
 	values := make([]interface{}, 0, len(logs)*16)
 
 	for i, log := range logs {
+		log.ClientIP = strings.ReplaceAll(log.ClientIP, "[", "")
+		log.ClientIP = strings.ReplaceAll(log.ClientIP, "]", "")
+
 		placeholders[i] = fmt.Sprintf(
 			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			i*15+1, i*15+2, i*15+3, i*15+4, i*15+5, i*15+6, i*15+7, i*15+8,
