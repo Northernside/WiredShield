@@ -348,7 +348,24 @@ func GetAllDomains() ([]string, error) {
 		filteredDomains = append(filteredDomains, secondLevelDomain)
 	}
 
+	// remove duplicates
+	filteredDomains = removeDuplicates(filteredDomains)
+
 	return filteredDomains, err
+}
+
+func removeDuplicates(domains []string) []string {
+	uniqueDomains := make(map[string]struct{})
+	for _, domain := range domains {
+		uniqueDomains[domain] = struct{}{}
+	}
+
+	var uniqueDomainList []string
+	for domain := range uniqueDomains {
+		uniqueDomainList = append(uniqueDomainList, domain)
+	}
+
+	return uniqueDomainList
 }
 
 func GetRecords(recordType, domain string) ([]DNSRecord, error) {
