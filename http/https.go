@@ -210,10 +210,10 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 	c, err := tls.LoadX509KeyPair(fmt.Sprintf("certs/%s.crt", domain), fmt.Sprintf("certs/%s.key", domain))
 	if err == nil {
 		certCache.Store(domain, &c)
-	}
-
-	if strings.Contains(err.Error(), "no such file or directory") {
-		return &c, nil
+	} else {
+		if strings.Contains(err.Error(), "no such file or directory") {
+			return &c, nil
+		}
 	}
 
 	return &c, err
