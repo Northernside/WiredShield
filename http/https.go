@@ -73,8 +73,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	}()
 
 	// internal routes
-	if handler, exists := EndpointList[string(ctx.Path())]; exists {
-		service.InfoLog(fmt.Sprintf("internal route hit: %s", string(ctx.Path())))
+	cleanedPath := strings.Split(string(ctx.Path()), "?")[0]
+	if handler, exists := EndpointList[string(cleanedPath)]; exists {
 		handler(ctx)
 		return
 	}
