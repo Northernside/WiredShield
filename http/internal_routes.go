@@ -38,6 +38,8 @@ func PrepareResponse(ctx *fasthttp.RequestCtx) {
 	cleanedPath := strings.Split(string(ctx.Path()), "?")[0]
 	cleanedPath = strings.Split(cleanedPath, "#")[0]
 
+	services.ProcessService.InfoLog(fmt.Sprintf("Requ222esting %s", cleanedPath))
+
 	html, code := dashpages.PageResponse(cleanedPath)
 	ctx.SetStatusCode(code)
 	if strings.HasSuffix(cleanedPath, ".css") {
@@ -94,7 +96,7 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 	services.ProcessService.InfoLog(fmt.Sprintf("path: %s", path))
 	for k, v := range EndpointList {
-		services.ProcessService.InfoLog(fmt.Sprintf("k: %s", k))
+		//services.ProcessService.InfoLog(fmt.Sprintf("k: %s", k))
 		if ok, _ := matchPattern(k, path); ok {
 			return v, true
 		}
