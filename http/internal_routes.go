@@ -1,6 +1,7 @@
 package wiredhttps
 
 import (
+	"fmt"
 	"strings"
 	internal_routes "wiredshield/http/routes/.wiredshield"
 	auth_routes "wiredshield/http/routes/api/auth"
@@ -26,6 +27,7 @@ func init() {
 
 	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
 	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "GET")
+	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "POST")
 
 	userHandler("/.wiredshield/dash", PrepareResponse, "GET")
 	userHandler("/.wiredshield/dash/domain/:domain", PrepareResponse, "GET")
@@ -63,7 +65,7 @@ func passThroughHandler(path string, handler fasthttp.RequestHandler) {
 }
 
 func userHandler(path string, handler fasthttp.RequestHandler, method string) {
-	EndpointList[path] = func(ctx *fasthttp.RequestCtx) {
+	EndpointList[fmt.Sprintf("%s:%s", method, path)] = func(ctx *fasthttp.RequestCtx) {
 		ctx.SetUserValue("path", path)
 		if string(ctx.Method()) != method {
 			ctx.Response.Header.Set("Content-Type", "application/json")
@@ -103,6 +105,8 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 	for k, v := range EndpointList {
+		// remove the method from the key
+		k = strings.Split(k, ":")[1]
 		if ok, _ := matchPattern(k, path); ok {
 			return v, true
 		}
