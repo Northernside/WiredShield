@@ -264,8 +264,9 @@
                 body: JSON.stringify(record)
             })
                 .then((response) => response.text())
-                .then((data) => {
+                .then(async (data) => {
                     closeAddRecordModal();
+                    await new Promise((resolve) => setTimeout(resolve, 150));
                     fetchRecords();
                 })
                 .catch((error) => {
