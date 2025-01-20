@@ -40,10 +40,12 @@ func PrepareResponse(ctx *fasthttp.RequestCtx) {
 	cleanedPath = strings.Split(cleanedPath, "#")[0]
 	// remove any :params, check by each /, so e.g. /.wiredshield/dash/domain/northernsi.de will be /wiredshield/dash/domain because /.wiredshield/dash/domain/northernsi.de originates from /wiredshield/dash/domain/:domain
 	userPath := ctx.UserValue("path").(string)
+	services.ProcessService.InfoLog(fmt.Sprintf("userPath: %s, cleanedPath: %s", userPath, cleanedPath))
 	if ok, params := matchPattern(userPath, cleanedPath); ok {
 		for _, v := range params {
 			// remove the :param from the path
 			cleanedPath = strings.Replace(cleanedPath, v, "", 1)
+			services.ProcessService.InfoLog(fmt.Sprintf("cleanedPath: %s", cleanedPath))
 		}
 	}
 
