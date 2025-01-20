@@ -21,4 +21,7 @@ func DeleteRecord(ctx *fasthttp.RequestCtx) {
 
 	_id, _ := strconv.Atoi(id)
 	db.DeleteRecord(uint64(_id), domain, false)
+
+	ctx.SetStatusCode(200)
+	ctx.SetBodyString("Record deleted")
 }

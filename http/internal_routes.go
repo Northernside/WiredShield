@@ -30,7 +30,7 @@ func init() {
 	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
 	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "GET")
 	userHandler("/.wiredshield/api/domains/records", record_routes.AddRecord, "POST")
-	userHandler("/.wiredshield/api/domains/records/:id", record_routes.AddRecord, "DELETE")
+	userHandler("/.wiredshield/api/domains/records/:id", record_routes.DeleteRecord, "DELETE")
 
 	userHandler("/.wiredshield/dash", PrepareResponse, "GET")
 	userHandler("/.wiredshield/dash/domain/:domain", PrepareResponse, "GET")
