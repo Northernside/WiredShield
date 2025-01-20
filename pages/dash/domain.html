@@ -5,228 +5,181 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WiredShield - Domain Management</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #171717;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            height: 40px;
+            width: 100%;
+            background-color: #252525;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        header img {
+            max-height: 100%;
+        }
+
+        .content {
+            margin: 20px;
+        }
+
+        .record-list {
+            margin-bottom: 40px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: #222222;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 10px;
+            border: 1px solid #444444;
+        }
+
+        th {
+            background-color: #333333;
+        }
+
+        tr:hover {
+            background-color: #2a2a2a;
+        }
+
+        .add-btn {
+            background-color: #00a1e0;
+            color: #ffffff;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s ease-in-out;
+            margin-bottom: 20px;
+        }
+
+        .add-btn:hover {
+            background-color: #007aa8;
+        }
+
+        .table-title {
+            margin: 10px 0;
+        }
+    </style>
 </head>
-<style>
-    * {
-        box-sizing: border-box;
-    }
-
-    body {
-        background-color: #121212;
-        color: #ffffff;
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-    }
-
-    .header {
-        display: flex;
-        align-items: center;
-        background: #1e1e1e;
-        padding: 20px;
-    }
-
-    .header img {
-        margin-right: 10px;
-    }
-
-    .header h1 {
-        font-size: 24px;
-        margin: 0;
-    }
-
-    .main {
-        padding: 20px;
-    }
-
-    .record-list table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 20px;
-        background-color: #1e1e1e;
-        border: 1px solid #333333;
-    }
-
-    .record-list th,
-    .record-list td {
-        padding: 10px;
-        text-align: left;
-        border: 1px solid #333333;
-    }
-
-    .record-list th {
-        background-color: #333333;
-    }
-
-    .record-list tr:hover {
-        background-color: #2a2a2a;
-    }
-
-    .actions button {
-        background-color: #0077ff;
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: background-color 0.2s ease-in-out;
-    }
-
-    .actions button:hover {
-        background-color: #005ecc;
-    }
-
-    .add-record-modal {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #222222;
-        padding: 20px;
-        border-radius: 8px;
-        border: 1px solid #444444;
-        display: none;
-        z-index: 1000;
-    }
-
-    .add-record-modal form {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .add-record-modal input,
-    .add-record-modal select {
-        padding: 8px;
-        border: 1px solid #444444;
-        border-radius: 4px;
-        background-color: #1e1e1e;
-        color: #ffffff;
-    }
-
-    .add-record-modal button {
-        align-self: flex-end;
-        background-color: #0077ff;
-    }
-
-    .overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: none;
-        z-index: 999;
-    }
-</style>
 
 <body>
-    <div class="header">
-        <img src="data:image/svg+xml;base64,..." alt="WiredShield Logo" width="64">
-        <h1>WiredShield - Domain Management</h1>
+    <header>
+        <img src="data:image/svg+xml;base64,..." alt="WiredShield Logo">
+    </header>
+    <div class="content">
+        <button class="add-btn" onclick="openAddRecordModal()">+ Add Record</button>
+        <div id="record-list"></div>
     </div>
-    <div class="main">
-        <div class="actions">
-            <button onclick="openAddRecordModal()">+ Add Record</button>
-        </div>
-        <div class="record-list">
-            <table id="record-table">
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Domain</th>
-                        <th>Value</th>
-                        <th>Priority</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="add-record-modal" id="addRecordModal">
-        <form id="addRecordForm">
-            <h3>Add DNS Record</h3>
-            <select name="type" required>
-                <option value="A">A</option>
-                <option value="AAAA">AAAA</option>
-                <option value="NS">NS</option>
-                <option value="TXT">TXT</option>
-                <option value="MX">MX</option>
-                <option value="SOA">SOA</option>
-                <option value="CAA">CAA</option>
-                <option value="SRV">SRV</option>
-                <option value="CNAME">CNAME</option>
-            </select>
-            <input type="text" name="domain" placeholder="Domain" required>
-            <input type="text" name="value" placeholder="Value" required>
-            <input type="number" name="priority" placeholder="Priority (for MX only)" min="0">
-            <button type="submit">Add Record</button>
-            <button type="button" onclick="closeAddRecordModal()">Cancel</button>
-        </form>
-    </div>
-    <div class="overlay" id="overlay" onclick="closeAddRecordModal()"></div>
 
     <script>
         const domain = window.location.pathname.split("/").pop();
-        const overlay = document.getElementById('overlay');
-        const addRecordModal = document.getElementById('addRecordModal');
-        const addRecordForm = document.getElementById('addRecordForm');
 
-        function openAddRecordModal() {
-            overlay.style.display = 'block';
-            addRecordModal.style.display = 'block';
-        }
-
-        function closeAddRecordModal() {
-            overlay.style.display = 'none';
-            addRecordModal.style.display = 'none';
-        }
-
-        function fetchData() {
+        // Utility: Fetches the DNS records
+        function fetchRecords() {
             fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`)
                 .then(response => response.json())
-                .then(data => {
-                    const tbody = document.querySelector('#record-table tbody');
-                    tbody.innerHTML = '';
-                    data.forEach(record => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${record.type}</td>
-                            <td>${record.name}</td>
-                            <td>${record.value}</td>
-                            <td>${record.priority || ''}</td>
-                            <td>
-                                <button onclick="deleteRecord(${record.id})">Delete</button>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                });
+                .then(data => displayRecords(data))
+                .catch(error => console.error('Error fetching records:', error));
         }
 
+        // Utility: Groups records by their type
+        function groupRecordsByType(records) {
+            return records.reduce((groups, record) => {
+                const { type } = record;
+                if (!groups[type]) groups[type] = [];
+                groups[type].push(record);
+                return groups;
+            }, {});
+        }
+
+        // Renders the DNS records into grouped tables
+        function displayRecords(records) {
+            const groupedRecords = groupRecordsByType(records);
+            const container = document.getElementById("record-list");
+            container.innerHTML = "";
+
+            Object.keys(groupedRecords).forEach(type => {
+                // Create table for each group
+                const table = document.createElement("table");
+                const title = document.createElement("h3");
+                title.className = "table-title";
+                title.textContent = `Records - ${type}`;
+                container.appendChild(title);
+
+                const thead = document.createElement("thead");
+                const headerRow = document.createElement("tr");
+
+                // Create table headers dynamically based on record keys
+                const headers = Object.keys(groupedRecords[type][0] || {});
+                headers.forEach(header => {
+                    if (header !== "id") { // Skip hidden fields like `.id`
+                        const th = document.createElement("th");
+                        th.textContent = header.charAt(0).toUpperCase() + header.slice(1);
+                        headerRow.appendChild(th);
+                    }
+                });
+                headerRow.innerHTML += "<th>Actions</th>"; // Add an "Actions" column
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                const tbody = document.createElement("tbody");
+
+                groupedRecords[type].forEach(record => {
+                    const row = document.createElement("tr");
+                    headers.forEach(key => {
+                        if (key !== "id") { // Skip hidden fields
+                            const td = document.createElement("td");
+                            td.textContent = record[key] || "";
+                            row.appendChild(td);
+                        }
+                    });
+
+                    // Add actions column
+                    const actionsTd = document.createElement("td");
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.textContent = "Delete";
+                    deleteBtn.style.backgroundColor = "#d9534f";
+                    deleteBtn.style.color = "#ffffff";
+                    deleteBtn.style.border = "none";
+                    deleteBtn.style.padding = "5px 10px";
+                    deleteBtn.style.cursor = "pointer";
+                    deleteBtn.style.borderRadius = "4px";
+                    deleteBtn.onclick = () => deleteRecord(record.id);
+                    actionsTd.appendChild(deleteBtn);
+                    row.appendChild(actionsTd);
+
+                    tbody.appendChild(row);
+                });
+
+                table.appendChild(tbody);
+                container.appendChild(table);
+            });
+        }
+
+        // Deletes a record by ID
         function deleteRecord(id) {
             fetch(`https://dash.as214428.net/.wiredshield/api/domains/records/${id}`, {
-                method: 'DELETE'
-            }).then(() => fetchData());
+                method: "DELETE"
+            }).then(() => fetchRecords())
+                .catch(error => console.error("Error deleting record:", error));
         }
 
-        addRecordForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-            const formData = new FormData(addRecordForm);
-            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(Object.fromEntries(formData))
-            }).then(() => {
-                closeAddRecordModal();
-                fetchData();
-            });
-        });
-
-        fetchData();
+        fetchRecords(); // Initial fetch
     </script>
 </body>
 
