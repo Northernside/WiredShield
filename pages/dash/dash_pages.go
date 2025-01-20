@@ -1,11 +1,9 @@
 package dashpages
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	errorpages "wiredshield/pages/error"
-	"wiredshield/services"
 )
 
 var DashPages = map[string]string{
@@ -50,7 +48,6 @@ func PageResponse(path string) (string, int) {
 		path = path[:i]
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("Requesting %s", path))
 	// return contents of pages[path]
 	if v, ok := DashPages[path]; ok {
 		return v, 200
