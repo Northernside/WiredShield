@@ -3,11 +3,11 @@ package wiredhttps
 import (
 	"strings"
 	internal_routes "wiredshield/http/routes/.wiredshield"
-	pages_routes "wiredshield/http/routes/.wiredshield/pages"
 	auth_routes "wiredshield/http/routes/api/auth"
 	domain_routes "wiredshield/http/routes/api/domains"
 	record_routes "wiredshield/http/routes/api/domains/records"
 	"wiredshield/modules/jwt"
+	dashpages "wiredshield/pages/dash"
 
 	"github.com/valyala/fasthttp"
 )
@@ -27,8 +27,25 @@ func init() {
 	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
 	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "GET")
 
-	userHandler("/.wiredshield/dash", pages_routes.GetDomainsOverview, "GET")
-	userHandler("/.wiredshield/dash/domain/:domain", pages_routes.GetDomain, "GET")
+	userHandler("/.wiredshield/dash", PrepareResponse, "GET")
+	userHandler("/.wiredshield/dash/domain/:domain", PrepareResponse, "GET")
+	userHandler("/.wiredshield/css/global.css", PrepareResponse, "GET")
+}
+
+func PrepareResponse(ctx *fasthttp.RequestCtx) {
+	cleanedPath := strings.Split(string(ctx.Path()), "?")[0]
+	cleanedPath = strings.Split(cleanedPath, "#")[0]
+	cleanedPath = cleanedPath[:strings.LastIndex(cleanedPath, "/")]
+
+	html, code := dashpages.PageResponse(cleanedPath)
+	ctx.SetStatusCode(code)
+	if strings.HasSuffix(cleanedPath, ".css") {
+		ctx.SetContentType("text/css")
+	} else {
+		ctx.SetContentType("text/html")
+	}
+
+	ctx.SetBodyString(html)
 }
 
 func passThroughHandler(path string, handler fasthttp.RequestHandler) {
