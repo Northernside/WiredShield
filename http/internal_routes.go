@@ -59,10 +59,16 @@ func passThroughHandler(path string, handler fasthttp.RequestHandler, method str
 		if string(ctx.Method()) != method {
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-			ctx.SetBody([]byte(`{"message": "Method not allowed", "hehe":"` + fmt.Sprintf("%s:%s", method, path) + `"}`))
+			ctx.SetBody([]byte(`{"message": "Method not allowed"}`))
 			return
 		}
 
+		handler(ctx)
+	}
+}
+
+func userHandler(path string, handler fasthttp.RequestHandler, method string) {
+	EndpointList[fmt.Sprintf("%s:%s", method, path)] = func(ctx *fasthttp.RequestCtx) {
 		if string(ctx.Host()) != "dash.as214428.net" && string(ctx.Path()) != "/.wiredshield/info" {
 			errorPage := errorpages.ErrorPage{
 				Code:    604,
@@ -75,17 +81,11 @@ func passThroughHandler(path string, handler fasthttp.RequestHandler, method str
 			return
 		}
 
-		handler(ctx)
-	}
-}
-
-func userHandler(path string, handler fasthttp.RequestHandler, method string) {
-	EndpointList[fmt.Sprintf("%s:%s", method, path)] = func(ctx *fasthttp.RequestCtx) {
 		ctx.SetUserValue("path", path)
 		if string(ctx.Method()) != method {
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-			ctx.SetBody([]byte(`{"message": "Method not allowed", "hehe":"` + fmt.Sprintf("%s:%s", method, path) + `"}`))
+			ctx.SetBody([]byte(`{"message": "Method not allowed"}`))
 			return
 		}
 
