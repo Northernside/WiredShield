@@ -63,7 +63,7 @@ func Auth(ctx *fasthttp.RequestCtx) {
 	for _, id := range WhitelistedIds {
 		if id == claims["discord_id"] {
 			ctx.Response.Header.Set("Set-Cookie", fmt.Sprintf("token=%s; Path=/; Max-Age=604800", token))
-			ctx.Redirect("/.wiredshield/dash/domains", fasthttp.StatusFound)
+			ctx.Redirect("/.wiredshield/dash", fasthttp.StatusFound)
 			return
 		}
 	}
