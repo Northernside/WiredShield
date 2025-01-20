@@ -234,11 +234,19 @@
             })
                 .then((response) => response.json())
                 .then((data) => {
-                    console.log("Record saved:", data);
                     closeAddRecordModal();
                     fetchRecords();
                 })
-                .catch((error) => console.error("Error saving record:", error));
+                .catch((error) => alert("Error saving record:", error));
+        }
+
+        function deleteRecord(id) {
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records/${id}`, {
+                method: "DELETE"
+            })
+                .then((response) => response.json())
+                .then((data) => fetchRecords())
+                .catch((error) => alert("Error deleting record:", error));
         }
 
         fetchRecords();
