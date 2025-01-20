@@ -46,6 +46,9 @@ func PrepareResponse(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	// remove last / if there is one
+	cleanedPath = strings.TrimSuffix(cleanedPath, "/")
+
 	services.ProcessService.InfoLog(fmt.Sprintf("Requ222esting %s", cleanedPath))
 
 	html, code := dashpages.PageResponse(cleanedPath)
