@@ -110,6 +110,8 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 	for k, v := range EndpointList {
 		if ok, _ := matchPattern(k, path); ok {
+			services.ProcessService.InfoLog(fmt.Sprintf("k: %s", k))
+			services.ProcessService.InfoLog(fmt.Sprintf("path: %s", path))
 			services.ProcessService.InfoLog(fmt.Sprintf("matched: %s", k))
 			return v, true
 		}
