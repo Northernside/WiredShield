@@ -275,10 +275,10 @@
         }
 
         function deleteRecord(id) {
-            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records/${id}`, {
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records/${id}?domain=${domain}`, {
                 method: "DELETE"
             })
-                .then((response) => response.json())
+                .then((response) => response.text())
                 .then((data) => fetchRecords())
                 .catch((error) => alert("Error deleting record:", error));
         }
