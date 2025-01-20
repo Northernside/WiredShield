@@ -8,6 +8,7 @@ import (
 	domain_routes "wiredshield/http/routes/api/domains"
 	record_routes "wiredshield/http/routes/api/domains/records"
 	"wiredshield/modules/jwt"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -36,7 +37,9 @@ func passThroughHandler(path string, handler fasthttp.RequestHandler) {
 }
 
 func userHandler(path string, handler fasthttp.RequestHandler, method string) {
+	services.ProcessService.InfoLog("Registering user handler for " + path)
 	EndpointList[path] = func(ctx *fasthttp.RequestCtx) {
+		services.ProcessService.InfoLog("GET " + string(ctx.Path()))
 		if string(ctx.Method()) != method {
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
