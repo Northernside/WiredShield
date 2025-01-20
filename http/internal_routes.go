@@ -9,7 +9,6 @@ import (
 	record_routes "wiredshield/http/routes/api/domains/records"
 	"wiredshield/modules/jwt"
 	dashpages "wiredshield/pages/dash"
-	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -40,8 +39,6 @@ func PrepareResponse(ctx *fasthttp.RequestCtx) {
 	cleanedPath = strings.Split(cleanedPath, "#")[0]
 	// remove any :params, check by each /, so e.g. /.wiredshield/dash/domain/northernsi.de will be /wiredshield/dash/domain because /.wiredshield/dash/domain/northernsi.de originates from /wiredshield/dash/domain/:domain
 	userPath := ctx.UserValue("path").(string)
-	services.ProcessService.InfoLog(fmt.Sprintf("userPath: %s, cleanedPath: %s", userPath, cleanedPath))
-	services.ProcessService.InfoLog(fmt.Sprintf("%s:%s", ctx.Method(), cleanedPath))
 
 	html, code := dashpages.PageResponse(userPath)
 	ctx.SetStatusCode(code)
@@ -110,9 +107,6 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 	for k, v := range EndpointList {
 		if ok, _ := matchPattern(k, path); ok {
-			services.ProcessService.InfoLog(fmt.Sprintf("k: %s", k))
-			services.ProcessService.InfoLog(fmt.Sprintf("path: %s", path))
-			services.ProcessService.InfoLog(fmt.Sprintf("matched: %s", k))
 			return v, true
 		}
 	}
@@ -123,7 +117,7 @@ func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 func matchPattern(pattern, path string) (bool, map[string]string) {
 	method := pattern[:strings.Index(pattern, ":")]
 	pathMethod := path[:strings.Index(path, ":")]
-	services.ProcessService.InfoLog(fmt.Sprintf("method: %s", method))
+
 	// remove everything before the first : including the : itself
 	pattern = pattern[strings.Index(pattern, ":")+1:]
 	path = path[strings.Index(path, ":")+1:]
@@ -145,7 +139,6 @@ func matchPattern(pattern, path string) (bool, map[string]string) {
 	}
 
 	// check if the method matches
-	services.ProcessService.InfoLog(fmt.Sprintf("method: %s, pathMethod: %s", method, pathMethod))
 	if method != pathMethod {
 		return false, nil
 	}
