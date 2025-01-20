@@ -17,7 +17,7 @@ func SignHTTPRequest(req *http.Request) error {
 
 	timestamp := time.Now().Unix()
 	req.Header.Set("auth_message", fmt.Sprintf("%d", timestamp))
-	instanceKey, err := pgp.LoadPrivateKey("certs/master-private.asc")
+	instanceKey, err := pgp.LoadPrivateKey("certs/master-private.asc", "")
 	if err != nil {
 		return err
 	}
