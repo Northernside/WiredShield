@@ -115,8 +115,13 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 	for k, v := range EndpointList {
-		// remove the method from the key
-		k = strings.Split(k, ":")[1]
+		// remove the method from the key but keep the path including any :params
+
+		var pathParts = strings.Split(k, ":")
+		if len(pathParts) > 1 {
+			k = pathParts[len(pathParts)-1]
+		}
+
 		if ok, _ := matchPattern(k, path); ok {
 			return v, true
 		}
