@@ -214,10 +214,30 @@
                 ...fields
             };
 
-            console.log("Saving record:", record);
+            // send to POST https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}
+            // with headers being key:value for the data
 
-            closeAddRecordModal();
-            fetchRecords();
+            let editHeaders = new Headers();
+            let keys = Object.keys(record);
+            let values = Object.values(record);
+            for (let i = 0; i < keys.length; i++) {
+                editHeaders.append(`wired-${keys[i]}`, values[i]);
+            }
+
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(record)
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    console.log("Record saved:", data);
+                    closeAddRecordModal();
+                    fetchRecords();
+                })
+                .catch((error) => console.error("Error saving record:", error));
         }
 
         fetchRecords();
