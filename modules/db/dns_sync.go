@@ -17,14 +17,10 @@ func syncSet(record DNSRecord) error {
 		partnerMaster = "woof"
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("partner master: %s", partnerMaster))
-
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.wired.rip/.wiredshield/dns-update", partnerMaster), nil)
 	if err != nil {
 		return err
 	}
-
-	services.ProcessService.InfoLog(fmt.Sprintf("req url: %s", req.URL.String()))
 
 	req.Header.Set("change_action", "SET")
 	req.Header.Set("change_record_type", record.GetType())
