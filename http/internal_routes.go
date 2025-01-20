@@ -42,15 +42,8 @@ func PrepareResponse(ctx *fasthttp.RequestCtx) {
 	userPath := ctx.UserValue("path").(string)
 	services.ProcessService.InfoLog(fmt.Sprintf("userPath: %s, cleanedPath: %s", userPath, cleanedPath))
 	services.ProcessService.InfoLog(fmt.Sprintf("%s:%s", ctx.Method(), cleanedPath))
-	if _, ok := EndpointList[fmt.Sprintf("%s:%s", ctx.Method(), cleanedPath)]; !ok {
-		// remove the :param from the path
-		cleanedPath = strings.Split(cleanedPath, "/"+strings.Split(userPath, "/")[strings.Count(userPath, "/")])[0]
-	}
 
-	// remove last / if there is one
-	cleanedPath = strings.TrimSuffix(cleanedPath, "/")
-
-	html, code := dashpages.PageResponse(cleanedPath)
+	html, code := dashpages.PageResponse(userPath)
 	ctx.SetStatusCode(code)
 	if strings.HasSuffix(cleanedPath, ".css") {
 		ctx.SetContentType("text/css")
