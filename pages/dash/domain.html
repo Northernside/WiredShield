@@ -248,7 +248,6 @@
             let keys = Object.keys(record);
             let values = Object.values(record);
             for (let i = 0; i < keys.length; i++) {
-                console.log(keys[i])
                 if (keys[i] === "Protected") {
                     values[i] = values[i] == "on" ? true : false;
                 }
@@ -269,7 +268,11 @@
                     closeAddRecordModal();
                     fetchRecords();
                 })
-                .catch((error) => alert("Error saving record:", error));
+                .catch((error) => {
+                    if (error) {
+                        alert("Error saving record:", error)
+                    }
+                });
         }
 
         function deleteRecord(id) {
