@@ -182,8 +182,8 @@
             recordFieldsContainer.innerHTML = "";
 
             const fieldConfig = {
-                A: ["Name", "Address", "TTL"],
-                AAAA: ["Name", "IPv6 Address", "TTL"],
+                A: ["Name", "Address", "TTL", "Protected"],
+                AAAA: ["Name", "IPv6 Address", "TTL", "Protected"],
                 CNAME: ["Name", "Canonical Name", "TTL"],
                 TXT: ["Name", "Value", "TTL"],
                 MX: ["Name", "Priority", "Mail Server", "TTL"],
@@ -197,11 +197,19 @@
                 const fieldDiv = document.createElement("div");
                 const label = document.createElement("label");
                 label.textContent = `${field}:`;
-                const input = document.createElement("input");
-                input.type = "text";
-                input.id = `field-${field}`;
                 fieldDiv.appendChild(label);
-                fieldDiv.appendChild(input);
+
+                if (field !== "Protected") {
+                    const input = document.createElement("input");
+                    input.type = "text";
+                    input.id = `field-${field}`;
+                    fieldDiv.appendChild(input);
+                } else {
+                    const input = document.createElement("input");
+                    input.type = "checkbox";
+                    input.id = `field-${field}`;
+                    fieldDiv.appendChild(input);
+                }
 
                 if (field === "Name") {
                     input.value = domain;
