@@ -45,11 +45,6 @@ func init() {
 }
 
 func Auth(ctx *fasthttp.RequestCtx) {
-	if !ctx.IsGet() {
-		ctx.Error("Invalid request method", fasthttp.StatusMethodNotAllowed)
-		return
-	}
-
 	// token query param
 	token := string(ctx.QueryArgs().Peek("token"))
 	if token == "" {

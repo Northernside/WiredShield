@@ -13,12 +13,6 @@ import (
 
 // endpoint is supposed to be used by the master server to update the DNS records of the clients
 func DNSUpdate(ctx *fasthttp.RequestCtx) {
-	if !ctx.IsGet() {
-		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-		ctx.SetBodyString("METHOD_NOT_ALLOWED")
-		return
-	}
-
 	/*
 		logic:
 			- verify the signature (compare headers: signature and auth_message)

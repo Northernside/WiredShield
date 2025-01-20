@@ -21,12 +21,6 @@ var (
 )
 
 func ProxyAuth(ctx *fasthttp.RequestCtx) {
-	if !ctx.IsGet() {
-		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-		ctx.SetBodyString("METHOD_NOT_ALLOWED")
-		return
-	}
-
 	master := env.GetEnv("MASTER", "false")
 	if master == "false" {
 		ctx.SetStatusCode(fasthttp.StatusForbidden)

@@ -16,14 +16,14 @@ import (
 var EndpointList = make(map[string]func(*fasthttp.RequestCtx))
 
 func init() {
-	passThroughHandler("/.wiredshield/proxy-auth", internal_routes.ProxyAuth)
-	passThroughHandler("/.wiredshield/dns-update", internal_routes.DNSUpdate)
-	passThroughHandler("/.wiredshield/ssl-update", internal_routes.SSLUpdate)
-	passThroughHandler("/.wiredshield/info", internal_routes.Info)
+	passThroughHandler("/.wiredshield/proxy-auth", internal_routes.ProxyAuth, "GET")
+	passThroughHandler("/.wiredshield/dns-update", internal_routes.DNSUpdate, "GET")
+	passThroughHandler("/.wiredshield/ssl-update", internal_routes.SSLUpdate, "GET")
+	passThroughHandler("/.wiredshield/info", internal_routes.Info, "GET")
 
-	passThroughHandler("/.wiredshield/api/auth", auth_routes.Auth)
-	passThroughHandler("/.wiredshield/api/auth/discord", auth_routes.AuthDiscord)
-	passThroughHandler("/.wiredshield/api/auth/discord/callback", auth_routes.AuthDiscordCallback)
+	passThroughHandler("/.wiredshield/api/auth", auth_routes.Auth, "GET")
+	passThroughHandler("/.wiredshield/api/auth/discord", auth_routes.AuthDiscord, "GET")
+	passThroughHandler("/.wiredshield/api/auth/discord/callback", auth_routes.AuthDiscordCallback, "GET")
 
 	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
 	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "GET")
@@ -60,8 +60,18 @@ func PrepareResponse(ctx *fasthttp.RequestCtx) {
 	ctx.SetBodyString(html)
 }
 
-func passThroughHandler(path string, handler fasthttp.RequestHandler) {
-	EndpointList[path] = handler
+func passThroughHandler(path string, handler fasthttp.RequestHandler, method string) {
+	EndpointList[fmt.Sprintf("%s:%s", method, path)] = func(ctx *fasthttp.RequestCtx) {
+		ctx.SetUserValue("path", path)
+		if string(ctx.Method()) != method {
+			ctx.Response.Header.Set("Content-Type", "application/json")
+			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
+			ctx.SetBody([]byte(`{"message": "Method not allowed"}`))
+			return
+		}
+
+		handler(ctx)
+	}
 }
 
 func userHandler(path string, handler fasthttp.RequestHandler, method string) {
