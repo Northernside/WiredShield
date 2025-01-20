@@ -64,6 +64,7 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 
 		for _, id := range auth_routes.WhitelistedIds {
 			if id == claims["discord_id"] {
+				services.ProcessService.InfoLog("GET222 " + string(ctx.Path()))
 				handler(ctx)
 				return
 			}
