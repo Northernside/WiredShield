@@ -9,6 +9,7 @@ import (
 	record_routes "wiredshield/http/routes/api/domains/records"
 	"wiredshield/modules/jwt"
 	dashpages "wiredshield/pages/dash"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -114,7 +115,9 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 }
 
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
+	services.ProcessService.InfoLog(fmt.Sprintf("path: %s", path))
 	for k, v := range EndpointList {
+		services.ProcessService.InfoLog(fmt.Sprintf("k: %s", k))
 		if ok, _ := matchPattern(k, path); ok {
 			return v, true
 		}
@@ -128,8 +131,14 @@ func matchPattern(pattern, path string) (bool, map[string]string) {
 	pattern = pattern[strings.Index(pattern, ":")+1:]
 	path = path[strings.Index(path, ":")+1:]
 
+	services.ProcessService.InfoLog(fmt.Sprintf("pattern: %s", pattern))
+	services.ProcessService.InfoLog(fmt.Sprintf("path: %s", path))
+
 	patternParts := strings.Split(pattern, "/")
 	pathParts := strings.Split(path, "/")
+
+	services.ProcessService.InfoLog(fmt.Sprintf("patternParts: %v", patternParts))
+	services.ProcessService.InfoLog(fmt.Sprintf("pathParts: %v", pathParts))
 
 	if len(patternParts) != len(pathParts) {
 		return false, nil
