@@ -211,7 +211,7 @@ tr:hover {
 }
 
 #addRecordModal button {
-    background-color: #1c78d7;
+    background-color: #282828;
     color: #ffffff;
     border: none;
     padding: 10px 16px;
@@ -219,10 +219,12 @@ tr:hover {
     cursor: pointer;
     margin-right: 8px;
     font-size: 14px;
+    border: 1px solid #444444;
 }
 
 #addRecordModal button:hover {
-    background-color: #105ea8;
+    background-color: #3D3D3D;
+    transition: background-color 0.2s;
 }
 
 #overlay {

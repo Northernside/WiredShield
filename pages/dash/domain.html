@@ -197,6 +197,25 @@
                 input.id = `field-${field}`;
                 fieldDiv.appendChild(label);
                 fieldDiv.appendChild(input);
+
+                if (field === "Name") {
+                    input.value = domain;
+                } else if (field === "Refresh") {
+                    input.value = "3600";
+                } else if (field === "Retry") {
+                    input.value = "600";
+                } else if (field === "Expire") {
+                    input.value = "604800";
+                } else if (field === "TTL") {
+                    input.value = "3600";
+                }
+
+                // set cursor of domain field to first char
+                if (field === "Name") {
+                    input.focus();
+                    input.setSelectionRange(0, 0);
+                }
+
                 recordFieldsContainer.appendChild(fieldDiv);
             });
         }
