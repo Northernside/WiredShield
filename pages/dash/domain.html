@@ -58,16 +58,20 @@
                 const thead = document.createElement("thead");
                 const headerRow = document.createElement("tr");
 
-                // Create table headers dynamically based on record keys
-                const headers = Object.keys(groupedRecords[type][0] || {});
+                // Dynamic headers with "Actions" displayed first
+                const actionsHeader = document.createElement("th");
+                actionsHeader.textContent = "Actions";
+                actionsHeader.classList.add("actions-col");
+                headerRow.appendChild(actionsHeader);
+
+                const headers = Object.keys(groupedRecords[type][0] || {}).filter(header => header !== "id");
                 headers.forEach(header => {
-                    if (header !== "id") { // Skip hidden fields like `.id`
-                        const th = document.createElement("th");
-                        th.textContent = header.charAt(0).toUpperCase() + header.slice(1);
-                        headerRow.appendChild(th);
-                    }
+                    const th = document.createElement("th");
+                    th.textContent = header.charAt(0).toUpperCase() + header.slice(1);
+                    if (header === "type") th.classList.add("type-col"); // Minimize width for "Type"
+                    headerRow.appendChild(th);
                 });
-                headerRow.innerHTML += "<th>Actions</th>"; // Add an "Actions" column
+
                 thead.appendChild(headerRow);
                 table.appendChild(thead);
 
@@ -75,15 +79,8 @@
 
                 groupedRecords[type].forEach(record => {
                     const row = document.createElement("tr");
-                    headers.forEach(key => {
-                        if (key !== "id") { // Skip hidden fields
-                            const td = document.createElement("td");
-                            td.textContent = record[key] || "";
-                            row.appendChild(td);
-                        }
-                    });
 
-                    // Add actions column
+                    // "Actions" column first
                     const actionsTd = document.createElement("td");
                     const deleteBtn = document.createElement("button");
                     deleteBtn.textContent = "Delete";
@@ -94,8 +91,17 @@
                     deleteBtn.style.cursor = "pointer";
                     deleteBtn.style.borderRadius = "4px";
                     deleteBtn.onclick = () => deleteRecord(record.id);
+                    actionsTd.classList.add("actions-col");
                     actionsTd.appendChild(deleteBtn);
                     row.appendChild(actionsTd);
+
+                    // Other record keys
+                    headers.forEach(key => {
+                        const td = document.createElement("td");
+                        td.textContent = record[key] || "";
+                        if (key === "type") td.classList.add("type-col"); // Apply minimal width for "Type"
+                        row.appendChild(td);
+                    });
 
                     tbody.appendChild(row);
                 });

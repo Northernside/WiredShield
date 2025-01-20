@@ -6,6 +6,150 @@
     <title>WiredShield - Domain Management</title>
     <link rel="stylesheet" href="/.wiredshield/css/global.css">
 </head>
+<style>
+    * {
+        box-sizing: border-box;
+        color: #ffffff;
+    }
+
+    body {
+        background-color: #000000;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+    }
+
+    .header {
+        display: flex;
+        align-items: center;
+        padding: 32px;
+    }
+
+    .header img {
+        margin-right: 16px;
+        width: 64px;
+        height: auto;
+    }
+
+    .header h1 {
+        font-size: 32px;
+        font-weight: 900;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .domain-list {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 16px;
+        padding: 16px;
+        user-select: none;
+    }
+
+    .domain-name h2 {
+        margin: 0;
+    }
+
+    .domain {
+        background-color: #1C1C1C;
+        border: 1px solid #3b3b3b;
+        border-radius: 8px;
+        padding: 16px;
+        text-decoration: none;
+    }
+
+    .domain:hover {
+        background-color: #2C2C2C;
+        transition: background-color 0.2s;
+        cursor: pointer;
+    }
+
+    .footer {
+        width: 100%;
+        text-align: center;
+        padding: 16px;
+        margin-top: auto;
+        background-color: #000000;
+        box-sizing: border-box;
+    }
+
+    .footer p {
+        color: #CBCBCB;
+        margin: 0;
+    }
+
+    .content {
+        margin: 20px;
+    }
+
+    .record-list {
+        margin-bottom: 40px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        background-color: #222222;
+    }
+
+    th,
+    td {
+        text-align: left;
+        padding: 10px;
+        border: 1px solid #444444;
+    }
+
+    th {
+        background-color: #333333;
+    }
+
+    tr:hover {
+        background-color: #2a2a2a;
+    }
+
+    .add-btn {
+        background-color: #1C1C1C;
+        color: #ffffff;
+        border: 1px solid #3b3b3b;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.2s ease-in-out;
+        margin-bottom: 20px;
+    }
+
+    .add-btn:hover {
+        background-color: #2C2C2C;
+    }
+
+    .table-title {
+        margin: 10px 0;
+    }
+
+    .actions-col {
+        width: 1%;
+        white-space: nowrap;
+    }
+
+    .type-col {
+        width: 1%;
+        white-space: nowrap;
+    }
+</style>
 
 <body>
     <div class="page">
@@ -17,178 +161,6 @@
         <div class="content">
             <button class="add-btn" onclick="openAddRecordModal()">+ Add Record</button>
             <div id="record-list">
-                <h3 class="table-title">Records - A</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: min-content;">Actions</th>
-                            <th style="width: min-content;">Type</th>
-                            <th style="width: min-content;">Domain</th>
-                            <th style="width: min-content;">Ip</th>
-                            <th style="width: min-content;">Protected</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="width: min-content;"><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                            <td style="width: min-content;">A</td>
-                            <td style="width: min-content;">b.northernsi.de</td>
-                            <td style="width: min-content;">85.202.163.62</td>
-                            <td style="width: min-content;">true</td>
-                        </tr>
-                        <tr>
-                            <td>A</td>
-                            <td>blog.northernsi.de</td>
-                            <td>85.202.163.62</td>
-                            <td>true</td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>A</td>
-                            <td>grafana.northernsi.de</td>
-                            <td>85.202.163.62</td>
-                            <td>true</td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>A</td>
-                            <td>northernsi.de</td>
-                            <td>85.202.163.62</td>
-                            <td>true</td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3 class="table-title">Records - MX</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Domain</th>
-                            <th>Priority</th>
-                            <th>Target</th>
-                            <th>Protected</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>MX</td>
-                            <td>northernsi.de</td>
-                            <td>10</td>
-                            <td>mx01.mail.icloud.com</td>
-                            <td></td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>MX</td>
-                            <td>northernsi.de</td>
-                            <td>10</td>
-                            <td>mx02.mail.icloud.com</td>
-                            <td></td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3 class="table-title">Records - NS</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Domain</th>
-                            <th>Ns</th>
-                            <th>Protected</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>NS</td>
-                            <td>northernsi.de</td>
-                            <td>woof.ns.wired.rip</td>
-                            <td></td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>NS</td>
-                            <td>northernsi.de</td>
-                            <td>meow.ns.wired.rip</td>
-                            <td></td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3 class="table-title">Records - TXT</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Domain</th>
-                            <th>Text</th>
-                            <th>Protected</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>TXT</td>
-                            <td>northernsi.de</td>
-                            <td>apple-domain=0wqe2xRR1yO4AFFm </td>
-                            <td></td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>TXT</td>
-                            <td>northernsi.de</td>
-                            <td>v=spf1 include:icloud.com ~all </td>
-                            <td></td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <h3 class="table-title">Records - CNAME</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Domain</th>
-                            <th>Target</th>
-                            <th>Protected</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>CNAME</td>
-                            <td>sig1._domainkey.northernsi.de</td>
-                            <td>sig1.dkim.northernsi.de.at.icloudmailadmin.com</td>
-                            <td></td>
-                            <td><button
-                                    style="background-color: rgb(217, 83, 79); color: rgb(255, 255, 255); border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Delete</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
@@ -293,8 +265,6 @@
 
         fetchRecords(); // Initial fetch
     </script>
-
-
 </body>
 
 </html>
