@@ -272,6 +272,9 @@
                     if (error) {
                         alert(`Error saving record ${typeof error}: ${error}`);
                     }
+
+                    // close modal
+                    closeAddRecordModal();
                 });
         }
 
