@@ -141,6 +141,7 @@ func matchPattern(pattern, path string) (bool, map[string]string) {
 	services.ProcessService.InfoLog(fmt.Sprintf("pathParts: %v", pathParts))
 
 	if len(patternParts) != len(pathParts) {
+		services.ProcessService.InfoLog(fmt.Sprintf("lengths not equal"))
 		return false, nil
 	}
 
