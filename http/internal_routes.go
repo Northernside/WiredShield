@@ -37,6 +37,15 @@ func init() {
 func PrepareResponse(ctx *fasthttp.RequestCtx) {
 	cleanedPath := strings.Split(string(ctx.Path()), "?")[0]
 	cleanedPath = strings.Split(cleanedPath, "#")[0]
+	// remove any :params, check by each /
+	paths := strings.Split(cleanedPath, "/")
+	for i, path := range paths {
+		if strings.HasPrefix(path, ":") {
+			// remove (e.g. /.wiredshield/dash/domain/:domain -> /.wiredshield/dash/domain)
+			cleanedPath = strings.Join(paths[:i], "/")
+			break
+		}
+	}
 
 	services.ProcessService.InfoLog(fmt.Sprintf("Requ222esting %s", cleanedPath))
 
