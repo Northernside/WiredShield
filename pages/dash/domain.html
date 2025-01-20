@@ -263,18 +263,15 @@
                 },
                 body: JSON.stringify(record)
             })
-                .then((response) => response.json())
+                .then((response) => response.text())
                 .then((data) => {
                     closeAddRecordModal();
                     fetchRecords();
                 })
                 .catch((error) => {
                     if (error) {
-                        alert(`Error saving record ${typeof error}: ${error}`);
+                        alert(`Error saving record: ${error}`);
                     }
-
-                    // close modal
-                    closeAddRecordModal();
                 });
         }
 
