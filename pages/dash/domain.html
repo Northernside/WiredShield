@@ -199,13 +199,14 @@
                 label.textContent = `${field}:`;
                 fieldDiv.appendChild(label);
 
+                let input;
                 if (field !== "Protected") {
-                    const input = document.createElement("input");
+                    input = document.createElement("input");
                     input.type = "text";
                     input.id = `field-${field}`;
                     fieldDiv.appendChild(input);
                 } else {
-                    const input = document.createElement("input");
+                    input = document.createElement("input");
                     input.type = "checkbox";
                     input.id = `field-${field}`;
                     fieldDiv.appendChild(input);
