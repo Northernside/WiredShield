@@ -11,6 +11,7 @@ import (
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
+	"wiredshield/modules/rules"
 	errorpages "wiredshield/pages/error"
 	"wiredshield/services"
 
@@ -81,6 +82,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		handler(ctx)
 		return
 	}
+
+	_ = rules.EvaluateRule(ctx)
 
 	timeStart := time.Now()
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
