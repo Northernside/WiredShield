@@ -28,7 +28,7 @@ func syncSet(domain, certContent, keyContent string) error {
 	req.Header.Set("cert", b64.Encode(certContent))
 	req.Header.Set("key", b64.Encode(keyContent))
 
-	signing.SignHTTPRequest(req)
+	signing.SignHTTPRequest(req, env.GetEnv("CLIENT_NAME", ""))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
@@ -62,7 +62,7 @@ func syncDel(domain string) error {
 	req.Header.Set("change_action", "DEL")
 	req.Header.Set("domain", domain)
 
-	signing.SignHTTPRequest(req)
+	signing.SignHTTPRequest(req, env.GetEnv("CLIENT_NAME", ""))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
