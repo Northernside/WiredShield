@@ -28,7 +28,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
 		partnerMaster = "meow"
 	} else {
-		partnerMaster = "meow"
+		partnerMaster = "woof"
 	}
 
 	partnerPub, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", partnerMaster))
