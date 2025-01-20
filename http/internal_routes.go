@@ -7,6 +7,7 @@ import (
 	auth_routes "wiredshield/http/routes/api/auth"
 	domain_routes "wiredshield/http/routes/api/domains"
 	record_routes "wiredshield/http/routes/api/domains/records"
+	"wiredshield/modules/env"
 	"wiredshield/modules/jwt"
 	dashpages "wiredshield/pages/dash"
 	errorpages "wiredshield/pages/error"
@@ -100,6 +101,11 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 
 		claims, err := jwt.ValidateToken(token)
 		if err != nil {
+			if env.GetEnv("API_TOKEN", token+"-") == token {
+				handler(ctx)
+				return
+			}
+
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 			ctx.SetBody([]byte(`{"message": "Unauthorized"}`))
