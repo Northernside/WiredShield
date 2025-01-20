@@ -9,6 +9,8 @@ import (
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
 	"wiredshield/services"
+
+	"github.com/miekg/dns"
 )
 
 func Dns(model *Model) {
@@ -119,12 +121,26 @@ func Dns(model *Model) {
 
 		split[2] = strings.ToUpper(split[2])
 
+		// check via dns if NS of split[3] is woof.ns.wired.rip and meow.ns.wired.rip
+		dnsClient := dns.Client{}
+		msg := dns.Msg{}
+		msg.SetQuestion(dns.Fqdn(split[3]), dns.TypeNS)
+		resp, _, err := dnsClient.Exchange(&msg, "1.1.1.1:53")
+		if err != nil {
+			sb.WriteString("Failed to resolve NS: " + err.Error() + " - Seems like the domain is not delegated to us\n")
+			break
+		}
+
+		if len(resp.Answer) == 0 {
+			sb.WriteString("Failed to resolve NS: no answer - Seems like the domain is not delegated to us\n")
+			break
+		}
+
 		var protected bool
 		if len(split) > 5 {
 			protected = split[5] == "true"
 		}
 
-		var err error
 		var record db.DNSRecord
 		var id uint64
 		snowflake, err := epoch.NewSnowflake(512)
