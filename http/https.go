@@ -83,7 +83,10 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	_ = rules.EvaluateRule(ctx)
+	ok := rules.EvaluateRule(ctx)
+	if !ok {
+		return
+	}
 
 	timeStart := time.Now()
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))

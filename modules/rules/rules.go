@@ -101,15 +101,17 @@ func EvaluateRule(ctx *fasthttp.RequestCtx) bool {
 			switch rule.Action {
 			case Block:
 				ctx.Error("Access Denied", fasthttp.StatusForbidden)
+				return false
 			case Allow:
 				return true
 			case Log:
 				WAFService.InfoLog(fmt.Sprintf("Rule matched: %s", rule.Expression))
+				return true
 			}
 		}
 	}
 
-	return false
+	return true
 }
 
 func evaluateRule(ctx *fasthttp.RequestCtx, rule Rule) bool {
