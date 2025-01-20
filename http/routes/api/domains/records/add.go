@@ -98,7 +98,7 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		var record db.NSRecord
 		record.ID = uint64(id)
 		record.Domain = domain
-		record.NS = ns
+		record.NS = nameserver
 
 		db.InsertRecord(record, true)
 	case "MX":

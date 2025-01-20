@@ -183,12 +183,12 @@
 
             const fieldConfig = {
                 A: ["Name", "Address", "TTL", "Protected"],
-                AAAA: ["Name", "IPv6 Address", "TTL", "Protected"],
-                CNAME: ["Name", "Canonical Name", "TTL"],
+                AAAA: ["Name", "Address", "TTL", "Protected"],
+                CNAME: ["Name", "Target", "TTL"],
                 TXT: ["Name", "Value", "TTL"],
-                MX: ["Name", "Priority", "Mail Server", "TTL"],
+                MX: ["Name", "Priority", "Target", "TTL"],
                 NS: ["Name", "Nameserver", "TTL"],
-                SOA: ["Primary NS", "Admin Email", "Serial", "Refresh", "Retry", "Expire", "TTL"],
+                SOA: ["Nameserver", "Email", "Serial", "Refresh", "Retry", "Expire", "TTL"],
                 CAA: ["Name", "Flag", "Tag", "Value", "TTL"],
                 SRV: ["Name", "Priority", "Weight", "Port", "Target", "TTL"]
             };
