@@ -6,6 +6,7 @@ import (
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/pgp"
+	"wiredshield/services"
 	"wiredshield/utils/b64"
 
 	"github.com/valyala/fasthttp"
@@ -29,6 +30,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 
 	woofPub, err := pgp.LoadPublicKey("certs/woof-public.asc")
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 		return

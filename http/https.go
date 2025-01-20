@@ -88,6 +88,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		// ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
 		errorPage := errorpages.ErrorPage{Code: 601, Message: errorpages.Error601}
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
 		logRequest(ctx, nil, timeStart, 601, 0, 0)
@@ -159,6 +161,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	case 301, 308, 302, 303, 307:
 		location := resp.Header.Peek("Location")
 		if len(location) == 0 {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 			return
 		}

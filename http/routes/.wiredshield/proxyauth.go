@@ -98,6 +98,7 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 
 		publicKey, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", clientName))
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -114,6 +115,7 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 
 		token, err := pgp.GenerateToken(services.ServerPrivateKey, clientName)
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -129,6 +131,7 @@ func ProxyAuth(ctx *fasthttp.RequestCtx) {
 			services.ProcessService.ErrorLog(fmt.Sprintf("failed to get country for %s: %v",
 				client.IPAddress, err))
 
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return

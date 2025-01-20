@@ -6,6 +6,7 @@ import (
 
 	"wiredshield/modules/env"
 	"wiredshield/modules/jwt"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -47,12 +48,14 @@ func AuthDiscordCallback(ctx *fasthttp.RequestCtx) {
 	defer fasthttp.ReleaseResponse(resp)
 	err := fasthttp.Do(req, resp)
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBody([]byte(`{"message": "Failed to exchange code for token", "error": "` + err.Error() + `"}`))
 		return
 	}
 
 	if resp.StatusCode() != fasthttp.StatusOK {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBody([]byte(`{"message": "Failed to exchange code for token", "error": "` + string(resp.Body()) + `"}`))
 		return
@@ -61,6 +64,7 @@ func AuthDiscordCallback(ctx *fasthttp.RequestCtx) {
 	token := tokenResponse{}
 	err = json.Unmarshal(resp.Body(), &token)
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBody([]byte(`{"message": "Failed to decode token", "error": "` + err.Error() + `"}`))
 		return
@@ -73,12 +77,14 @@ func AuthDiscordCallback(ctx *fasthttp.RequestCtx) {
 
 	err = fasthttp.Do(req, resp)
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBody([]byte(`{"message": "Failed to get user info", "error": "` + err.Error() + `"}`))
 		return
 	}
 
 	if resp.StatusCode() != fasthttp.StatusOK {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBody([]byte(`{"message": "Failed to get user info", "error": "` + string(resp.Body()) + `"}`))
 		return
@@ -87,6 +93,7 @@ func AuthDiscordCallback(ctx *fasthttp.RequestCtx) {
 	user := user{}
 	err = json.Unmarshal(resp.Body(), &user)
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBody([]byte(`{"message": "Failed to decode user info", "error": "` + err.Error() + `"}`))
 		return
@@ -94,6 +101,7 @@ func AuthDiscordCallback(ctx *fasthttp.RequestCtx) {
 
 	jwtToken, err := jwt.CreateToken(user.ID)
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBody([]byte(`{"message": "Failed to create JWT token", "error": "` + err.Error() + `"}`))
 		return

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	errorpages "wiredshield/pages/error"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -25,6 +26,8 @@ var (
 				Code:    500,
 				Message: errorpages.Error500,
 			}
+
+			services.GetService("https").ErrorLog(err.Error())
 
 			ctx.SetContentType("text/html")
 			ctx.SetStatusCode(500)

@@ -61,6 +61,17 @@ func RegisterService(name, displayName string) *Service {
 	return newService
 }
 
+func GetService(name string) *Service {
+	registryLock.Lock()
+	defer registryLock.Unlock()
+
+	if service, ok := ServiceRegistry[name]; ok {
+		return service
+	}
+
+	return nil
+}
+
 func (s *Service) InfoLog(message string) {
 	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;34mINFO\033[0;37m] \033[0;37m→\033[0;37m "+
 		"\033[0;94m%s\033[0;37m \033[0;37m→\033[0;37m \033[0;37m%s\033[0m\n", s.DisplayName, message)

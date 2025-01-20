@@ -14,6 +14,7 @@ import (
 func Info(ctx *fasthttp.RequestCtx) {
 	country, err := whois.GetCountry(ctx.RemoteIP().String())
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString(fmt.Sprintf("Error: %v\n", err))
 		return
