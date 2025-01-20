@@ -9,6 +9,7 @@ import (
 var DashPages = map[string]string{
 	"/.wiredshield/dash":        "domains_overview.html",
 	"/.wiredshield/dash/domain": "domain.html",
+	"/.wiredshield/css/global":  "global.css",
 }
 
 func init() {
