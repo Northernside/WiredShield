@@ -270,7 +270,7 @@
                 })
                 .catch((error) => {
                     if (error) {
-                        alert("Error saving record:", error)
+                        alert(`Error saving record ${typeof error}: ${error}`);
                     }
                 });
         }
