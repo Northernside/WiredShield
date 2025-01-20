@@ -124,7 +124,13 @@ func Dns(model *Model) {
 		// check via dns if NS of split[3] is woof.ns.wired.rip and meow.ns.wired.rip
 		dnsClient := dns.Client{}
 		msg := dns.Msg{}
-		msg.SetQuestion(dns.Fqdn(split[3]), dns.TypeNS)
+		secondLevelDomain, err := db.GetSecondLevelDomain(split[3])
+		if err != nil {
+			sb.WriteString("Failed to get second level domain: " + err.Error() + "\n")
+			break
+		}
+
+		msg.SetQuestion(dns.Fqdn(secondLevelDomain), dns.TypeNS)
 		resp, _, err := dnsClient.Exchange(&msg, "1.1.1.1:53")
 		if err != nil {
 			sb.WriteString("Failed to resolve NS: " + err.Error() + " - Seems like the domain is not delegated to us\n")

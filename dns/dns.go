@@ -137,6 +137,34 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
+			if dns.TypeToString[question.Qtype] == "NS" {
+				records, _ := db.GetRecords("NS", lookupName)
+				if len(records) == 0 {
+					nsList := []string{"woof", "meow"}
+					for _, ns := range nsList {
+						rr := &dns.NS{
+							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+							Ns:  ns + ".ns.wired.rip.",
+						}
+
+						rrList = append(rrList, rr)
+						m.Answer = append(m.Answer, rr)
+						updateCache(cacheKey, rrList)
+						err = w.WriteMsg(&m)
+						if err != nil {
+							service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s",
+								cacheKey, err.Error()))
+						}
+
+						dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+						dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+						dnsLog.IsSuccessful = true
+						logDNSRequest(dnsLog)
+					}
+
+				}
+			}
+
 			// get record(s) from db
 			records, err := db.GetRecords(dns.TypeToString[question.Qtype], lookupName)
 			if err != nil {
