@@ -1,0 +1,22 @@
+[
+    {
+        "field": "ip.geoip.country",
+        "operation": "equal",
+        "value": "IL"
+    },
+    {
+        "group": "AND",
+        "rules": [
+            {
+                "field": "http.request.method",
+                "operation": "equal",
+                "value": "GET"
+            },
+            {
+                "field": "http.request.uri",
+                "operation": "equal",
+                "value": "/waf-test"
+            }
+        ]
+    }
+]

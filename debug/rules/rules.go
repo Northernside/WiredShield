@@ -1,4 +1,4 @@
-package rules
+package main
 
 import (
 	"encoding/json"
@@ -7,15 +7,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 	"wiredshield/modules/whois"
+	errorpages "wiredshield/pages/error"
 	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
 
 var (
-	WAFService *services.Service
+	WAFService  *services.Service
+	blockedPage string
 )
 
 type Rule struct {
@@ -31,38 +32,45 @@ var (
 	Rules = []Rule{}
 )
 
-func init() {
-	WAFService := services.RegisterService("waf", "Web Application Firewall")
-	WAFService.Boot = func() {
-		// load every *.woof file in rules/
-		files, err := filepath.Glob("rules/*.woof")
+func main() {
+	_page := errorpages.ErrorPage{Code: 403, Message: errorpages.Error403}
+	blockedPage = _page.ToHTML()
+
+	// load every *.woof file in rules/
+	files, err := filepath.Glob("rules/*.woof")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, file := range files {
+		fileContent, err := os.ReadFile(file)
 		if err != nil {
 			panic(err)
 		}
 
-		for _, file := range files {
-			fileContent, err := os.ReadFile(file)
-			if err != nil {
-				panic(err)
-			}
-
-			var rules []Rule
-			if err := json.Unmarshal(fileContent, &rules); err != nil {
-				fmt.Println("Error parsing rules:", err)
-				return
-			}
-
-			Rules = append(Rules, rules...)
+		var rules []Rule
+		if err := json.Unmarshal(fileContent, &rules); err != nil {
+			fmt.Println("Error parsing rules:", err)
+			return
 		}
 
-		WAFService.OnlineSince = time.Now().Unix()
-		WAFService.InfoLog(fmt.Sprintf("Loaded %d rules", len(Rules)))
+		Rules = append(Rules, rules...)
+	}
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
+	ctx.Request.Header.SetMethod("POST")
+	if EvaluateRule(ctx) {
+		fmt.Println("Matched rule")
+	} else {
+		fmt.Println("Does not match any rule")
 	}
 }
 
 func EvaluateRule(ctx *fasthttp.RequestCtx) bool {
 	for _, rule := range Rules {
 		if evaluateRule(ctx, rule) {
+			fmt.Println("Matched rule:", rule)
 			return true
 		}
 	}
