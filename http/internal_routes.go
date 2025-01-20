@@ -116,18 +116,11 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 	for k, v := range EndpointList {
-		// remove the method from the key but keep the path including any :params
+		services.ProcessService.InfoLog(fmt.Sprintf("1comparing %s to %s", k, path))
+		// remove everything before the first : including the :
+		k = k[strings.Index(k, ":")+1:]
 
-		var pathParts = strings.Split(k, ":")
-		for i := range pathParts {
-			if i == 0 {
-				continue
-			}
-
-			k = pathParts[i]
-		}
-
-		services.ProcessService.InfoLog(fmt.Sprintf("comparing %s to %s", k, path))
+		services.ProcessService.InfoLog(fmt.Sprintf("2comparing %s to %s", k, path))
 
 		if ok, _ := matchPattern(k, path); ok {
 			return v, true
