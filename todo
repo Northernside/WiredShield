@@ -1,2 +1,3 @@
 [ERROR] → HTTPS Server → error contacting backend (http://85.202.163.62:80/88x31/ray.rip): error when dialing 85.202.163.62:80: dialing to the given TCP address timed out
 [ERROR] → HTTPS Server → failed to get country for IP 185.209.196.138: failed to connect to WHOIS server: dial tcp: lookup whois.arin.net: Temporary failure in name resolution
+[ERROR] → WiredShield → Failed to generate certificate: failed to handle DNS-01 challenge: failed to wait for authorization: acme: authorization error: 400 urn:ietf:params:acme:error:dns: DNS problem: NXDOMAIN looking up TXT for _acme-challenge.asdasd3rgrdsg.northernsi.de - check that a DNS record exists for this domain

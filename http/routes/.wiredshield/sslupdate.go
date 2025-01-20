@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"wiredshield/modules/env"
 	"wiredshield/modules/pgp"
 	"wiredshield/services"
 	"wiredshield/utils/b64"
@@ -23,7 +24,14 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	woofPub, err := pgp.LoadPublicKey("certs/woof-public.asc")
+	var partnerMaster string
+	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
+		partnerMaster = "meow"
+	} else {
+		partnerMaster = "meow"
+	}
+
+	partnerPub, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", partnerMaster))
 	if err != nil {
 		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
@@ -39,7 +47,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 	}
 
 	b64SigStr := string(b64Sig)
-	err = pgp.VerifySignature(auth_message, b64SigStr, woofPub)
+	err = pgp.VerifySignature(auth_message, b64SigStr, partnerPub)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBodyString("UNAUTHORIZED v2")
