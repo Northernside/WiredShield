@@ -1,6 +1,7 @@
 package wiredhttps
 
 import (
+	"fmt"
 	"strings"
 	internal_routes "wiredshield/http/routes/.wiredshield"
 	auth_routes "wiredshield/http/routes/api/auth"
@@ -8,6 +9,7 @@ import (
 	record_routes "wiredshield/http/routes/api/domains/records"
 	"wiredshield/modules/jwt"
 	dashpages "wiredshield/pages/dash"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -91,7 +93,9 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 }
 
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
+	services.ProcessService.InfoLog(fmt.Sprintf("path: %s", path))
 	for k, v := range EndpointList {
+		services.ProcessService.InfoLog(fmt.Sprintf("k: %s", k))
 		if ok, _ := matchPattern(k, path); ok {
 			return v, true
 		}
