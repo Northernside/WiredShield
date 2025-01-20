@@ -136,6 +136,11 @@ func Dns(model *Model) {
 			break
 		}
 
+		if resp.Answer[0].(*dns.NS).Ns != "woof.ns.wired.rip." && resp.Answer[0].(*dns.NS).Ns != "meow.ns.wired.rip." {
+			sb.WriteString("Failed to resolve NS: not delegated to us\n")
+			break
+		}
+
 		var protected bool
 		if len(split) > 5 {
 			protected = split[5] == "true"
