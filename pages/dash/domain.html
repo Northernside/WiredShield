@@ -9,146 +9,224 @@
 <style>
     * {
         box-sizing: border-box;
-        color: #ffffff;
     }
 
     body {
-        background-color: #000000;
+        background-color: #121212;
+        color: #ffffff;
         font-family: Arial, sans-serif;
         margin: 0;
-        display: flex;
-        flex-direction: column;
-        min-height: 100dvh;
-        overflow-x: hidden;
-        overflow-y: auto;
-    }
-
-    .page {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        height: 100%;
+        padding: 0;
     }
 
     .header {
         display: flex;
         align-items: center;
-        padding: 32px;
+        background: #1e1e1e;
+        padding: 20px;
     }
 
     .header img {
-        margin-right: 16px;
-        width: 64px;
-        height: auto;
+        margin-right: 10px;
     }
 
     .header h1 {
-        font-size: 32px;
-        font-weight: 900;
+        font-size: 24px;
         margin: 0;
-        line-height: 1;
+    }
+
+    .main {
+        padding: 20px;
     }
 
     .record-list table {
-        width: 60%;
-        max-width: 600px;
-        margin: auto;
+        width: 100%;
         border-collapse: collapse;
+        margin-bottom: 20px;
+        background-color: #1e1e1e;
+        border: 1px solid #333333;
     }
 
+    .record-list th,
     .record-list td {
-        padding: 8px 16px;
-        white-space: nowrap;
+        padding: 10px;
         text-align: left;
-
-        border: 1px solid #2a2a2a;
+        border: 1px solid #333333;
     }
 
-    .record-list tr {
-        background-color: #0c0c0c;
+    .record-list th {
+        background-color: #333333;
     }
 
-    .record-list td:last-child {
-        text-align: right;
+    .record-list tr:hover {
+        background-color: #2a2a2a;
     }
 
-    .record {
+    .actions button {
+        background-color: #0077ff;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.2s ease-in-out;
+    }
+
+    .actions button:hover {
+        background-color: #005ecc;
+    }
+
+    .add-record-modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #222222;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #444444;
+        display: none;
+        z-index: 1000;
+    }
+
+    .add-record-modal form {
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .add-record-modal input,
+    .add-record-modal select {
+        padding: 8px;
+        border: 1px solid #444444;
+        border-radius: 4px;
+        background-color: #1e1e1e;
+        color: #ffffff;
+    }
+
+    .add-record-modal button {
+        align-self: flex-end;
+        background-color: #0077ff;
+    }
+
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
-        gap: 32px;
-    }
-
-    .record p {
-        margin: 0;
-    }
-
-    .footer {
-        width: 100%;
-        text-align: center;
-        padding: 16px;
-        margin-top: auto;
-        background-color: #000000;
-        box-sizing: border-box;
-    }
-
-    .footer p {
-        color: #CBCBCB;
-        margin: 0;
-    }
-
-    @media (max-width: 768px) {
-        .record-list table {
-            width: 90%;
-        }
-
-        .record-list td {
-            padding: 6px 12px;
-        }
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        z-index: 999;
     }
 </style>
 
 <body>
-    <div class="page">
-        <div class="header">
-            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGVsbGlwc2UgY3g9IjQ4LjIwMzQiIGN5PSI0OC4yMDQxIiByeD0iOC4xNzAxOSIgcnk9IjguMTcwMTkiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSIzMS44NjM2IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjYwLjQ1OTEiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSI2NC41NDQ1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSI2MC40NTk1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjY0LjU0NSIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iNjAuNDU5MSIgY3k9IjYwLjQ1OTUiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iMzEuODYzNCIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSI0Ny45OTk5IiBjeT0iMTEuNjQyNSIgcj0iMTEuNjQyNSIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSIyMS4wMzciIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9Ijc0Ljk2MDkiIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjQ3Ljk5OTkiIGN5PSI4NC4zNTcxIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjIxLjAzNyIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iODQuMzU3NCIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iNzQuOTYwOSIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iMTEuNjQyNSIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPC9zdmc+"
-                alt="WiredShield Logo" width="96px" height="96px">
-            <h1>WiredShield</h1>
+    <div class="header">
+        <img src="data:image/svg+xml;base64,..." alt="WiredShield Logo" width="64">
+        <h1>WiredShield - Domain Management</h1>
+    </div>
+    <div class="main">
+        <div class="actions">
+            <button onclick="openAddRecordModal()">+ Add Record</button>
         </div>
         <div class="record-list">
             <table id="record-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Domain</th>
+                        <th>Value</th>
+                        <th>Priority</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
             </table>
         </div>
-        <div class="footer">
-            <p>
-                protected & managed by
-                <span>
-                    <a href="https://github.com/Northernside/WiredShield">WiredShield</a>
-                </span>
-            </p>
-        </div>
     </div>
+    <div class="add-record-modal" id="addRecordModal">
+        <form id="addRecordForm">
+            <h3>Add DNS Record</h3>
+            <select name="type" required>
+                <option value="A">A</option>
+                <option value="AAAA">AAAA</option>
+                <option value="NS">NS</option>
+                <option value="TXT">TXT</option>
+                <option value="MX">MX</option>
+                <option value="SOA">SOA</option>
+                <option value="CAA">CAA</option>
+                <option value="SRV">SRV</option>
+                <option value="CNAME">CNAME</option>
+            </select>
+            <input type="text" name="domain" placeholder="Domain" required>
+            <input type="text" name="value" placeholder="Value" required>
+            <input type="number" name="priority" placeholder="Priority (for MX only)" min="0">
+            <button type="submit">Add Record</button>
+            <button type="button" onclick="closeAddRecordModal()">Cancel</button>
+        </form>
+    </div>
+    <div class="overlay" id="overlay" onclick="closeAddRecordModal()"></div>
 
     <script>
         const domain = window.location.pathname.split("/").pop();
-        document.title = `WiredShield - ${domain}`;
+        const overlay = document.getElementById('overlay');
+        const addRecordModal = document.getElementById('addRecordModal');
+        const addRecordForm = document.getElementById('addRecordForm');
 
-        (async () => {
-            const domainData = await fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`)
+        function openAddRecordModal() {
+            overlay.style.display = 'block';
+            addRecordModal.style.display = 'block';
+        }
+
+        function closeAddRecordModal() {
+            overlay.style.display = 'none';
+            addRecordModal.style.display = 'none';
+        }
+
+        function fetchData() {
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`)
                 .then(response => response.json())
-                .then(data => data);
-
-            const table = document.getElementById("record-table");
-            domainData.forEach(record => {
-                const row = table.insertRow();
-                const keys = Object.keys(record);
-                keys.forEach(key => {
-                    const cell = row.insertCell();
-                    cell.appendChild(document.createTextNode(record[key]));
+                .then(data => {
+                    const tbody = document.querySelector('#record-table tbody');
+                    tbody.innerHTML = '';
+                    data.forEach(record => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${record.type}</td>
+                            <td>${record.name}</td>
+                            <td>${record.value}</td>
+                            <td>${record.priority || ''}</td>
+                            <td>
+                                <button onclick="deleteRecord(${record.id})">Delete</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
                 });
+        }
+
+        function deleteRecord(id) {
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records/${id}`, {
+                method: 'DELETE'
+            }).then(() => fetchData());
+        }
+
+        addRecordForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const formData = new FormData(addRecordForm);
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(formData))
+            }).then(() => {
+                closeAddRecordModal();
+                fetchData();
             });
-        })();
+        });
+
+        fetchData();
     </script>
 </body>
 
