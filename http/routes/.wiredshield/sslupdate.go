@@ -5,7 +5,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"wiredshield/modules/env"
 	"wiredshield/modules/pgp"
+	"wiredshield/services"
 	"wiredshield/utils/b64"
 
 	"github.com/valyala/fasthttp"
@@ -13,12 +15,6 @@ import (
 
 // endpoint is supposed to be used by the master server to update the ssl certs of the clients
 func SSLUpdate(ctx *fasthttp.RequestCtx) {
-	if !ctx.IsGet() {
-		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-		ctx.SetBodyString("METHOD_NOT_ALLOWED")
-		return
-	}
-
 	// master auth logic
 	var signature = string(ctx.Request.Header.Peek("signature"))
 	var auth_message = string(ctx.Request.Header.Peek("auth_message"))
@@ -28,8 +24,16 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	woofPub, err := pgp.LoadPublicKey("certs/woof-public.asc")
+	var partnerMaster string
+	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
+		partnerMaster = "meow"
+	} else {
+		partnerMaster = "woof"
+	}
+
+	partnerPub, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", partnerMaster))
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 		return
@@ -43,7 +47,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 	}
 
 	b64SigStr := string(b64Sig)
-	err = pgp.VerifySignature(auth_message, b64SigStr, woofPub)
+	err = pgp.VerifySignature(auth_message, b64SigStr, partnerPub)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBodyString("UNAUTHORIZED v2")
@@ -74,6 +78,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 	case "SET":
 		cert, err := b64.Decode(string(ctx.Request.Header.Peek("cert")))
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -81,6 +86,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		key, err := b64.Decode(string(ctx.Request.Header.Peek("key")))
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -92,6 +98,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		certOut, err := os.Create(certFile)
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -99,6 +106,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		_, err = certOut.WriteString(cert)
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -106,6 +114,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		err = certOut.Close()
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -113,6 +122,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		keyOut, err := os.Create(keyFile)
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -120,6 +130,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		_, err = keyOut.WriteString(key)
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -127,6 +138,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		err = keyOut.Close()
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -138,6 +150,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		err := os.Remove(certFile)
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return
@@ -145,6 +158,7 @@ func SSLUpdate(ctx *fasthttp.RequestCtx) {
 
 		err = os.Remove(keyFile)
 		if err != nil {
+			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 			return

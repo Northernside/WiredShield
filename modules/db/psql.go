@@ -57,3 +57,7 @@ func InsertClient(client services.Client) error {
 		client.Name, client.IPAddress, client.GeoLoc.Country, client.GeoLoc.City)
 	return err
 }
+
+type User struct {
+	DiscordID string
+}

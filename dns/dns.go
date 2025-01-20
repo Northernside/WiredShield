@@ -16,8 +16,8 @@ var (
 	service     *services.Service
 	ResolversV4 = map[string][]net.IP{}
 	ResolversV6 = map[string][]net.IP{}
-	processIPv4 string
-	processIPv6 string
+	ProcessIPv4 string
+	ProcessIPv6 string
 )
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -123,6 +123,34 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 					rrList = append(rrList, rr)
 					m.Answer = append(m.Answer, rr)
+					updateCache(cacheKey, rrList)
+					err = w.WriteMsg(&m)
+					if err != nil {
+						service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s",
+							cacheKey, err.Error()))
+					}
+
+					dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+					dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+					dnsLog.IsSuccessful = true
+					logDNSRequest(dnsLog)
+				}
+			}
+
+			if dns.TypeToString[question.Qtype] == "NS" {
+				records, _ := db.GetRecords("NS", lookupName)
+				if len(records) == 0 {
+					nsList := []string{"woof", "meow"}
+					for _, ns := range nsList {
+						rr := &dns.NS{
+							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+							Ns:  ns + ".ns.wired.rip.",
+						}
+
+						rrList = append(rrList, rr)
+						m.Answer = append(m.Answer, rr)
+					}
+
 					updateCache(cacheKey, rrList)
 					err = w.WriteMsg(&m)
 					if err != nil {
@@ -278,7 +306,7 @@ func Prepare(_service *services.Service) func() {
 				if !ipnet.IP.IsLoopback() && !ipnet.IP.IsLinkLocalUnicast() {
 
 					// ipv4
-					if ipnet.IP.To4() != nil && processIPv4 == "" {
+					if ipnet.IP.To4() != nil && ProcessIPv4 == "" {
 						service.InfoLog("Primary IPv4 address: " + ipnet.IP.String())
 
 						country, err := whois.GetCountry(ipnet.IP.String())
@@ -290,11 +318,11 @@ func Prepare(_service *services.Service) func() {
 						}
 
 						ResolversV4[country] = []net.IP{ipnet.IP}
-						processIPv4 = ipnet.IP.String()
+						ProcessIPv4 = ipnet.IP.String()
 					}
 
 					// ipv6
-					if ipnet.IP.To16() != nil && ipnet.IP.To4() == nil && processIPv6 == "" {
+					if ipnet.IP.To16() != nil && ipnet.IP.To4() == nil && ProcessIPv6 == "" {
 						service.InfoLog("Primary IPv6 address: " + ipnet.IP.String())
 
 						country, err := whois.GetCountry(ipnet.IP.String())
@@ -306,7 +334,7 @@ func Prepare(_service *services.Service) func() {
 						}
 
 						ResolversV6[country] = []net.IP{ipnet.IP}
-						processIPv6 = ipnet.IP.String()
+						ProcessIPv6 = ipnet.IP.String()
 					}
 				}
 			}
@@ -361,9 +389,9 @@ func getOptimalResolvers(recordType, userIp string, country string) []net.IP {
 
 	if len(country) != 2 {
 		if recordType == "A" {
-			return []net.IP{net.ParseIP(processIPv4)}
+			return []net.IP{net.ParseIP(ProcessIPv4)}
 		} else if recordType == "AAAA" {
-			return []net.IP{net.ParseIP(processIPv6)}
+			return []net.IP{net.ParseIP(ProcessIPv6)}
 		}
 	}
 
@@ -379,13 +407,13 @@ func getOptimalResolvers(recordType, userIp string, country string) []net.IP {
 			return resolvers
 		}
 
-		return []net.IP{net.ParseIP(processIPv4)}
+		return []net.IP{net.ParseIP(ProcessIPv4)}
 	} else if recordType == "AAAA" {
 		if resolvers, ok := ResolversV6[country]; ok {
 			return resolvers
 		}
 
-		return []net.IP{net.ParseIP(processIPv6)}
+		return []net.IP{net.ParseIP(ProcessIPv6)}
 	}
 
 	return nil

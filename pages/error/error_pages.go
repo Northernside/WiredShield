@@ -1,4 +1,4 @@
-package wiredhttps
+package errorpages
 
 import (
 	"bytes"
@@ -7,12 +7,21 @@ import (
 )
 
 var (
+	Error500 = []string{
+		"An internal server error has occurred. Please try again later.",
+	}
 	Error601 = []string{
 		"An internal DNS issue has occurred. Please try again later.",
+	}
+	Error602 = []string{
+		"The website you're trying to reach is currently not able to handle your request.",
 	}
 	Error603 = []string{
 		"The website you're trying to reach is currently not able to accept any connections.",
 		"This could occur due to a few different reasons, very likely due to the server being offline.",
+	}
+	Error604 = []string{ // error occurs when requesting internal pages not available
+		"The website you're trying to reach does not exist.",
 	}
 	Error605 = []string{
 		"The website you're trying to reach is currently not responding (Timeout exceeded).",
@@ -29,7 +38,7 @@ type ErrorPage struct {
 
 func init() {
 	// load from pages/error.html
-	file, err := os.Open("pages/error.html")
+	file, err := os.Open("pages/error/error.html")
 	if err != nil {
 		panic(err)
 	}

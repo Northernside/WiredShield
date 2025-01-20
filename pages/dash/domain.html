@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiredShield - Domain Management</title>
+    <link rel="stylesheet" href="/.wiredshield/css/global.css">
+</head>
+
+<div id="addRecordModal"
+    style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #252525; padding: 20px; border-radius: 8px; color: #fff; z-index: 1000;">
+    <h2>Add DNS Record</h2>
+    <div>
+        <label for="recordType">Record Type:</label>
+        <select id="recordType" onchange="generateRecordFields()">
+            <option value="A">A</option>
+            <option value="AAAA">AAAA</option>
+            <option value="CNAME">CNAME</option>
+            <option value="TXT">TXT</option>
+            <option value="MX">MX</option>
+            <option value="NS">NS</option>
+            <option value="SOA">SOA</option>
+            <option value="CAA">CAA</option>
+            <option value="SRV">SRV</option>
+        </select>
+    </div>
+    <div id="recordFields"></div>
+    <div style="margin-top: 20px;">
+        <button onclick="saveRecord()">Save</button>
+        <button onclick="closeAddRecordModal()">Cancel</button>
+    </div>
+</div>
+<div id="overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 999;"
+    onclick="closeAddRecordModal()">
+</div>
+
+<body>
+    <div class="page">
+        <div class="header">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGVsbGlwc2UgY3g9IjQ4LjIwMzQiIGN5PSI0OC4yMDQxIiByeD0iOC4xNzAxOSIgcnk9IjguMTcwMTkiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSIzMS44NjM2IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjYwLjQ1OTEiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSI2NC41NDQ1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSI2MC40NTk1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjY0LjU0NSIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iNjAuNDU5MSIgY3k9IjYwLjQ1OTUiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iMzEuODYzNCIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSI0Ny45OTk5IiBjeT0iMTEuNjQyNSIgcj0iMTEuNjQyNSIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSIyMS4wMzciIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9Ijc0Ljk2MDkiIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjQ3Ljk5OTkiIGN5PSI4NC4zNTcxIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjIxLjAzNyIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iODQuMzU3NCIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iNzQuOTYwOSIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iMTEuNjQyNSIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPC9zdmc+"
+                alt="WiredShield Logo" width="96px" height="96px">
+            <h1>WiredShield</h1>
+        </div>
+        <div class="content">
+            <button class="add-btn" onclick="openAddRecordModal()">+ Add Record</button>
+            <div id="record-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const domain = window.location.pathname.split("/").pop();
+
+        function fetchRecords() {
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`)
+                .then((response) => response.json())
+                .then((data) => displayRecords(data))
+                .catch((error) => console.error("Error fetching records:", error));
+        }
+
+        function groupRecordsByType(records) {
+            return records.reduce((groups, record) => {
+                const { type } = record;
+                if (!groups[type]) groups[type] = [];
+                groups[type].push(record);
+                return groups;
+            }, {});
+        }
+
+        function displayRecords(records) {
+            const groupedRecords = groupRecordsByType(records);
+            const container = document.getElementById("record-list");
+            container.innerHTML = "";
+
+            Object.keys(groupedRecords).forEach((type) => {
+                const table = document.createElement("table");
+                const title = document.createElement("h3");
+                title.className = "table-title";
+                title.textContent = `Records - ${type}`;
+                container.appendChild(title);
+
+                const thead = document.createElement("thead");
+                const headerRow = document.createElement("tr");
+
+                const actionsHeader = document.createElement("th");
+                actionsHeader.textContent = "Actions";
+                actionsHeader.classList.add("actions-col");
+                headerRow.appendChild(actionsHeader);
+
+                const typeHeader = document.createElement("th");
+                typeHeader.textContent = "Type";
+                typeHeader.classList.add("type-col");
+                headerRow.appendChild(typeHeader);
+
+                const protectedHeader = document.createElement("th");
+                protectedHeader.textContent = "Protected";
+                protectedHeader.classList.add("protected-col");
+                headerRow.appendChild(protectedHeader);
+
+                const otherHeaders = Object.keys(groupedRecords[type][0] || {}).filter(
+                    (header) => !["id", "type", "protected"].includes(header)
+                );
+
+                otherHeaders.forEach((header) => {
+                    const th = document.createElement("th");
+                    th.textContent = header.charAt(0).toUpperCase() + header.slice(1);
+                    headerRow.appendChild(th);
+                });
+
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                const tbody = document.createElement("tbody");
+                groupedRecords[type].forEach((record) => {
+                    const row = document.createElement("tr");
+
+                    const actionsCell = document.createElement("td");
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.textContent = "Delete";
+                    deleteBtn.style.backgroundColor = "#d9534f";
+                    deleteBtn.style.color = "#ffffff";
+                    deleteBtn.style.border = "none";
+                    deleteBtn.style.padding = "5px 10px";
+                    deleteBtn.style.cursor = "pointer";
+                    deleteBtn.style.borderRadius = "4px";
+                    deleteBtn.onclick = () => deleteRecord(record.id);
+                    actionsCell.classList.add("actions-col");
+                    actionsCell.appendChild(deleteBtn);
+                    row.appendChild(actionsCell);
+
+                    const typeCell = document.createElement("td");
+                    typeCell.textContent = record.type;
+                    typeCell.classList.add("type-col");
+                    row.appendChild(typeCell);
+
+                    const protectedCell = document.createElement("td");
+                    const logo = document.createElement("img");
+                    logo.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGVsbGlwc2UgY3g9IjQ4LjIwMzQiIGN5PSI0OC4yMDQxIiByeD0iOC4xNzAxOSIgcnk9IjguMTcwMTkiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSIzMS44NjM2IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjYwLjQ1OTEiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSI2NC41NDQ1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSI2MC40NTk1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjY0LjU0NSIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iNjAuNDU5MSIgY3k9IjYwLjQ1OTUiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iMzEuODYzNCIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSI0Ny45OTk5IiBjeT0iMTEuNjQyNSIgcj0iMTEuNjQyNSIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSIyMS4wMzciIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9Ijc0Ljk2MDkiIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjQ3Ljk5OTkiIGN5PSI4NC4zNTcxIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjIxLjAzNyIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iODQuMzU3NCIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iNzQuOTYwOSIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iMTEuNjQyNSIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPC9zdmc+";
+                    logo.className = "logo";
+                    if (record.protected) {
+                        logo.classList.add("green-filter");
+                    }
+
+                    protectedCell.appendChild(logo);
+                    protectedCell.classList.add("protected-col");
+                    row.appendChild(protectedCell);
+
+                    otherHeaders.forEach((header) => {
+                        const td = document.createElement("td");
+                        td.textContent = record[header] || "";
+                        row.appendChild(td);
+                    });
+
+                    tbody.appendChild(row);
+                });
+
+                table.appendChild(tbody);
+                container.appendChild(table);
+            });
+        }
+
+        function openAddRecordModal() {
+            document.getElementById("addRecordModal").style.display = "block";
+            document.getElementById("overlay").style.display = "block";
+            generateRecordFields();
+
+            // set focus on Name field
+            document.getElementById("field-Name").focus();
+            // set cursor to first char
+            document.getElementById("field-Name").setSelectionRange(0, 0);
+        }
+
+        function closeAddRecordModal() {
+            document.getElementById("addRecordModal").style.display = "none";
+            document.getElementById("overlay").style.display = "none";
+        }
+
+        function generateRecordFields() {
+            const recordType = document.getElementById("recordType").value;
+            const recordFieldsContainer = document.getElementById("recordFields");
+            recordFieldsContainer.innerHTML = "";
+
+            const fieldConfig = {
+                A: ["Name", "Address", "TTL", "Protected"],
+                AAAA: ["Name", "Address", "TTL", "Protected"],
+                CNAME: ["Name", "Target", "TTL"],
+                TXT: ["Name", "Value", "TTL"],
+                MX: ["Name", "Priority", "Target", "TTL"],
+                NS: ["Name", "Nameserver", "TTL"],
+                SOA: ["Nameserver", "Email", "Serial", "Refresh", "Retry", "Expire", "TTL"],
+                CAA: ["Name", "Flag", "Tag", "Value", "TTL"],
+                SRV: ["Name", "Priority", "Weight", "Port", "Target", "TTL"]
+            };
+
+            (fieldConfig[recordType] || []).forEach((field) => {
+                const fieldDiv = document.createElement("div");
+                const label = document.createElement("label");
+                label.textContent = `${field}:`;
+                fieldDiv.appendChild(label);
+
+                let input;
+                if (field !== "Protected") {
+                    input = document.createElement("input");
+                    input.type = "text";
+                    input.id = `field-${field}`;
+                    fieldDiv.appendChild(input);
+                } else {
+                    input = document.createElement("input");
+                    input.type = "checkbox";
+                    input.id = `field-${field}`;
+                    fieldDiv.appendChild(input);
+                }
+
+                if (field === "Name") {
+                    input.value = domain;
+                } else if (field === "Refresh") {
+                    input.value = "3600";
+                } else if (field === "Retry") {
+                    input.value = "600";
+                } else if (field === "Expire") {
+                    input.value = "604800";
+                } else if (field === "TTL") {
+                    input.value = "3600";
+                }
+
+                recordFieldsContainer.appendChild(fieldDiv);
+            });
+        }
+
+        function saveRecord() {
+            const recordType = document.getElementById("recordType").value;
+            const fields = Array.from(document.querySelectorAll("#recordFields input"))
+                .reduce((data, input) => {
+                    data[input.id.replace("field-", "")] = input.value;
+                    return data;
+                }, {});
+
+            const record = {
+                type: recordType,
+                ...fields
+            };
+
+            // send to POST https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}
+            // with headers being key:value for the data
+
+            let editHeaders = new Headers();
+            let keys = Object.keys(record);
+            let values = Object.values(record);
+            for (let i = 0; i < keys.length; i++) {
+                if (keys[i] === "Protected") {
+                    values[i] = values[i] == "on" ? true : false;
+                }
+
+                editHeaders.append(`wired-${keys[i]}`, values[i]);
+            }
+
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...Object.fromEntries(editHeaders)
+                },
+                body: JSON.stringify(record)
+            })
+                .then((response) => response.text())
+                .then(async (data) => {
+                    closeAddRecordModal();
+                    await new Promise((resolve) => setTimeout(resolve, 150));
+                    fetchRecords();
+                })
+                .catch((error) => {
+                    alert(`Error saving record: ${error}`);
+                });
+        }
+
+        function deleteRecord(id) {
+            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records/${id}?domain=${domain}`, {
+                method: "DELETE"
+            })
+                .then((response) => response.text())
+                .then((data) => fetchRecords())
+                .catch((error) => alert("Error deleting record:", error));
+        }
+
+        fetchRecords();
+    </script>
+</body>
+
+</html>

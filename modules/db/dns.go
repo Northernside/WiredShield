@@ -336,7 +336,36 @@ func GetAllDomains() ([]string, error) {
 		}
 	})
 
-	return domains, err
+	// filter for second-level domains
+	var filteredDomains []string
+	for _, domain := range domains {
+		secondLevelDomain, err := GetSecondLevelDomain(domain)
+		if err != nil {
+			services.ProcessService.ErrorLog(fmt.Sprintf("Failed to get second-level domain: %v", err))
+			continue
+		}
+
+		filteredDomains = append(filteredDomains, secondLevelDomain)
+	}
+
+	// remove duplicates
+	filteredDomains = removeDuplicates(filteredDomains)
+
+	return filteredDomains, err
+}
+
+func removeDuplicates(domains []string) []string {
+	uniqueDomains := make(map[string]struct{})
+	for _, domain := range domains {
+		uniqueDomains[domain] = struct{}{}
+	}
+
+	var uniqueDomainList []string
+	for domain := range uniqueDomains {
+		uniqueDomainList = append(uniqueDomainList, domain)
+	}
+
+	return uniqueDomainList
 }
 
 func GetRecords(recordType, domain string) ([]DNSRecord, error) {
@@ -397,7 +426,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 	return records, err
 }
 
-func getSecondLevelDomain(domain string) (string, error) {
+func GetSecondLevelDomain(domain string) (string, error) {
 	parts := strings.Split(domain, ".")
 	if len(parts) < 2 {
 		return "", fmt.Errorf("invalid domain: %s", domain)

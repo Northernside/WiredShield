@@ -5,7 +5,9 @@ import (
 	"strconv"
 	"time"
 	"wiredshield/modules/db"
+	"wiredshield/modules/env"
 	"wiredshield/modules/pgp"
+	"wiredshield/services"
 	"wiredshield/utils/b64"
 
 	"github.com/valyala/fasthttp"
@@ -13,12 +15,6 @@ import (
 
 // endpoint is supposed to be used by the master server to update the DNS records of the clients
 func DNSUpdate(ctx *fasthttp.RequestCtx) {
-	if !ctx.IsGet() {
-		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-		ctx.SetBodyString("METHOD_NOT_ALLOWED")
-		return
-	}
-
 	/*
 		logic:
 			- verify the signature (compare headers: signature and auth_message)
@@ -33,8 +29,17 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	woofPub, err := pgp.LoadPublicKey("certs/woof-public.asc")
+	var partnerMaster string
+	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
+		partnerMaster = "meow"
+	} else {
+		partnerMaster = "woof"
+	}
+
+	services.ProcessService.InfoLog(fmt.Sprintf("%s: %s", partnerMaster, auth_message))
+	partnerPub, err := pgp.LoadPublicKey(fmt.Sprintf("certs/%s-public.asc", partnerMaster))
 	if err != nil {
+		services.GetService("https").ErrorLog(err.Error())
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString("INTERNAL_SERVER_ERROR")
 		return
@@ -48,7 +53,7 @@ func DNSUpdate(ctx *fasthttp.RequestCtx) {
 	}
 
 	b64SigStr := string(b64Sig)
-	err = pgp.VerifySignature(auth_message, b64SigStr, woofPub)
+	err = pgp.VerifySignature(auth_message, b64SigStr, partnerPub)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBodyString("UNAUTHORIZED v2")

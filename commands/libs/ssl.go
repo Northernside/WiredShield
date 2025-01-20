@@ -9,8 +9,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"os"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
+	"wiredshield/services"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/acme"
@@ -183,4 +185,37 @@ func createCSR(domain string, key *rsa.PrivateKey) ([]byte, error) {
 	}
 
 	return x509.CreateCertificateRequest(rand.Reader, &tmpl, key)
+}
+
+func GenSSL(domain string) {
+	services.ProcessService.InfoLog("Generating SSL certificate for " + domain)
+	go func() {
+		certPEM, keyPEM, err := GenerateCertificate(domain)
+		if err != nil {
+			services.ProcessService.ErrorLog("Failed to generate certificate: " + err.Error())
+			return
+		}
+
+		// save to certs/<domain>
+		certFile := fmt.Sprintf("certs/%s.crt", domain)
+		keyFile := fmt.Sprintf("certs/%s.key", domain)
+
+		writer, err := os.Create(certFile)
+		if err != nil {
+			services.ProcessService.ErrorLog("failed to create cert file: " + err.Error())
+			return
+		}
+		defer writer.Close()
+		writer.Write(certPEM)
+
+		writer, err = os.Create(keyFile)
+		if err != nil {
+			fmt.Printf("failed to create key file: %v", err)
+			return
+		}
+		defer writer.Close()
+		writer.Write(keyPEM)
+
+		services.ProcessService.InfoLog("SSL certificate for " + domain + " generated")
+	}()
 }

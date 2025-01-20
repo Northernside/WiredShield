@@ -80,6 +80,9 @@ func (log *HTTPRequestLog) BatchInsert(logs []*HTTPRequestLog) error {
 	values := make([]interface{}, 0, len(logs)*16)
 
 	for i, log := range logs {
+		log.ClientIP = strings.ReplaceAll(log.ClientIP, "[", "")
+		log.ClientIP = strings.ReplaceAll(log.ClientIP, "]", "")
+
 		placeholders[i] = fmt.Sprintf(
 			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			i*15+1, i*15+2, i*15+3, i*15+4, i*15+5, i*15+6, i*15+7, i*15+8,
@@ -159,6 +162,9 @@ func (log *DNSRequestLog) BatchInsert(logs []*DNSRequestLog) error {
 	values := make([]interface{}, 0, len(logs)*9)
 
 	for i, log := range logs {
+		log.ClientIP = strings.ReplaceAll(log.ClientIP, "[", "")
+		log.ClientIP = strings.ReplaceAll(log.ClientIP, "]", "")
+
 		placeholders[i] = fmt.Sprintf(
 			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			i*9+1, i*9+2, i*9+3, i*9+4, i*9+5, i*9+6, i*9+7, i*9+8, i*9+9,
@@ -185,7 +191,7 @@ func (log *DNSRequestLog) BatchInsert(logs []*DNSRequestLog) error {
 
 	_, err = transaction.Exec(context.Background(), query, values...)
 	if err != nil {
-		return fmt.Errorf("batch insert failed: %v", err)
+		return fmt.Errorf("batch insert failed (w/ ip %s): %v", log.ClientIP, err)
 	}
 
 	return transaction.Commit(context.Background())

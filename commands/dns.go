@@ -2,13 +2,14 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	ssl "wiredshield/commands/libs"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
 	"wiredshield/services"
+
+	"github.com/miekg/dns"
 )
 
 func Dns(model *Model) {
@@ -119,12 +120,37 @@ func Dns(model *Model) {
 
 		split[2] = strings.ToUpper(split[2])
 
+		// check via dns if NS of split[3] is woof.ns.wired.rip and meow.ns.wired.rip
+		dnsClient := dns.Client{}
+		msg := dns.Msg{}
+		secondLevelDomain, err := db.GetSecondLevelDomain(split[3])
+		if err != nil {
+			sb.WriteString("Failed to get second level domain: " + err.Error() + "\n")
+			break
+		}
+
+		msg.SetQuestion(dns.Fqdn(secondLevelDomain), dns.TypeNS)
+		resp, _, err := dnsClient.Exchange(&msg, "1.1.1.1:53")
+		if err != nil {
+			sb.WriteString("Failed to resolve NS: " + err.Error() + " - Seems like the domain is not delegated to us\n")
+			break
+		}
+
+		if len(resp.Answer) == 0 {
+			sb.WriteString("Failed to resolve NS: no answer - Seems like the domain is not delegated to us\n")
+			break
+		}
+
+		if resp.Answer[0].(*dns.NS).Ns != "woof.ns.wired.rip." && resp.Answer[0].(*dns.NS).Ns != "meow.ns.wired.rip." {
+			sb.WriteString("Failed to resolve NS: not delegated to us\n")
+			break
+		}
+
 		var protected bool
 		if len(split) > 5 {
 			protected = split[5] == "true"
 		}
 
-		var err error
 		var record db.DNSRecord
 		var id uint64
 		snowflake, err := epoch.NewSnowflake(512)
@@ -145,36 +171,7 @@ func Dns(model *Model) {
 			}
 
 			if protected {
-				services.ProcessService.InfoLog("Generating SSL certificate for " + split[3])
-				go func() {
-					certPEM, keyPEM, err := ssl.GenerateCertificate(split[3])
-					if err != nil {
-						services.ProcessService.ErrorLog("Failed to generate certificate: " + err.Error())
-						return
-					}
-
-					// save to certs/<domain>
-					certFile := fmt.Sprintf("certs/%s.crt", split[3])
-					keyFile := fmt.Sprintf("certs/%s.key", split[3])
-
-					writer, err := os.Create(certFile)
-					if err != nil {
-						services.ProcessService.ErrorLog("failed to create cert file: " + err.Error())
-						return
-					}
-					defer writer.Close()
-					writer.Write(certPEM)
-
-					writer, err = os.Create(keyFile)
-					if err != nil {
-						fmt.Printf("failed to create key file: %v", err)
-						return
-					}
-					defer writer.Close()
-					writer.Write(keyPEM)
-
-					services.ProcessService.InfoLog("SSL certificate for " + split[3] + " generated")
-				}()
+				ssl.GenSSL(split[3])
 			}
 		case "AAAA":
 			record = db.AAAARecord{

@@ -1,0 +1,236 @@
+* {
+    box-sizing: border-box;
+    color: #ffffff;
+}
+
+body {
+    background-color: #000000;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.page {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding: 32px;
+}
+
+.header img {
+    margin-right: 16px;
+    width: 64px;
+    height: auto;
+}
+
+.header h1 {
+    font-size: 32px;
+    font-weight: 900;
+    margin: 0;
+    line-height: 1;
+}
+
+.domain-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px;
+    user-select: none;
+}
+
+.domain-name h2 {
+    margin: 0;
+}
+
+.domain {
+    background-color: #1C1C1C;
+    border: 1px solid #3b3b3b;
+    border-radius: 8px;
+    padding: 16px;
+    text-decoration: none;
+}
+
+.domain:hover {
+    background-color: #2C2C2C;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.footer {
+    width: 100%;
+    text-align: center;
+    padding: 16px;
+    margin-top: auto;
+    background-color: #000000;
+    box-sizing: border-box;
+}
+
+.footer p {
+    color: #CBCBCB;
+    margin: 0;
+}
+
+.content {
+    margin: 20px;
+}
+
+.record-list {
+    margin-bottom: 40px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background-color: #171717;
+}
+
+th,
+td {
+    text-align: left;
+    padding: 10px;
+    border: 1px solid #303030;
+}
+
+th {
+    background-color: #202020;
+}
+
+tr:hover {
+    background-color: #202020;
+}
+
+.add-btn {
+    background-color: #1C1C1C;
+    color: #ffffff;
+    border: 1px solid #3b3b3b;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s ease-in-out;
+    margin-bottom: 20px;
+}
+
+.add-btn:hover {
+    background-color: #2C2C2C;
+}
+
+.table-title {
+    margin: 10px 0;
+}
+
+.actions-col {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.type-col {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.actions-col,
+.type-col,
+.protected-col {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.logo {
+    width: 32px;
+    height: 32px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.green-filter {
+    filter: brightness(0) saturate(100%) invert(55%) sepia(100%) saturate(250%) hue-rotate(72deg) brightness(100%) contrast(100%);
+}
+
+#addRecordModal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 24px;
+    border: 1px solid #2f2f2f;
+    border-radius: 10px;
+    z-index: 1000;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+}
+
+#addRecordModal h2 {
+    margin-top: 0;
+    font-size: 20px;
+    color: #e0e0e0;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+#addRecordModal label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#addRecordModal input,
+#addRecordModal select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: #282828;
+    border: 1px solid #444444;
+    color: #ffffff;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#addRecordModal input:focus,
+#addRecordModal select:focus {
+    outline: none;
+}
+
+#addRecordModal button {
+    background-color: #282828;
+    color: #ffffff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 8px;
+    font-size: 14px;
+    border: 1px solid #444444;
+}
+
+#addRecordModal button:hover {
+    background-color: #3D3D3D;
+    transition: background-color 0.2s;
+}
+
+#overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 999;
+}

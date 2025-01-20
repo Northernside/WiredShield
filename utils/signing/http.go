@@ -17,12 +17,12 @@ func SignHTTPRequest(req *http.Request) error {
 
 	timestamp := time.Now().Unix()
 	req.Header.Set("auth_message", fmt.Sprintf("%d", timestamp))
-	meowKey, err := pgp.LoadPrivateKey("certs/master-private.asc", "")
+	instanceKey, err := pgp.LoadPrivateKey("certs/master-private.asc", "")
 	if err != nil {
 		return err
 	}
 
-	signature, err := pgp.SignMessage(fmt.Sprintf("%d", timestamp), meowKey)
+	signature, err := pgp.SignMessage(fmt.Sprintf("%d", timestamp), instanceKey)
 	if err != nil {
 		return err
 	}

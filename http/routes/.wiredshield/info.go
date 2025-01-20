@@ -12,13 +12,7 @@ import (
 )
 
 func Info(ctx *fasthttp.RequestCtx) {
-	country, err := whois.GetCountry(ctx.RemoteIP().String())
-	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.SetBodyString(fmt.Sprintf("Error: %v\n", err))
-		return
-	}
-
+	country, _ := whois.GetCountry(ctx.RemoteIP().String())
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("h=%s\n", string(ctx.Request.Header.Peek("host"))))
 	sb.WriteString(fmt.Sprintf("ip=%s\n", ctx.RemoteIP().String()))
