@@ -9,6 +9,7 @@ import (
 	record_routes "wiredshield/http/routes/api/domains/records"
 	"wiredshield/modules/jwt"
 	dashpages "wiredshield/pages/dash"
+	errorpages "wiredshield/pages/error"
 
 	"github.com/valyala/fasthttp"
 )
@@ -16,10 +17,11 @@ import (
 var EndpointList = make(map[string]func(*fasthttp.RequestCtx))
 
 func init() {
+	passThroughHandler("/.wiredshield/info", internal_routes.Info, "GET")
+
 	passThroughHandler("/.wiredshield/proxy-auth", internal_routes.ProxyAuth, "GET")
 	passThroughHandler("/.wiredshield/dns-update", internal_routes.DNSUpdate, "GET")
 	passThroughHandler("/.wiredshield/ssl-update", internal_routes.SSLUpdate, "GET")
-	passThroughHandler("/.wiredshield/info", internal_routes.Info, "GET")
 
 	passThroughHandler("/.wiredshield/api/auth", auth_routes.Auth, "GET")
 	passThroughHandler("/.wiredshield/api/auth/discord", auth_routes.AuthDiscord, "GET")
@@ -58,6 +60,18 @@ func passThroughHandler(path string, handler fasthttp.RequestHandler, method str
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
 			ctx.SetBody([]byte(`{"message": "Method not allowed", "hehe":"` + fmt.Sprintf("%s:%s", method, path) + `"}`))
+			return
+		}
+
+		if string(ctx.Host()) != "dash.as214428.net" && string(ctx.Path()) != "/.wiredshield/info" {
+			errorPage := errorpages.ErrorPage{
+				Code:    604,
+				Message: errorpages.Error604,
+			}
+
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Response.Header.Set("Content-Type", "text/html")
+			ctx.SetBodyString(errorPage.ToHTML())
 			return
 		}
 
