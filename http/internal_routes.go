@@ -37,14 +37,12 @@ func init() {
 func PrepareResponse(ctx *fasthttp.RequestCtx) {
 	cleanedPath := strings.Split(string(ctx.Path()), "?")[0]
 	cleanedPath = strings.Split(cleanedPath, "#")[0]
-	// remove any :params, check by each /
-	paths := strings.Split(cleanedPath, "/")
-	for i, path := range paths {
-		services.ProcessService.InfoLog(fmt.Sprintf("2222path: %s", path))
-		if strings.HasPrefix(path, ":") {
-			// remove (e.g. /.wiredshield/dash/domain/northernsi.de -> /.wiredshield/dash/domain)
-			cleanedPath = strings.Join(paths[:i], "/")
-			break
+	// remove any :params, check by each /, so e.g. /.wiredshield/dash/domain/northernsi.de will be /wiredshield/dash/domain because /.wiredshield/dash/domain/northernsi.de originates from /wiredshield/dash/domain/:domain
+	userPath := ctx.UserValue("path").(string)
+	if ok, params := matchPattern(userPath, cleanedPath); ok {
+		for _, v := range params {
+			// remove the :param from the path
+			cleanedPath = strings.Replace(cleanedPath, v, "", 1)
 		}
 	}
 
@@ -67,6 +65,7 @@ func passThroughHandler(path string, handler fasthttp.RequestHandler) {
 
 func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 	EndpointList[path] = func(ctx *fasthttp.RequestCtx) {
+		ctx.SetUserValue("path", path)
 		if string(ctx.Method()) != method {
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
