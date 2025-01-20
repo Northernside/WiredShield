@@ -9,6 +9,7 @@ import (
 	record_routes "wiredshield/http/routes/api/domains/records"
 	"wiredshield/modules/jwt"
 	dashpages "wiredshield/pages/dash"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -121,6 +122,8 @@ func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 		if len(pathParts) > 1 {
 			k = pathParts[len(pathParts)-1]
 		}
+
+		services.ProcessService.InfoLog(fmt.Sprintf("comparing %s to %s", k, path))
 
 		if ok, _ := matchPattern(k, path); ok {
 			return v, true
