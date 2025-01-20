@@ -60,7 +60,7 @@ func passThroughHandler(path string, handler fasthttp.RequestHandler, method str
 		if string(ctx.Method()) != method {
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-			ctx.SetBody([]byte(`{"message": "Method not allowed"}`))
+			ctx.SetBody([]byte(`{"message": "Method not allowed", "hehe":"` + fmt.Sprintf("%s:%s", method, path) + `"}`))
 			return
 		}
 
@@ -74,7 +74,7 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 		if string(ctx.Method()) != method {
 			ctx.Response.Header.Set("Content-Type", "application/json")
 			ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
-			ctx.SetBody([]byte(`{"message": "Method not allowed"}`))
+			ctx.SetBody([]byte(`{"message": "Method not allowed", "hehe":"` + fmt.Sprintf("%s:%s", method, path) + `"}`))
 			return
 		}
 
