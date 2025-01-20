@@ -105,6 +105,7 @@ func EvaluateRule(ctx *fasthttp.RequestCtx) bool {
 		if evaluateRule(ctx, rule) {
 			switch rule.Action {
 			case Block:
+				ctx.Response.Header.Set("Content-Type", "text/html")
 				ctx.SetStatusCode(fasthttp.StatusForbidden)
 				ctx.SetBody([]byte(blockedPage))
 				return false
