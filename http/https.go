@@ -77,7 +77,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	cleanedPath := strings.Split(string(ctx.Path()), "?")[0]
 	cleanedPath = strings.Split(cleanedPath, "#")[0]
 
-	if handler, exists := EndpointList[string(cleanedPath)]; exists {
+	if handler, exists := GetHandler(string(cleanedPath)); exists {
 		handler(ctx)
 		return
 	}
