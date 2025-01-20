@@ -7,6 +7,10 @@ import (
 )
 
 var (
+	Error403 = []string{
+		"You are blocked from accessing this website.",
+		"This is a part of WiredShield's security measures to protect the website from malicious users and bots.",
+	}
 	Error500 = []string{
 		"An internal server error has occurred. Please try again later.",
 	}

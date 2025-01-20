@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"wiredshield/modules/whois"
+	errorpages "wiredshield/pages/error"
 	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
@@ -28,6 +29,7 @@ var (
 		Allow: "allow",
 		Log:   "log",
 	}
+	blockedPage string
 )
 
 type Rule struct {
@@ -40,6 +42,9 @@ var (
 )
 
 func init() {
+	_page := errorpages.ErrorPage{Code: 403, Message: errorpages.Error403}
+	blockedPage = _page.ToHTML()
+
 	WAFService := services.RegisterService("waf", "Web Application Firewall")
 	WAFService.Boot = func() {
 		includes := func(arr []string, item string) bool {
@@ -100,7 +105,8 @@ func EvaluateRule(ctx *fasthttp.RequestCtx) bool {
 		if evaluateRule(ctx, rule) {
 			switch rule.Action {
 			case Block:
-				ctx.Error("Access Denied", fasthttp.StatusForbidden)
+				ctx.SetStatusCode(fasthttp.StatusForbidden)
+				ctx.SetBody([]byte(blockedPage))
 				return false
 			case Allow:
 				return true
