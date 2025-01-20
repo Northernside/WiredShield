@@ -36,7 +36,6 @@ func init() {
 			panic(err)
 		}
 
-		services.ProcessService.InfoLog(fmt.Sprintf("Loaded %s", k))
 		DashPages[k] = string(content)
 	}
 }
