@@ -119,8 +119,12 @@ func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 		// remove the method from the key but keep the path including any :params
 
 		var pathParts = strings.Split(k, ":")
-		if len(pathParts) > 1 {
-			k = pathParts[len(pathParts)-1]
+		for i := range pathParts {
+			if i == 0 {
+				continue
+			}
+
+			k = pathParts[i]
 		}
 
 		services.ProcessService.InfoLog(fmt.Sprintf("comparing %s to %s", k, path))
