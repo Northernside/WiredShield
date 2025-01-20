@@ -15,7 +15,7 @@ func DeleteRecord(ctx *fasthttp.RequestCtx) {
 	// grab id by path and domain by query
 	var domain = string(ctx.QueryArgs().Peek("domain"))
 	// split by last /, grab everything after that and then omit the query
-	var id = string(ctx.Path())[strings.LastIndex(string(ctx.Path()), "/")+1 : strings.Index(string(ctx.Path()), "?")]
+	var id = strings.Split(string(ctx.Path()), "/")[len(strings.Split(string(ctx.Path()), "/"))-1]
 
 	services.ProcessService.InfoLog("Deleting record with ID " + id + " from domain " + domain)
 
