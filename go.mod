@@ -1,6 +1,8 @@
 module wiredshield
 
-go 1.22.3
+go 1.23
+
+toolchain go1.23.4
 
 require (
 	github.com/bmatsuo/lmdb-go v1.8.0
@@ -58,6 +60,7 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/savsgio/gotils v0.0.0-20240704082632-aef3928b8a38 // indirect
