@@ -114,9 +114,9 @@ tr:hover {
 }
 
 .add-btn {
-    background-color: #00a1e0;
+    background-color: #1C1C1C;
     color: #ffffff;
-    border: none;
+    border: 1px solid #3b3b3b;
     padding: 8px 12px;
     cursor: pointer;
     border-radius: 4px;
@@ -125,9 +125,19 @@ tr:hover {
 }
 
 .add-btn:hover {
-    background-color: #007aa8;
+    background-color: #2C2C2C;
 }
 
 .table-title {
     margin: 10px 0;
+}
+
+.actions-col {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.type-col {
+    width: 1%;
+    white-space: nowrap;
 }
