@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	ssl "wiredshield/commands/libs"
@@ -172,36 +171,7 @@ func Dns(model *Model) {
 			}
 
 			if protected {
-				services.ProcessService.InfoLog("Generating SSL certificate for " + split[3])
-				go func() {
-					certPEM, keyPEM, err := ssl.GenerateCertificate(split[3])
-					if err != nil {
-						services.ProcessService.ErrorLog("Failed to generate certificate: " + err.Error())
-						return
-					}
-
-					// save to certs/<domain>
-					certFile := fmt.Sprintf("certs/%s.crt", split[3])
-					keyFile := fmt.Sprintf("certs/%s.key", split[3])
-
-					writer, err := os.Create(certFile)
-					if err != nil {
-						services.ProcessService.ErrorLog("failed to create cert file: " + err.Error())
-						return
-					}
-					defer writer.Close()
-					writer.Write(certPEM)
-
-					writer, err = os.Create(keyFile)
-					if err != nil {
-						fmt.Printf("failed to create key file: %v", err)
-						return
-					}
-					defer writer.Close()
-					writer.Write(keyPEM)
-
-					services.ProcessService.InfoLog("SSL certificate for " + split[3] + " generated")
-				}()
+				ssl.GenSSL(split[3])
 			}
 		case "AAAA":
 			record = db.AAAARecord{

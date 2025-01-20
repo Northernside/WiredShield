@@ -2,6 +2,7 @@ package routes
 
 import (
 	"strconv"
+	ssl "wiredshield/commands/libs"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
 
@@ -61,6 +62,9 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.Domain = domain
 		record.IP = ip
 		record.Protected = protected == "true"
+		if record.Protected {
+			ssl.GenSSL(domain)
+		}
 
 		db.InsertRecord(record, true)
 	case "AAAA":
@@ -69,6 +73,9 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.Domain = domain
 		record.IP = ip
 		record.Protected = protected == "true"
+		if record.Protected {
+			ssl.GenSSL(domain)
+		}
 
 		db.InsertRecord(record, true)
 	case "TXT":
