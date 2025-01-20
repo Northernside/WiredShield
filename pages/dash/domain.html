@@ -164,6 +164,11 @@
             document.getElementById("addRecordModal").style.display = "block";
             document.getElementById("overlay").style.display = "block";
             generateRecordFields();
+
+            // set focus on Name field
+            document.getElementById("field-Name").focus();
+            // set cursor to first char
+            document.getElementById("field-Name").setSelectionRange(0, 0);
         }
 
         function closeAddRecordModal() {
@@ -208,12 +213,6 @@
                     input.value = "604800";
                 } else if (field === "TTL") {
                     input.value = "3600";
-                }
-
-                // set cursor of domain field to first char
-                if (field === "Name") {
-                    input.focus();
-                    input.setSelectionRange(0, 0);
                 }
 
                 recordFieldsContainer.appendChild(fieldDiv);
