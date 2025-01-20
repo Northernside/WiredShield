@@ -5,30 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WiredShield - Domain Management</title>
-    <link rel="stylesheet" href="/.wiredshield/css/global.css">
 </head>
 
 <body>
-    <div class="page">
-        <div class="header">
-            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGVsbGlwc2UgY3g9IjQ4LjIwMzQiIGN5PSI0OC4yMDQxIiByeD0iOC4xNzAxOSIgcnk9IjguMTcwMTkiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSIzMS44NjM2IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjYwLjQ1OTEiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSI2NC41NDQ1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSI2MC40NTk1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjY0LjU0NSIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iNjAuNDU5MSIgY3k9IjYwLjQ1OTUiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iMzEuODYzNCIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSI0Ny45OTk5IiBjeT0iMTEuNjQyNSIgcj0iMTEuNjQyNSIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSIyMS4wMzciIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9Ijc0Ljk2MDkiIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjQ3Ljk5OTkiIGN5PSI4NC4zNTcxIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjIxLjAzNyIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iODQuMzU3NCIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iNzQuOTYwOSIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iMTEuNjQyNSIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPC9zdmc+"
-                alt="WiredShield Logo" width="96px" height="96px">
-            <h1>WiredShield</h1>
-        </div>
-        <div class="content">
-            <button class="add-btn" onclick="openAddRecordModal()">+ Add Record</button>
-            <div id="record-list"></div>
-        </div>
+    <header>
+        <img src="data:image/svg+xml;base64,..." alt="WiredShield Logo">
+    </header>
+    <div class="content">
+        <button class="add-btn" onclick="openAddRecordModal()">+ Add Record</button>
+        <div id="record-list"></div>
     </div>
+
     <script>
         const domain = window.location.pathname.split("/").pop();
 
         // Utility: Fetches the DNS records
         function fetchRecords() {
             fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`)
-                .then(response => response.json())
-                .then(data => displayRecords(data))
-                .catch(error => console.error('Error fetching records:', error));
+                .then((response) => response.json())
+                .then((data) => displayRecords(data))
+                .catch((error) => console.error("Error fetching records:", error));
         }
 
         // Utility: Groups records by their type
@@ -47,7 +43,7 @@
             const container = document.getElementById("record-list");
             container.innerHTML = "";
 
-            Object.keys(groupedRecords).forEach(type => {
+            Object.keys(groupedRecords).forEach((type) => {
                 // Create table for each group
                 const table = document.createElement("table");
                 const title = document.createElement("h3");
@@ -64,11 +60,23 @@
                 actionsHeader.classList.add("actions-col");
                 headerRow.appendChild(actionsHeader);
 
-                const headers = Object.keys(groupedRecords[type][0] || {}).filter(header => header !== "id");
-                headers.forEach(header => {
+                const typeHeader = document.createElement("th");
+                typeHeader.textContent = "Type";
+                typeHeader.classList.add("type-col");
+                headerRow.appendChild(typeHeader);
+
+                const protectedHeader = document.createElement("th");
+                protectedHeader.textContent = "Protected";
+                protectedHeader.classList.add("protected-col");
+                headerRow.appendChild(protectedHeader);
+
+                const otherHeaders = Object.keys(groupedRecords[type][0] || {}).filter(
+                    (header) => !["id", "type", "protected"].includes(header)
+                );
+
+                otherHeaders.forEach((header) => {
                     const th = document.createElement("th");
-                    th.textContent = header.charAt(0).toUpperCase() + header.slice(1);
-                    if (header === "type") th.classList.add("type-col"); // Minimize width for "Type"
+                    th.textContent = header;
                     headerRow.appendChild(th);
                 });
 
@@ -76,30 +84,33 @@
                 table.appendChild(thead);
 
                 const tbody = document.createElement("tbody");
-
-                groupedRecords[type].forEach(record => {
+                groupedRecords[type].forEach((record) => {
                     const row = document.createElement("tr");
 
-                    // "Actions" column first
-                    const actionsTd = document.createElement("td");
-                    const deleteBtn = document.createElement("button");
-                    deleteBtn.textContent = "Delete";
-                    deleteBtn.style.backgroundColor = "#d9534f";
-                    deleteBtn.style.color = "#ffffff";
-                    deleteBtn.style.border = "none";
-                    deleteBtn.style.padding = "5px 10px";
-                    deleteBtn.style.cursor = "pointer";
-                    deleteBtn.style.borderRadius = "4px";
-                    deleteBtn.onclick = () => deleteRecord(record.id);
-                    actionsTd.classList.add("actions-col");
-                    actionsTd.appendChild(deleteBtn);
-                    row.appendChild(actionsTd);
+                    const actionsCell = document.createElement("td");
+                    actionsCell.textContent = "Edit | Delete"; // Placeholder
+                    actionsCell.classList.add("actions-col");
+                    row.appendChild(actionsCell);
 
-                    // Other record keys
-                    headers.forEach(key => {
+                    const typeCell = document.createElement("td");
+                    typeCell.textContent = record.type;
+                    typeCell.classList.add("type-col");
+                    row.appendChild(typeCell);
+
+                    const protectedCell = document.createElement("td");
+                    const logo = document.createElement("img");
+                    logo.src = "data:image/svg+xml;base64,...";
+                    logo.className = "logo";
+                    if (record.protected === "true") {
+                        logo.classList.add("green-filter");
+                    }
+                    protectedCell.appendChild(logo);
+                    protectedCell.classList.add("protected-col");
+                    row.appendChild(protectedCell);
+
+                    otherHeaders.forEach((header) => {
                         const td = document.createElement("td");
-                        td.textContent = record[key] || "";
-                        if (key === "type") td.classList.add("type-col"); // Apply minimal width for "Type"
+                        td.textContent = record[header] || "";
                         row.appendChild(td);
                     });
 
@@ -111,15 +122,8 @@
             });
         }
 
-        // Deletes a record by ID
-        function deleteRecord(id) {
-            fetch(`https://dash.as214428.net/.wiredshield/api/domains/records/${id}`, {
-                method: "DELETE"
-            }).then(() => fetchRecords())
-                .catch(error => console.error("Error deleting record:", error));
-        }
-
-        fetchRecords(); // Initial fetch
+        // Initialize records display
+        fetchRecords();
     </script>
 </body>
 

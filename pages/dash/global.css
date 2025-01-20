@@ -1,4 +1,3 @@
-
 * {
     box-sizing: border-box;
     color: #ffffff;
@@ -140,4 +139,20 @@ tr:hover {
 .type-col {
     width: 1%;
     white-space: nowrap;
+}
+
+.actions-col,
+.type-col,
+.protected-col {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.logo {
+    width: 16px;
+    height: 16px;
+}
+
+.green-filter {
+    filter: brightness(0) saturate(100%) invert(55%) sepia(96%) saturate(281%) hue-rotate(72deg) brightness(90%) contrast(92%);
 }
