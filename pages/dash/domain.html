@@ -227,7 +227,8 @@
             fetch(`https://dash.as214428.net/.wiredshield/api/domains/records?domain=${domain}`, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    ...Object.fromEntries(editHeaders)
                 },
                 body: JSON.stringify(record)
             })
