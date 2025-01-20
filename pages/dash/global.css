@@ -157,5 +157,5 @@ tr:hover {
 }
 
 .green-filter {
-    filter: brightness(0) saturate(100%) invert(55%) sepia(96%) saturate(281%) hue-rotate(72deg) brightness(90%) contrast(92%);
+    filter: brightness(0) saturate(100%) invert(55%) sepia(100%) saturate(250%) hue-rotate(72deg) brightness(100%) contrast(100%);
 }
