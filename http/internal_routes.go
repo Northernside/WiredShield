@@ -1,6 +1,7 @@
 package wiredhttps
 
 import (
+	"strings"
 	internal_routes "wiredshield/http/routes/.wiredshield"
 	pages_routes "wiredshield/http/routes/.wiredshield/pages"
 	auth_routes "wiredshield/http/routes/api/auth"
@@ -26,8 +27,8 @@ func init() {
 	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
 	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "GET")
 
-	userHandler("/.wiredshield/dash/domains", pages_routes.GetDomainsOverview, "GET")
-	userHandler("/.wiredshield/dash/domain", pages_routes.GetDomain, "GET")
+	userHandler("/.wiredshield/dash", pages_routes.GetDomainsOverview, "GET")
+	userHandler("/.wiredshield/dash/domain/:domain", pages_routes.GetDomain, "GET")
 }
 
 func passThroughHandler(path string, handler fasthttp.RequestHandler) {
@@ -59,7 +60,6 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 			return
 		}
 
-		// routes.WhitelistedIds
 		for _, id := range auth_routes.WhitelistedIds {
 			if id == claims["discord_id"] {
 				handler(ctx)
@@ -71,4 +71,34 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 		ctx.SetBody([]byte(`{"message": "Unauthorized"}`))
 	}
+}
+
+func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
+	for k, v := range EndpointList {
+		if ok, _ := matchPattern(k, path); ok {
+			return v, true
+		}
+	}
+
+	return nil, false
+}
+
+func matchPattern(pattern, path string) (bool, map[string]string) {
+	patternParts := strings.Split(pattern, "/")
+	pathParts := strings.Split(path, "/")
+
+	if len(patternParts) != len(pathParts) {
+		return false, nil
+	}
+
+	params := make(map[string]string)
+	for i := range patternParts {
+		if strings.HasPrefix(patternParts[i], ":") {
+			params[patternParts[i][1:]] = pathParts[i]
+		} else if patternParts[i] != pathParts[i] {
+			return false, nil
+		}
+	}
+
+	return true, params
 }

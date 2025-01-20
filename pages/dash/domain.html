@@ -131,13 +131,7 @@
     </div>
 
     <script>
-        // load from query
-        const domain = new URLSearchParams(window.location.search).get("domain");
-        if (!domain) {
-            alert("No domain specified");
-            window.location.href = "/.wiredshield/dash/domains";
-        }
-
+        const domain = window.location.pathname.split("/").pop();
         document.title = `WiredShield - ${domain}`;
 
         (async () => {
