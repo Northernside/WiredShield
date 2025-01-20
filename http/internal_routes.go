@@ -121,6 +121,7 @@ func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
 }
 
 func matchPattern(pattern, path string) (bool, map[string]string) {
+	method := pattern[:strings.Index(pattern, ":")]
 	// remove everything before the first : including the : itself
 	pattern = pattern[strings.Index(pattern, ":")+1:]
 	path = path[strings.Index(path, ":")+1:]
@@ -139,6 +140,11 @@ func matchPattern(pattern, path string) (bool, map[string]string) {
 		} else if patternParts[i] != pathParts[i] {
 			return false, nil
 		}
+	}
+
+	// check if the method matches
+	if method != pathParts[0] {
+		return false, nil
 	}
 
 	return true, params
