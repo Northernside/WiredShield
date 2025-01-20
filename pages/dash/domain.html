@@ -8,14 +8,45 @@
     <link rel="stylesheet" href="/.wiredshield/css/global.css">
 </head>
 
+<div id="addRecordModal"
+    style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #252525; padding: 20px; border-radius: 8px; color: #fff; z-index: 1000;">
+    <h2>Add DNS Record</h2>
+    <div>
+        <label for="recordType">Record Type:</label>
+        <select id="recordType" onchange="generateRecordFields()">
+            <option value="A">A</option>
+            <option value="AAAA">AAAA</option>
+            <option value="CNAME">CNAME</option>
+            <option value="TXT">TXT</option>
+            <option value="MX">MX</option>
+            <option value="NS">NS</option>
+            <option value="SOA">SOA</option>
+            <option value="CAA">CAA</option>
+            <option value="SRV">SRV</option>
+        </select>
+    </div>
+    <div id="recordFields"></div>
+    <div style="margin-top: 20px;">
+        <button onclick="saveRecord()">Save</button>
+        <button onclick="closeAddRecordModal()">Cancel</button>
+    </div>
+</div>
+<div id="overlay"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 999;"
+    onclick="closeAddRecordModal()">
+</div>
+
 <body>
-    <header>
-        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGVsbGlwc2UgY3g9IjQ4LjIwMzQiIGN5PSI0OC4yMDQxIiByeD0iOC4xNzAxOSIgcnk9IjguMTcwMTkiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSIzMS44NjM2IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjYwLjQ1OTEiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSI2NC41NDQ1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSI2MC40NTk1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjY0LjU0NSIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iNjAuNDU5MSIgY3k9IjYwLjQ1OTUiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iMzEuODYzNCIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSI0Ny45OTk5IiBjeT0iMTEuNjQyNSIgcj0iMTEuNjQyNSIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSIyMS4wMzciIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9Ijc0Ljk2MDkiIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjQ3Ljk5OTkiIGN5PSI4NC4zNTcxIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjIxLjAzNyIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iODQuMzU3NCIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iNzQuOTYwOSIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iMTEuNjQyNSIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPC9zdmc+"
-            alt="WiredShield Logo">
-    </header>
-    <div class="content">
-        <button class="add-btn" onclick="openAddRecordModal()">+ Add Record</button>
-        <div id="record-list"></div>
+    <div class="page">
+        <div class="header">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGVsbGlwc2UgY3g9IjQ4LjIwMzQiIGN5PSI0OC4yMDQxIiByeD0iOC4xNzAxOSIgcnk9IjguMTcwMTkiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSIzMS44NjM2IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjYwLjQ1OTEiIGN5PSIzNS45NDg4IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjQ4LjIwMzIiIGN5PSI2NC41NDQ1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjM1Ljk0OTMiIGN5PSI2MC40NTk1IiByeD0iNS4zMTA2MiIgcnk9IjUuMzEwNjIiIGZpbGw9IiNEOUQ5RDkiLz4KPGVsbGlwc2UgY3g9IjY0LjU0NSIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iNjAuNDU5MSIgY3k9IjYwLjQ1OTUiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8ZWxsaXBzZSBjeD0iMzEuODYzNCIgY3k9IjQ4LjIwNDIiIHJ4PSI1LjMxMDYyIiByeT0iNS4zMTA2MiIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSI0Ny45OTk5IiBjeT0iMTEuNjQyNSIgcj0iMTEuNjQyNSIgZmlsbD0iI0Q5RDlEOSIvPgo8Y2lyY2xlIGN4PSIyMS4wMzciIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9Ijc0Ljk2MDkiIGN5PSIyMS4wMzgzIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjQ3Ljk5OTkiIGN5PSI4NC4zNTcxIiByPSIxMS42NDI1IiBmaWxsPSIjRDlEOUQ5Ii8+CjxjaXJjbGUgY3g9IjIxLjAzNyIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iODQuMzU3NCIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iNzQuOTYwOSIgY3k9Ijc0Ljk2MTQiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPGNpcmNsZSBjeD0iMTEuNjQyNSIgY3k9IjQ3Ljk5OTkiIHI9IjExLjY0MjUiIGZpbGw9IiNEOUQ5RDkiLz4KPC9zdmc+"
+                alt="WiredShield Logo" width="96px" height="96px">
+            <h1>WiredShield</h1>
+        </div>
+        <div class="content">
+            <button class="add-btn" onclick="openAddRecordModal()">+ Add Record</button>
+            <div id="record-list"></div>
+        </div>
     </div>
 
     <script>
@@ -73,7 +104,7 @@
 
                 otherHeaders.forEach((header) => {
                     const th = document.createElement("th");
-                    th.textContent = header;
+                    th.textContent = header.charAt(0).toUpperCase() + header.slice(1);
                     headerRow.appendChild(th);
                 });
 
@@ -127,6 +158,66 @@
                 table.appendChild(tbody);
                 container.appendChild(table);
             });
+        }
+
+        function openAddRecordModal() {
+            document.getElementById("addRecordModal").style.display = "block";
+            document.getElementById("overlay").style.display = "block";
+            generateRecordFields();
+        }
+
+        function closeAddRecordModal() {
+            document.getElementById("addRecordModal").style.display = "none";
+            document.getElementById("overlay").style.display = "none";
+        }
+
+        function generateRecordFields() {
+            const recordType = document.getElementById("recordType").value;
+            const recordFieldsContainer = document.getElementById("recordFields");
+            recordFieldsContainer.innerHTML = "";
+
+            const fieldConfig = {
+                A: ["Name", "Address", "TTL"],
+                AAAA: ["Name", "IPv6 Address", "TTL"],
+                CNAME: ["Name", "Canonical Name", "TTL"],
+                TXT: ["Name", "Value", "TTL"],
+                MX: ["Name", "Priority", "Mail Server", "TTL"],
+                NS: ["Name", "Nameserver", "TTL"],
+                SOA: ["Primary NS", "Admin Email", "Serial", "Refresh", "Retry", "Expire", "TTL"],
+                CAA: ["Name", "Flag", "Tag", "Value", "TTL"],
+                SRV: ["Name", "Priority", "Weight", "Port", "Target", "TTL"]
+            };
+
+            (fieldConfig[recordType] || []).forEach((field) => {
+                const fieldDiv = document.createElement("div");
+                const label = document.createElement("label");
+                label.textContent = `${field}:`;
+                const input = document.createElement("input");
+                input.type = "text";
+                input.id = `field-${field}`;
+                fieldDiv.appendChild(label);
+                fieldDiv.appendChild(input);
+                recordFieldsContainer.appendChild(fieldDiv);
+            });
+        }
+
+        function saveRecord() {
+            const recordType = document.getElementById("recordType").value;
+            const fields = Array.from(document.querySelectorAll("#recordFields input"))
+                .reduce((data, input) => {
+                    data[input.id.replace("field-", "")] = input.value;
+                    return data;
+                }, {});
+
+            const record = {
+                type: recordType,
+                ...fields
+            };
+
+            console.log("Saving record:", record);
+
+            closeAddRecordModal();
+            fetchRecords();
         }
 
         fetchRecords();
