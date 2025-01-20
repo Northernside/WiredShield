@@ -8,7 +8,7 @@ import (
 	"wiredshield/modules/pgp"
 )
 
-func SignHTTPRequest(req *http.Request, instanceName string) error {
+func SignHTTPRequest(req *http.Request) error {
 	/*
 		logic:
 			- send a signature (headers: signature and auth_message)
@@ -17,7 +17,7 @@ func SignHTTPRequest(req *http.Request, instanceName string) error {
 
 	timestamp := time.Now().Unix()
 	req.Header.Set("auth_message", fmt.Sprintf("%d", timestamp))
-	instanceKey, err := pgp.LoadPrivateKey(fmt.Sprintf("certs/%s-private.asc", instanceName), "")
+	instanceKey, err := pgp.LoadPrivateKey("certs/master-private.asc")
 	if err != nil {
 		return err
 	}

@@ -65,7 +65,7 @@ func syncSet(record DNSRecord) error {
 		services.ProcessService.ErrorLog(fmt.Sprintf("unknown record type: %T", record))
 	}
 
-	signing.SignHTTPRequest(req, _env.GetEnv("CLIENT_NAME", ""))
+	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
@@ -100,7 +100,7 @@ func syncDel(id uint64, domain string) error {
 	req.Header.Set("id", fmt.Sprintf("%d", id))
 	req.Header.Set("dns_domain", domain)
 
-	signing.SignHTTPRequest(req, _env.GetEnv("CLIENT_NAME", ""))
+	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		services.ProcessService.ErrorLog(fmt.Sprintf("failed to send request: %v", err))
