@@ -115,10 +115,9 @@ func userHandler(path string, handler fasthttp.RequestHandler, method string) {
 }
 
 func GetHandler(path string) (func(*fasthttp.RequestCtx), bool) {
-	services.ProcessService.InfoLog(fmt.Sprintf("path: %s", path))
 	for k, v := range EndpointList {
-		services.ProcessService.InfoLog(fmt.Sprintf("k: %s", k))
 		if ok, _ := matchPattern(k, path); ok {
+			services.ProcessService.InfoLog(fmt.Sprintf("matched: %s", k))
 			return v, true
 		}
 	}
@@ -131,17 +130,10 @@ func matchPattern(pattern, path string) (bool, map[string]string) {
 	pattern = pattern[strings.Index(pattern, ":")+1:]
 	path = path[strings.Index(path, ":")+1:]
 
-	services.ProcessService.InfoLog(fmt.Sprintf("pattern: %s", pattern))
-	services.ProcessService.InfoLog(fmt.Sprintf("path: %s", path))
-
 	patternParts := strings.Split(pattern, "/")
 	pathParts := strings.Split(path, "/")
 
-	services.ProcessService.InfoLog(fmt.Sprintf("patternParts: %v", patternParts))
-	services.ProcessService.InfoLog(fmt.Sprintf("pathParts: %v", pathParts))
-
 	if len(patternParts) != len(pathParts) {
-		services.ProcessService.InfoLog(fmt.Sprintf("lengths not equal"))
 		return false, nil
 	}
 
