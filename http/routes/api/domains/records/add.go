@@ -66,7 +66,7 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 			ssl.GenSSL(domain)
 		}
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	case "AAAA":
 		var record db.AAAARecord
 		record.ID = uint64(id)
@@ -77,21 +77,21 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 			ssl.GenSSL(domain)
 		}
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	case "TXT":
 		var record db.TXTRecord
 		record.ID = uint64(id)
 		record.Domain = domain
 		record.Text = value
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	case "CNAME":
 		var record db.CNAMERecord
 		record.ID = uint64(id)
 		record.Domain = domain
 		record.Target = target
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	case "CAA":
 		var record db.CAARecord
 		record.ID = uint64(id)
@@ -100,14 +100,14 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.Tag = tag
 		record.Value = value
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	case "NS":
 		var record db.NSRecord
 		record.ID = uint64(id)
 		record.Domain = domain
 		record.NS = nameserver
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	case "MX":
 		var record db.MXRecord
 		record.ID = uint64(id)
@@ -115,7 +115,7 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.Priority = uint16(priority)
 		record.Target = target
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	case "SRV":
 		var record db.SRVRecord
 		record.ID = uint64(id)
@@ -125,7 +125,7 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.Port = port
 		record.Target = target
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	case "SOA":
 		var record db.SOARecord
 		record.ID = uint64(id)
@@ -138,7 +138,7 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.Expire = uint32(expire)
 		record.MinimumTTL = uint32(ttl)
 
-		db.InsertRecord(record, true)
+		db.InsertRecord(record, false)
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)

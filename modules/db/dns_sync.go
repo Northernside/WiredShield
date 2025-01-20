@@ -24,6 +24,8 @@ func syncSet(record DNSRecord) error {
 		return err
 	}
 
+	services.ProcessService.InfoLog(fmt.Sprintf("req url: %s", req.URL.String()))
+
 	req.Header.Set("change_action", "SET")
 	req.Header.Set("change_record_type", record.GetType())
 	req.Header.Set("id", fmt.Sprintf("%d", record.GetID()))
