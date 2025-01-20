@@ -133,4 +133,7 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 
 		db.InsertRecord(record, true)
 	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetBodyString("Record added successfully")
 }
