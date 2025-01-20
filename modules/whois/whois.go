@@ -24,7 +24,7 @@ func GetCountry(ip string) (string, error) {
 
 	country, err := getCountryFromWhois("whois.arin.net", ip)
 	if err != nil {
-		return "", err
+		return "Unknown (Error)", err
 	}
 
 	cacheMu.Lock()
