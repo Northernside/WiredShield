@@ -40,8 +40,9 @@ func PrepareResponse(ctx *fasthttp.RequestCtx) {
 	// remove any :params, check by each /
 	paths := strings.Split(cleanedPath, "/")
 	for i, path := range paths {
+		services.ProcessService.InfoLog(fmt.Sprintf("2222path: %s", path))
 		if strings.HasPrefix(path, ":") {
-			// remove (e.g. /.wiredshield/dash/domain/:domain -> /.wiredshield/dash/domain)
+			// remove (e.g. /.wiredshield/dash/domain/northernsi.de -> /.wiredshield/dash/domain)
 			cleanedPath = strings.Join(paths[:i], "/")
 			break
 		}
