@@ -78,7 +78,7 @@ func getGeoIP(ip string) (string, string, error) {
 
 func evaluateField(field string, operation string, value string, ctx *fasthttp.RequestCtx) bool {
 	if strings.HasPrefix(field, "ip.geoip") {
-		ip := string(ctx.RemoteIP())
+		ip := ctx.RemoteIP().String()
 		// check if ip is valid, if not, use "1.1.1.1"
 		if net.ParseIP(ip) == nil {
 			ip = "1.1.1.1"
@@ -89,15 +89,19 @@ func evaluateField(field string, operation string, value string, ctx *fasthttp.R
 			return false
 		}
 
-		switch {
-		case field == "ip.geoip.country":
+		switch field {
+		case "ip.geoip.country":
 			return evaluateFieldHelper(country, operation, value)
-		case field == "ip.geoip.asnum":
+		case "ip.geoip.asnum":
 			return evaluateFieldHelper(asn, operation, value)
 		default:
 			return false
-		}
-	} else {
+		} // header check
+	} else if strings.HasPrefix(field, "http.request.headers.") {
+		headerKey := strings.TrimPrefix(field, "http.request.headers.")
+		headerValue := ctx.Request.Header.Peek(headerKey)
+		return evaluateFieldHelper(string(headerValue), operation, value)
+	} else { // meta checks
 		switch field {
 		case "http.request.method":
 			return evaluateFieldHelper(string(ctx.Method()), operation, value)
@@ -110,14 +114,9 @@ func evaluateField(field string, operation string, value string, ctx *fasthttp.R
 		case "http.request.query":
 			return evaluateFieldHelper(string(ctx.QueryArgs().QueryString()), operation, value)
 		case "http.request.body":
-			body := string(ctx.PostBody())
-			return evaluateFieldHelper(body, operation, value)
-		case "http.request.header":
-			headerValue := string(ctx.Request.Header.Peek(value))
-			return evaluateFieldHelper(headerValue, operation, value)
+			return evaluateFieldHelper(string(ctx.PostBody()), operation, value)
 		case "http.user_agent":
-			userAgent := string(ctx.UserAgent())
-			return evaluateFieldHelper(userAgent, operation, value)
+			return evaluateFieldHelper(string(ctx.UserAgent()), operation, value)
 		case "http.request.version":
 			version := string(ctx.Request.Header.Peek("Version"))
 			return evaluateFieldHelper(version, operation, value)
@@ -127,17 +126,41 @@ func evaluateField(field string, operation string, value string, ctx *fasthttp.R
 	}
 }
 
-func evaluateFieldHelper(fieldValue, operation, value string) bool {
+func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 	switch operation {
 	case "equal":
-		return strings.EqualFold(fieldValue, value)
+		if val, ok := value.(string); ok {
+			return strings.EqualFold(strings.ToLower(fieldValue), strings.ToLower(val))
+		}
 	case "not_equal":
-		return !strings.EqualFold(fieldValue, value)
+		if val, ok := value.(string); ok {
+			return !strings.EqualFold(strings.ToLower(fieldValue), strings.ToLower(val))
+		}
 	case "contains":
-		return strings.Contains(fieldValue, value)
-	default:
-		return false
+		if val, ok := value.(string); ok {
+			return strings.Contains(strings.ToLower(fieldValue), strings.ToLower(val))
+		}
+	case "in":
+		if valList, ok := value.([]string); ok {
+			for _, val := range valList {
+				if strings.EqualFold(fieldValue, val) {
+					return true
+				}
+			}
+		}
+	case "not_in":
+		if valList, ok := value.([]string); ok {
+			for _, val := range valList {
+				if strings.EqualFold(fieldValue, val) {
+					return false
+				}
+			}
+
+			return true
+		}
 	}
+
+	return false
 }
 
 func evaluateGroup(rules []Rule, group string, ctx *fasthttp.RequestCtx) bool {
