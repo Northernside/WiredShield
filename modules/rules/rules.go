@@ -19,12 +19,12 @@ var (
 )
 
 type Rule struct {
-	Field     string `json:"field,omitempty"`
-	Operation string `json:"operation"`
-	Value     string `json:"value"`
-	Group     string `json:"group,omitempty"`
-	Rules     []Rule `json:"rules,omitempty"`
-	Action    string `json:"action"`
+	Field     string      `json:"field,omitempty"`
+	Operation string      `json:"operation"`
+	Value     interface{} `json:"value"`
+	Group     string      `json:"group,omitempty"`
+	Rules     []Rule      `json:"rules,omitempty"`
+	Action    string      `json:"action"`
 }
 
 var (
@@ -46,13 +46,22 @@ func init() {
 				panic(err)
 			}
 
-			var rules []Rule
-			if err := json.Unmarshal(fileContent, &rules); err != nil {
-				fmt.Println("Error parsing rules:", err)
-				return
+			type RuleFile struct {
+				Rules []Rule `json:"rules"`
 			}
 
-			Rules = append(Rules, rules...)
+			var rules []Rule
+			if json.Unmarshal(fileContent, &rules) == nil {
+				Rules = append(Rules, rules...)
+			} else {
+				var ruleFile RuleFile
+				if err := json.Unmarshal(fileContent, &ruleFile); err != nil {
+					fmt.Printf("Error parsing %s: %s\n", file, err)
+					continue
+				}
+
+				Rules = append(Rules, ruleFile.Rules...)
+			}
 		}
 
 		WAFService.OnlineSince = time.Now().Unix()
@@ -141,17 +150,17 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 			return strings.Contains(strings.ToLower(fieldValue), strings.ToLower(val))
 		}
 	case "in":
-		if valList, ok := value.([]string); ok {
-			for _, val := range valList {
-				if strings.EqualFold(fieldValue, val) {
+		if valList, ok := value.([]interface{}); ok {
+			for _, v := range valList {
+				if val, ok := v.(string); ok && strings.EqualFold(fieldValue, val) {
 					return true
 				}
 			}
 		}
 	case "not_in":
-		if valList, ok := value.([]string); ok {
-			for _, val := range valList {
-				if strings.EqualFold(fieldValue, val) {
+		if valList, ok := value.([]interface{}); ok {
+			for _, v := range valList {
+				if val, ok := v.(string); ok && strings.EqualFold(fieldValue, val) {
 					return false
 				}
 			}
@@ -169,7 +178,7 @@ func evaluateGroup(rules []Rule, group string, ctx *fasthttp.RequestCtx) bool {
 		if len(rule.Rules) > 0 {
 			result = evaluateGroup(rule.Rules, rule.Group, ctx)
 		} else {
-			result = evaluateField(rule.Field, rule.Operation, rule.Value, ctx)
+			result = evaluateField(rule.Field, rule.Operation, rule.Value.(string), ctx)
 		}
 
 		if group == "AND" && !result {
@@ -189,5 +198,5 @@ func evaluateRule(ctx *fasthttp.RequestCtx, rule Rule) bool {
 		return evaluateGroup(rule.Rules, rule.Group, ctx)
 	}
 
-	return evaluateField(rule.Field, rule.Operation, rule.Value, ctx)
+	return evaluateField(rule.Field, rule.Operation, rule.Value.(string), ctx)
 }
