@@ -87,6 +87,11 @@ func getGeoIP(ip string) (string, string, error) {
 }
 
 func evaluateField(field string, operation string, value interface{}, ctx *fasthttp.RequestCtx) bool {
+	// convert value to string if it's an int
+	if valInt, ok := value.(int); ok {
+		value = strconv.Itoa(valInt)
+	}
+
 	if strings.HasPrefix(field, "ip.geoip") {
 		ip := ctx.RemoteIP().String()
 		if net.ParseIP(ip) == nil {
@@ -102,9 +107,7 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 		case "ip.geoip.country":
 			return evaluateFieldHelper(country, operation, value)
 		case "ip.geoip.asnum":
-			// convert value to string
-			valueStr := strconv.Itoa(value.(int))
-			return evaluateFieldHelper(asn, operation, valueStr)
+			return evaluateFieldHelper(asn, operation, value)
 		default:
 			return false
 		} // header check
@@ -138,6 +141,17 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 }
 
 func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
+	// replace any int with string, even if value is an array, then iterate over it
+	if valList, ok := value.([]interface{}); ok {
+		for i, v := range valList {
+			if valInt, ok := v.(int); ok {
+				valList[i] = strconv.Itoa(valInt)
+			}
+		}
+	} else if valInt, ok := value.(int); ok {
+		value = strconv.Itoa(valInt)
+	}
+
 	switch operation {
 	case "equal":
 		if val, ok := value.(string); ok {
@@ -158,6 +172,8 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 					return true
 				}
 			}
+
+			return false
 		}
 	case "not_in":
 		if valList, ok := value.([]interface{}); ok {
