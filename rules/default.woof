@@ -2,14 +2,84 @@
   "group": "OR",
   "rules": [
     {
-      "field": "http.request.uri",
+      "field": "http.request.version",
+      "operation": "not_in",
+      "value": ["HTTP/1.0", "HTTP/1.1", "HTTP/1.2", "HTTP/2", "HTTP/3"]
+    },
+    {
+      "field": "http.user_agent",
+      "operation": "equal",
+      "value": "CheckHost (https://check-host.net/)"
+    },
+    {
+      "field": "http.request.headers.host",
       "operation": "contains",
-      "value": "/waf-test"
+      "value": ":"
+    },
+    {
+      "field": "http.user_agent",
+      "operation": "contains",
+      "value": "web2copy"
+    },
+    {
+      "group": "OR",
+      "rules": [
+        {
+          "field": "http.user_agent",
+          "operation": "equal",
+          "value": "Stand Lua API"
+        },
+        {
+          "field": "http.user_agent",
+          "operation": "equal",
+          "value": "TelegramBot (like TwitterBot)"
+        },
+        {
+          "field": "http.user_agent",
+          "operation": "equal",
+          "value": "Go http package"
+        },
+        {
+          "field": "http.user_agent",
+          "operation": "equal",
+          "value": "okhttp/3.3.1"
+        }
+      ]
+    },
+    {
+      "field": "http.user_agent",
+      "operation": "contains",
+      "value": "curl"
+    },
+    {
+      "field": "http.user_agent",
+      "operation": "contains",
+      "value": "Python"
+    },
+    {
+      "field": "http.user_agent",
+      "operation": "contains",
+      "value": "Wget"
+    },
+    {
+      "group": "OR",
+      "rules": [
+        {
+          "field": "ip.geoip.country",
+          "operation": "in",
+          "value": ["CN", "DO", "EC", "IN", "ID", "IR", "IQ", "KE", "LY", "MX", "RU", "SC", "SG", "TN", "VN"]
+        },
+        {
+          "field": "http.user_agent",
+          "operation": "contains",
+          "value": "YaBrowser"
+        }
+      ]
     },
     {
       "field": "ip.geoip.asnum",
       "operation": "in",
-      "value": [214428, 3320]
+      "value": [36352, 54252, 397630, 31898, 56309, 49981, 6939, 64267, 3320]
     }
   ]
 }

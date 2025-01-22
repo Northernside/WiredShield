@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 	"wiredshield/modules/whois"
@@ -88,7 +89,6 @@ func getGeoIP(ip string) (string, string, error) {
 func evaluateField(field string, operation string, value interface{}, ctx *fasthttp.RequestCtx) bool {
 	if strings.HasPrefix(field, "ip.geoip") {
 		ip := ctx.RemoteIP().String()
-		// check if ip is valid, if not, use "1.1.1.1"
 		if net.ParseIP(ip) == nil {
 			ip = "1.1.1.1"
 		}
@@ -102,7 +102,9 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 		case "ip.geoip.country":
 			return evaluateFieldHelper(country, operation, value)
 		case "ip.geoip.asnum":
-			return evaluateFieldHelper(asn, operation, value)
+			// convert value to string
+			valueStr := strconv.Itoa(value.(int))
+			return evaluateFieldHelper(asn, operation, valueStr)
 		default:
 			return false
 		} // header check
