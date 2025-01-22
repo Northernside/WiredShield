@@ -66,7 +66,7 @@ func init() {
 		}
 
 		WAFService.OnlineSince = time.Now().Unix()
-		WAFService.InfoLog(fmt.Sprintf("Loaded %d rules", len(Rules)))
+		WAFService.InfoLog(fmt.Sprintf("Loaded Rules from %s: %+v\n", "rules/*.woof", Rules))
 	}
 }
 
