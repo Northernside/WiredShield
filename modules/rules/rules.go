@@ -239,5 +239,10 @@ func evaluateRule(ctx *fasthttp.RequestCtx, rule Rule) bool {
 	}
 
 	services.ProcessService.InfoLog(fmt.Sprintf("###X1 %s %s %s", rule.Field, rule.Operation, rule.Value))
+	// convert rule.Value to string first if its an int
+	if valInt, ok := rule.Value.(int); ok {
+		rule.Value = strconv.Itoa(valInt)
+	}
+
 	return evaluateField(rule.Field, rule.Operation, rule.Value.(string), ctx)
 }
