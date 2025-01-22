@@ -155,16 +155,7 @@ func evaluateFieldHelper(fieldValue string, operation string, value interface{})
 	case "in":
 		if valList, ok := value.([]interface{}); ok {
 			for _, v := range valList {
-				var valStr string
-				switch v := v.(type) {
-				case string:
-					valStr = v
-				case float64:
-					valStr = fmt.Sprintf("%.0f", v)
-				default:
-					continue
-				}
-
+				valStr := fmt.Sprintf("%v", v)
 				if strings.EqualFold(fieldValue, valStr) {
 					return true
 				}
@@ -173,16 +164,7 @@ func evaluateFieldHelper(fieldValue string, operation string, value interface{})
 	case "not_in":
 		if valList, ok := value.([]interface{}); ok {
 			for _, v := range valList {
-				var valStr string
-				switch v := v.(type) {
-				case string:
-					valStr = v
-				case float64:
-					valStr = fmt.Sprintf("%.0f", v)
-				default:
-					continue
-				}
-
+				valStr := fmt.Sprintf("%v", v)
 				if strings.EqualFold(fieldValue, valStr) {
 					return false
 				}
