@@ -371,6 +371,11 @@
         "field": "ip.geoip.country",
         "operation": "equal",
         "value": ["CY"]
+      },
+      {
+        "field": "ip.geoip.country",
+        "operation": "equal",
+        "value": ["IL"]
       }
     ]
   },
