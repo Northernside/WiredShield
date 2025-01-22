@@ -136,7 +136,7 @@ func evaluateField(field string, operation string, value string, ctx *fasthttp.R
 	}
 }
 
-func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
+func evaluateFieldHelper(fieldValue string, operation string, value interface{}) bool {
 	switch operation {
 	case "equal":
 		if val, ok := value.(string); ok {
@@ -158,6 +158,10 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 				}
 			}
 		}
+
+		if val, ok := value.(string); ok {
+			return strings.EqualFold(fieldValue, val)
+		}
 	case "not_in":
 		if valList, ok := value.([]interface{}); ok {
 			for _, v := range valList {
@@ -167,6 +171,10 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 			}
 
 			return true
+		}
+
+		if val, ok := value.(string); ok {
+			return !strings.EqualFold(fieldValue, val)
 		}
 	}
 
