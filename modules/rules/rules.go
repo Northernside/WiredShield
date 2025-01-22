@@ -104,6 +104,7 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 				return evaluateFieldHelper(country, operation, val)
 			}
 		case "ip.geoip.asnum":
+			services.ProcessService.InfoLog(fmt.Sprintf("ASN: %s, Value: %v, Type: %T", asn, value, value))
 			if valList, ok := value.([]interface{}); ok {
 				strAsn := fmt.Sprintf("%s", asn)
 				return evaluateFieldHelper(strAsn, operation, valList)
@@ -131,26 +132,7 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 	return false
 }
 
-func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
-	services.ProcessService.InfoLog(fmt.Sprintf("#3 %s %s %s", fieldValue, operation, value))
-	// replace any int with string, even if value is an array, then iterate over it
-	if valList, ok := value.([]interface{}); ok {
-		services.ProcessService.InfoLog(fmt.Sprintf("#4 %s %s %s", fieldValue, operation, value))
-		for i, v := range valList {
-			services.ProcessService.InfoLog(fmt.Sprintf("#5 %s %s %s", fieldValue, operation, value))
-			if valInt, ok := v.(int); ok {
-				services.ProcessService.InfoLog(fmt.Sprintf("#6 %s %s %s", fieldValue, operation, value))
-				valList[i] = strconv.Itoa(valInt)
-				services.ProcessService.InfoLog(fmt.Sprintf("#7 %s %s %s", fieldValue, operation, value))
-			}
-		}
-	} else if valInt, ok := value.(int); ok {
-		services.ProcessService.InfoLog(fmt.Sprintf("#8 %s %s %s", fieldValue, operation, value))
-		value = strconv.Itoa(valInt)
-	}
-
-	services.ProcessService.InfoLog(fmt.Sprintf("#9 %s %s %s", fieldValue, operation, value))
-
+func evaluateFieldHelper(fieldValue string, operation string, value interface{}) bool {
 	switch operation {
 	case "equal":
 		if val, ok := value.(string); ok {
@@ -165,25 +147,37 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 			return strings.Contains(strings.ToLower(fieldValue), strings.ToLower(val))
 		}
 	case "in":
-		services.ProcessService.InfoLog(fmt.Sprintf("#10 %s %s %s", fieldValue, operation, value))
 		if valList, ok := value.([]interface{}); ok {
-			services.ProcessService.InfoLog(fmt.Sprintf("#11 %s %s %s", fieldValue, operation, value))
 			for _, v := range valList {
-				services.ProcessService.InfoLog(fmt.Sprintf("#12 %s %s %s", fieldValue, operation, value))
-				if valStr, ok := v.(string); ok && strings.EqualFold(fieldValue, valStr) {
-					services.ProcessService.InfoLog(fmt.Sprintf("#13 %s %s %s", fieldValue, operation, value))
+				var valStr string
+				switch v := v.(type) {
+				case string:
+					valStr = v
+				case float64:
+					valStr = fmt.Sprintf("%.0f", v)
+				default:
+					continue
+				}
+
+				if strings.EqualFold(fieldValue, valStr) {
 					return true
 				}
 			}
-
-			services.ProcessService.InfoLog(fmt.Sprintf("#14 %s %s %s", fieldValue, operation, value))
-
-			return false
 		}
 	case "not_in":
 		if valList, ok := value.([]interface{}); ok {
 			for _, v := range valList {
-				if valStr, ok := v.(string); ok && strings.EqualFold(fieldValue, valStr) {
+				var valStr string
+				switch v := v.(type) {
+				case string:
+					valStr = v
+				case float64:
+					valStr = fmt.Sprintf("%.0f", v)
+				default:
+					continue
+				}
+
+				if strings.EqualFold(fieldValue, valStr) {
 					return false
 				}
 			}
