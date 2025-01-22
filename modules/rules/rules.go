@@ -87,6 +87,12 @@ func getGeoIP(ip string) (string, string, error) {
 }
 
 func evaluateField(field string, operation string, value interface{}, ctx *fasthttp.RequestCtx) bool {
+	defer func() {
+		if r := recover(); r != nil {
+			services.ProcessService.ErrorLog(fmt.Sprintf("Panic recovered in evaluateField: %v", r))
+		}
+	}()
+
 	if strings.HasPrefix(field, "ip.geoip") {
 		ip := ctx.RemoteIP().String()
 		if net.ParseIP(ip) == nil {
