@@ -8,6 +8,7 @@ import (
 	"wiredshield/handlers"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
+	"wiredshield/modules/rules"
 	"wiredshield/services"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -26,6 +27,9 @@ func main() {
 		services.ProcessService.InfoLog("Initializing WiredShield")
 		go db.PInit(services.ProcessService)
 	}
+
+	rules.WAFService = services.RegisterService("waf", "WiredShield")
+	rules.WAFService.Boot = rules.Prepare(rules.WAFService)
 
 	// CLI args handler
 	args := os.Args[1:]

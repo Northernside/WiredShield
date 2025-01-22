@@ -31,9 +31,8 @@ type SubRule struct {
 }
 
 func Prepare(_service *services.Service) func() {
-	WAFService = _service
-	WAFService.OnlineSince = time.Now().Unix()
 	return func() {
+		WAFService.OnlineSince = time.Now().Unix()
 		var err error
 		var files []string
 
