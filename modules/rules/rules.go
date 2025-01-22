@@ -6,12 +6,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"wiredshield/modules/whois"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
 
-var rules []Rule
+var (
+	WAFService *services.Service
+
+	rules []Rule
+)
 
 type Rule struct {
 	Group string    `json:"group"`
@@ -24,15 +30,35 @@ type SubRule struct {
 	Value     []string `json:"value"`
 }
 
-func init() {
-	var err error
-	rules, err = loadRules("rules/*.woof")
-	if err != nil {
-		panic(err)
+func Prepare(_service *services.Service) func() {
+	WAFService = _service
+	WAFService.OnlineSince = time.Now().Unix()
+	return func() {
+		var err error
+		var files []string
+
+		rules, files, err = loadRules("rules/*.woof")
+		if err != nil {
+			panic(err)
+		}
+
+		WAFService.InfoLog(fmt.Sprintf("Loaded %d rules from following files:", len(rules)))
+		var sb strings.Builder
+		for _, file := range files {
+			sb.WriteString(fmt.Sprintf("\t- %s\n", file))
+		}
+
+		WAFService.InfoLog(sb.String())
 	}
 }
 
 func MatchRules(ctx *fasthttp.RequestCtx) bool {
+	defer func() {
+		if r := recover(); r != nil {
+
+		}
+	}()
+
 	for _, rule := range rules {
 		ruleMatched := false
 		for _, subRule := range rule.Rules {
@@ -114,23 +140,23 @@ func evaluateField(field, operation string, value []string, ctx *fasthttp.Reques
 	}
 }
 
-func loadRules(pattern string) ([]Rule, error) {
+func loadRules(pattern string) ([]Rule, []string, error) {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var allRules []Rule
 	for _, file := range files {
 		rules, err := loadRulesFromFile(file)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		allRules = append(allRules, rules...)
 	}
 
-	return allRules, nil
+	return allRules, files, nil
 }
 
 func loadRulesFromFile(filename string) ([]Rule, error) {
