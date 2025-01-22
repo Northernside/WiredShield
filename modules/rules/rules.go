@@ -106,46 +106,39 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 			return false
 		}
 
+		services.ProcessService.InfoLog(fmt.Sprintf("GeoIP ASN: %s, Country: %s", asn, country))
+
 		switch field {
 		case "ip.geoip.country":
 			if val, ok := value.(string); ok {
 				return evaluateFieldHelper(country, operation, val)
 			}
 		case "ip.geoip.asnum":
+			// Convert []interface{} to []string if "in"/"not_in" operations are required
 			if valList, ok := value.([]interface{}); ok {
 				converted := make([]string, len(valList))
 				for i, v := range valList {
-					converted[i] = fmt.Sprintf("%.0f", v)
+					converted[i] = fmt.Sprintf("%.0f", v) // Convert float64 to string safely
 				}
-
+				services.ProcessService.InfoLog(fmt.Sprintf("ASN Conversion to Strings: %v", converted))
 				return evaluateFieldHelper(asn, operation, converted)
 			}
-
-			services.ProcessService.InfoLog("Failed to process ASN value as list.")
-		default:
-			services.ProcessService.InfoLog(fmt.Sprintf("Unknown Field: %s", field))
+			services.ProcessService.InfoLog("Failed to process ASN value as a list.")
 		}
-	} else if strings.HasPrefix(field, "http.request.headers.") {
+
+		return false
+	}
+
+	// For other fields (e.g., headers)
+	if strings.HasPrefix(field, "http.request.headers.") {
 		headerKey := strings.TrimPrefix(field, "http.request.headers.")
 		headerValue := ctx.Request.Header.Peek(headerKey)
 		if val, ok := value.(string); ok {
 			return evaluateFieldHelper(string(headerValue), operation, val)
 		}
-	} else {
-		switch field {
-		case "http.request.method":
-			if val, ok := value.(string); ok {
-				return evaluateFieldHelper(string(ctx.Method()), operation, val)
-			}
-		case "http.request.uri":
-			if val, ok := value.(string); ok {
-				return evaluateFieldHelper(string(ctx.RequestURI()), operation, val)
-			}
-		}
 	}
 
 	services.ProcessService.InfoLog(fmt.Sprintf("Unhandled field: %s", field))
-
 	return false
 }
 
