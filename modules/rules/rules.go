@@ -93,6 +93,8 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 		}
 	}()
 
+	services.ProcessService.InfoLog(fmt.Sprintf("Evaluating Field: %s, Operation: %s, Value: %v, Type: %T", field, operation, value, value))
+
 	if strings.HasPrefix(field, "ip.geoip") {
 		ip := ctx.RemoteIP().String()
 		if net.ParseIP(ip) == nil {
@@ -110,11 +112,18 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 				return evaluateFieldHelper(country, operation, val)
 			}
 		case "ip.geoip.asnum":
-			services.ProcessService.InfoLog(fmt.Sprintf("ASN: %s, Value: %v, Type: %T", asn, value, value))
 			if valList, ok := value.([]interface{}); ok {
-				strAsn := fmt.Sprintf("%s", asn)
-				return evaluateFieldHelper(strAsn, operation, valList)
+				converted := make([]string, len(valList))
+				for i, v := range valList {
+					converted[i] = fmt.Sprintf("%.0f", v)
+				}
+
+				return evaluateFieldHelper(asn, operation, converted)
 			}
+
+			services.ProcessService.InfoLog("Failed to process ASN value as list.")
+		default:
+			services.ProcessService.InfoLog(fmt.Sprintf("Unknown Field: %s", field))
 		}
 	} else if strings.HasPrefix(field, "http.request.headers.") {
 		headerKey := strings.TrimPrefix(field, "http.request.headers.")
@@ -134,6 +143,8 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 			}
 		}
 	}
+
+	services.ProcessService.InfoLog(fmt.Sprintf("Unhandled field: %s", field))
 
 	return false
 }
