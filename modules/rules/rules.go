@@ -87,16 +87,6 @@ func getGeoIP(ip string) (string, string, error) {
 }
 
 func evaluateField(field string, operation string, value interface{}, ctx *fasthttp.RequestCtx) bool {
-	// convert value to string if it's an int
-	services.ProcessService.InfoLog(fmt.Sprintf("#-2 %s %s %s", field, operation, value))
-	if valInt, ok := value.(int); ok {
-		services.ProcessService.InfoLog(fmt.Sprintf("#-1 %s %s %s", field, operation, value))
-		value = strconv.Itoa(valInt)
-	}
-
-	services.ProcessService.InfoLog(fmt.Sprintf("#0 %s %s %s", field, operation, value))
-
-	services.ProcessService.InfoLog(fmt.Sprintf("#1 %s %s %s", field, operation, value))
 	if strings.HasPrefix(field, "ip.geoip") {
 		ip := ctx.RemoteIP().String()
 		if net.ParseIP(ip) == nil {
@@ -110,40 +100,35 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 
 		switch field {
 		case "ip.geoip.country":
-			return evaluateFieldHelper(country, operation, value)
+			if val, ok := value.(string); ok {
+				return evaluateFieldHelper(country, operation, val)
+			}
 		case "ip.geoip.asnum":
-			services.ProcessService.InfoLog(fmt.Sprintf("#2 %s %s %s", asn, operation, value))
-			return evaluateFieldHelper(asn, operation, value)
-		default:
-			return false
-		} // header check
+			if valList, ok := value.([]interface{}); ok {
+				strAsn := fmt.Sprintf("%s", asn)
+				return evaluateFieldHelper(strAsn, operation, valList)
+			}
+		}
 	} else if strings.HasPrefix(field, "http.request.headers.") {
 		headerKey := strings.TrimPrefix(field, "http.request.headers.")
 		headerValue := ctx.Request.Header.Peek(headerKey)
-		return evaluateFieldHelper(string(headerValue), operation, value)
-	} else { // meta checks
+		if val, ok := value.(string); ok {
+			return evaluateFieldHelper(string(headerValue), operation, val)
+		}
+	} else {
 		switch field {
 		case "http.request.method":
-			return evaluateFieldHelper(string(ctx.Method()), operation, value)
+			if val, ok := value.(string); ok {
+				return evaluateFieldHelper(string(ctx.Method()), operation, val)
+			}
 		case "http.request.uri":
-			return evaluateFieldHelper(string(ctx.RequestURI()), operation, value)
-		case "http.request.host":
-			return evaluateFieldHelper(string(ctx.Host()), operation, value)
-		case "http.request.path":
-			return evaluateFieldHelper(string(ctx.Path()), operation, value)
-		case "http.request.query":
-			return evaluateFieldHelper(string(ctx.QueryArgs().QueryString()), operation, value)
-		case "http.request.body":
-			return evaluateFieldHelper(string(ctx.PostBody()), operation, value)
-		case "http.user_agent":
-			return evaluateFieldHelper(string(ctx.UserAgent()), operation, value)
-		case "http.request.version":
-			version := string(ctx.Request.Header.Peek("Version"))
-			return evaluateFieldHelper(version, operation, value)
-		default:
-			return false
+			if val, ok := value.(string); ok {
+				return evaluateFieldHelper(string(ctx.RequestURI()), operation, val)
+			}
 		}
 	}
+
+	return false
 }
 
 func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
