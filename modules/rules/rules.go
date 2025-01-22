@@ -2,76 +2,46 @@ package rules
 
 import (
 	"encoding/json"
-	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-	"wiredshield/modules/whois"
-	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
 
-var (
-	WAFService *services.Service
-)
+var rules []Rule
 
 type Rule struct {
-	Field     string      `json:"field,omitempty"`
-	Operation string      `json:"operation"`
-	Value     interface{} `json:"value"`
-	Group     string      `json:"group,omitempty"`
-	Rules     []Rule      `json:"rules,omitempty"`
-	Action    string      `json:"action"`
+	Group string    `json:"group"`
+	Rules []SubRule `json:"rules"`
 }
 
-var (
-	Rules = []Rule{}
-)
+type SubRule struct {
+	Field     string   `json:"field"`
+	Operation string   `json:"operation"`
+	Value     []string `json:"value"`
+}
 
 func init() {
-	WAFService := services.RegisterService("waf", "Web Application Firewall")
-	WAFService.Boot = func() {
-		// load every *.woof file in rules/
-		files, err := filepath.Glob("rules/*.woof")
-		if err != nil {
-			panic(err)
-		}
-
-		for _, file := range files {
-			fileContent, err := os.ReadFile(file)
-			if err != nil {
-				panic(err)
-			}
-
-			type RuleFile struct {
-				Rules []Rule `json:"rules"`
-			}
-
-			var rules []Rule
-			if json.Unmarshal(fileContent, &rules) == nil {
-				Rules = append(Rules, rules...)
-			} else {
-				var ruleFile RuleFile
-				if err := json.Unmarshal(fileContent, &ruleFile); err != nil {
-					fmt.Printf("Error parsing %s: %s\n", file, err)
-					continue
-				}
-
-				Rules = append(Rules, ruleFile.Rules...)
-			}
-		}
-
-		WAFService.OnlineSince = time.Now().Unix()
-		WAFService.InfoLog(fmt.Sprintf("Loaded %d rules", len(Rules)))
+	var err error
+	rules, err = loadRules("rules/*.woof")
+	if err != nil {
+		panic(err)
 	}
 }
 
-func EvaluateRule(ctx *fasthttp.RequestCtx) bool {
-	for _, rule := range Rules {
-		if evaluateRule(ctx, rule) {
+func MatchRules(ctx *fasthttp.RequestCtx) bool {
+	for _, rule := range rules {
+		ruleMatched := false
+		for _, subRule := range rule.Rules {
+			matches := evaluateField(subRule.Field, subRule.Operation, subRule.Value, ctx)
+			if (rule.Group == "OR" && matches) || (rule.Group == "AND" && !matches) {
+				ruleMatched = true
+				break
+			}
+		}
+
+		if ruleMatched {
 			return true
 		}
 	}
@@ -79,129 +49,96 @@ func EvaluateRule(ctx *fasthttp.RequestCtx) bool {
 	return false
 }
 
-func getGeoIP(ip string) (string, string, error) {
-	country, _ := whois.GetCountry(ip)
-	asn, _ := whois.GetASN(ip)
-	return country, fmt.Sprintf("%d", asn), nil
-}
+func evaluateField(field, operation string, value []string, ctx *fasthttp.RequestCtx) bool {
+	var fieldValue string
 
-func evaluateField(field string, operation string, value string, ctx *fasthttp.RequestCtx) bool {
-	if strings.HasPrefix(field, "ip.geoip") {
-		ip := ctx.RemoteIP().String()
-		// check if ip is valid, if not, use "1.1.1.1"
-		if net.ParseIP(ip) == nil {
-			ip = "1.1.1.1"
-		}
-
-		country, asn, err := getGeoIP(ip)
-		if err != nil {
-			return false
-		}
-
-		switch field {
-		case "ip.geoip.country":
-			return evaluateFieldHelper(country, operation, value)
-		case "ip.geoip.asnum":
-			services.ProcessService.InfoLog(fmt.Sprintf("asn", asn))
-			return evaluateFieldHelper(asn, operation, value)
-		default:
-			return false
-		} // header check
-	} else if strings.HasPrefix(field, "http.request.headers.") {
-		headerKey := strings.TrimPrefix(field, "http.request.headers.")
-		headerValue := ctx.Request.Header.Peek(headerKey)
-		return evaluateFieldHelper(string(headerValue), operation, value)
-	} else { // meta checks
-		switch field {
-		case "http.request.method":
-			return evaluateFieldHelper(string(ctx.Method()), operation, value)
-		case "http.request.uri":
-			return evaluateFieldHelper(string(ctx.RequestURI()), operation, value)
-		case "http.request.host":
-			return evaluateFieldHelper(string(ctx.Host()), operation, value)
-		case "http.request.path":
-			return evaluateFieldHelper(string(ctx.Path()), operation, value)
-		case "http.request.query":
-			return evaluateFieldHelper(string(ctx.QueryArgs().QueryString()), operation, value)
-		case "http.request.body":
-			return evaluateFieldHelper(string(ctx.PostBody()), operation, value)
-		case "http.user_agent":
-			return evaluateFieldHelper(string(ctx.UserAgent()), operation, value)
-		case "http.request.version":
-			version := string(ctx.Request.Header.Peek("Version"))
-			return evaluateFieldHelper(version, operation, value)
-		default:
-			return false
-		}
+	switch field {
+	case "http.request.method":
+		fieldValue = string(ctx.Method())
+	case "http.request.uri":
+		fieldValue = string(ctx.Request.URI().String())
+	case "http.request.host":
+		fieldValue = string(ctx.Request.Host())
+	case "http.request.path":
+		fieldValue = string(ctx.Request.URI().Path())
+	case "http.request.query":
+		fieldValue = string(ctx.Request.URI().QueryString())
+	case "http.request.body":
+		fieldValue = string(ctx.Request.Body())
+	case "http.user_agent":
+		fieldValue = string(ctx.UserAgent())
+	case "http.request.version":
+		fieldValue = string(ctx.Request.Header.Protocol())
+	case "ip.geoip.country":
+		fieldValue = "DE"
+	case "ip.geoip.asnum":
+		fieldValue = "3320"
+	default:
+		fieldValue = string(ctx.Request.Header.Peek(field[len("http.request.headers."):]))
 	}
-}
 
-func evaluateFieldHelper(fieldValue string, operation string, value interface{}) bool {
 	switch operation {
 	case "equal":
-		if val, ok := value.(string); ok {
-			return strings.EqualFold(strings.ToLower(fieldValue), strings.ToLower(val))
-		}
+		return fieldValue == value[0]
 	case "not_equal":
-		if val, ok := value.(string); ok {
-			return !strings.EqualFold(strings.ToLower(fieldValue), strings.ToLower(val))
-		}
+		return fieldValue != value[0]
 	case "contains":
-		if val, ok := value.(string); ok {
-			return strings.Contains(strings.ToLower(fieldValue), strings.ToLower(val))
-		}
+		return strings.Contains(fieldValue, value[0])
+	case "not_contains":
+		return !strings.Contains(fieldValue, value[0])
 	case "in":
-		if valList, ok := value.([]interface{}); ok {
-			for _, v := range valList {
-				if valStr, ok := v.(string); ok {
-					if strings.EqualFold(strings.ToLower(fieldValue), strings.ToLower(valStr)) {
-						return true
-					}
-				}
+		for _, v := range value {
+			if fieldValue == v {
+				return true
 			}
 		}
+
+		return false
 	case "not_in":
-		if valList, ok := value.([]interface{}); ok {
-			for _, v := range valList {
-				if valStr, ok := v.(string); ok {
-					if strings.EqualFold(strings.ToLower(fieldValue), strings.ToLower(valStr)) {
-						return false
-					}
-				}
+		for _, v := range value {
+			if fieldValue == v {
+				return false
 			}
-
-			return true
 		}
-	}
 
-	return false
+		return true
+	default:
+		return false
+	}
 }
 
-func evaluateGroup(rules []Rule, group string, ctx *fasthttp.RequestCtx) bool {
-	result := false
-	for _, rule := range rules {
-		if len(rule.Rules) > 0 {
-			result = evaluateGroup(rule.Rules, rule.Group, ctx)
-		} else {
-			result = evaluateField(rule.Field, rule.Operation, rule.Value.(string), ctx)
-		}
-
-		if group == "AND" && !result {
-			return false
-		}
-
-		if group == "OR" && result {
-			return true
-		}
+func loadRules(pattern string) ([]Rule, error) {
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, err
 	}
 
-	return result
+	var allRules []Rule
+	for _, file := range files {
+		rules, err := loadRulesFromFile(file)
+		if err != nil {
+			return nil, err
+		}
+
+		allRules = append(allRules, rules...)
+	}
+
+	return allRules, nil
 }
 
-func evaluateRule(ctx *fasthttp.RequestCtx, rule Rule) bool {
-	if len(rule.Rules) > 0 {
-		return evaluateGroup(rule.Rules, rule.Group, ctx)
+func loadRulesFromFile(filename string) ([]Rule, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var rules []Rule
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&rules)
+	if err != nil {
+		return nil, err
 	}
 
-	return evaluateField(rule.Field, rule.Operation, rule.Value.(string), ctx)
+	return rules, nil
 }

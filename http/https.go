@@ -87,8 +87,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	flagged := rules.EvaluateRule(ctx)
-	if flagged {
+	if rules.MatchRules(ctx) {
 		ctx.SetStatusCode(fasthttp.StatusForbidden)
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(blockedPage)

@@ -1,10 +1,377 @@
-{
-  "group": "OR",
-  "rules": [
-    {
-      "field": "ip.geoip.asnum",
-      "operation": "in",
-      "value": ["36352", "54252"]
-    }
-  ]
-}
+[
+  {
+    "group": "OR",
+    "rules": [
+      {
+        "field": "http.request.version",
+        "operation": "not_in",
+        "value": ["HTTP/1.0", "HTTP/1.1", "HTTP/1.2", "HTTP/2", "HTTP/3"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["CheckHost (https://check-host.net/)"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["web2copy"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["Stand Lua API"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["TelegramBot (like TwitterBot)"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["Go http package"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["okhttp/3.3.1"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["curl"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["Python"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["Wget"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": [""]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["undefined"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["null"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["Mozilla/5.0 (X11; Linux x86_64; rv:94.0) Gecko/20100101 Firefox/94.0"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["Googlebot-News"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["FeedFetcher-Google"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["AdsBot-Google"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["axios/"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["[object Set]"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["1"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["2"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["3"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["4"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["5"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["6"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["7"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["8"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["9"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["a"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["b"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["c"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["d"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["e"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["f"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["g"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["h"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["i"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["j"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["k"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["l"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["m"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["n"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["o"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["p"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["q"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["r"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["s"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["t"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["u"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["v"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["w"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["x"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["y"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["z"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["_"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["Go-http-client/"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["python"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["CyotekWebCopy/"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["node-fetch/"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["null"]
+      },
+      {
+        "field": "ip.geoip.asnum",
+        "operation": "in",
+        "value": ["36352", "54252", "397630", "31898", "56309", "49981", "6939", "64267", "52000", "55286", "43624", "26548", "35830"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["wget"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["curl"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["tls-client"]
+      },
+      {
+        "field": "ip.geoip.country",
+        "operation": "equal",
+        "value": ["T1"]
+      }
+    ]
+  },
+  {
+    "group": "OR",
+    "rules": [
+      {
+        "field": "ip.geoip.asnum",
+        "operation": "in",
+        "value": ["14061", "60631", "28438", "60592", "30823", "4134", "32505", "27715", "22773", "30823", "131090", "135905", "55330", "16629", "4755", "53363", "34549", "135330", "47285", "60798", "207590", "203087", "198651", "43289", "14576", "207319", "201978", "208425", "201094", "18978", "52000", "204601", "199883", "8220", "36351", "45011", "23969", "45629", "20207", "6471", "8075", "45899", "31400", "208556", "7552", "26496", "21769", "6876", "45102", "5617", "199490", "35816", "131293", "20860", "31898", "131428", "25429", "29802", "4788", "3326", "39284", "13448", "46484", "174", "29286", "5056", "63949", "212708", "40788", "12989", "11351", "11426", "7029", "42652", "18403", "54538", "209", "62044", "395003", "8100", "4190", "12874", "19740", "197540", "45458", "136258", "50837", "51852", "4826", "195", "49588", "57613", "34248", "197099", "29287", "29066", "30083", "9534", "42905", "35804", "45012", "7303", "25961", "61317", "5610", "35320", "262187", "263693", "20552", "266706", "49327", "47232", "32098", "28429", "3255", "28431", "14117", "18734", "24088", "263196", "41096", "52228", "8069", "398101", "28725", "132196", "61154", "58199", "6877", "265537", "32097", "62240", "3329", "3329", "3329", "6830", "133199", "12334", "270110", "22884", "54600", "213375", "206092", "41009", "213251", "36444"]
+      }
+    ]
+  },
+  {
+    "group": "OR",
+    "rules": [
+      {
+        "field": "ip.geoip.asnum",
+        "operation": "eq",
+        "value": ["4847"]
+      },
+      {
+        "field": "ip.geoip.asnum",
+        "operation": "eq",
+        "value": ["35745"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["PLAYSTATION"]
+      }
+    ]
+  },
+  {
+    "group": "OR",
+    "rules": [
+      {
+        "field": "ip.geoip.asnum",
+        "operation": "eq",
+        "value": ["37284", "17762", "264771", "17451", "16735", "29182", "142321", "8167", "38320", "55685", "7516", "8585", "44217", "272011", "138089", "207633", "21887", "3741", "61345"]
+      },
+      {
+        "field": "ip.geoip.country",
+        "operation": "equal",
+        "value": ["CY"]
+      }
+    ]
+  }
+]
