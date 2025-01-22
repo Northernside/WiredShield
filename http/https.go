@@ -11,6 +11,7 @@ import (
 	"time"
 	"wiredshield/modules/db"
 	"wiredshield/modules/env"
+	"wiredshield/modules/rules"
 	errorpages "wiredshield/pages/error"
 	"wiredshield/services"
 
@@ -22,6 +23,7 @@ var (
 	service       *services.Service
 	certCache     sync.Map
 	certLoadMutex sync.RWMutex
+	blockedPage   string
 )
 
 func Prepare(_service *services.Service) func() {
@@ -31,6 +33,9 @@ func Prepare(_service *services.Service) func() {
 	httpAddr := binding + ":" + env.GetEnv("HTTP_REDIRECT_PORT", "80")
 
 	return func() {
+		_page := errorpages.ErrorPage{Code: 403, Message: errorpages.Error403}
+		blockedPage = _page.ToHTML()
+
 		// logging
 		go processRequestLogs()
 
@@ -79,6 +84,13 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	if handler, exists := GetHandler(fmt.Sprintf("%s:%s", string(ctx.Method()), cleanedPath)); exists {
 		handler(ctx)
+		return
+	}
+
+	if rules.MatchRules(ctx) {
+		ctx.SetStatusCode(fasthttp.StatusForbidden)
+		ctx.Response.Header.Set("Content-Type", "text/html")
+		ctx.SetBodyString(blockedPage)
 		return
 	}
 

@@ -9,12 +9,18 @@ import (
 )
 
 var (
-	mmdb *maxminddb.Reader
+	mmdbCountry *maxminddb.Reader
+	mmdbASN     *maxminddb.Reader
 )
 
 func init() {
 	var err error
-	mmdb, err = maxminddb.Open(env.GetEnv("MAXMIND_DB_PATH", "database.mmdb"))
+	mmdbCountry, err = maxminddb.Open(env.GetEnv("MAXMIND_COUNTRY_DB_PATH", "country.mmdb"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mmdbASN, err = maxminddb.Open(env.GetEnv("MAXMIND_ASN_DB_PATH", "asn.mmdb"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,10 +35,25 @@ func GetCountry(ip string) (string, error) {
 		} `maxminddb:"country"`
 	}
 
-	err := mmdb.Lookup(addr).Decode(&record)
+	err := mmdbCountry.Lookup(addr).Decode(&record)
 	if err != nil {
 		return "", err
 	}
 
 	return record.Country.ISOCode, nil
+}
+
+func GetASN(ip string) (int, error) {
+	addr := netip.MustParseAddr(ip)
+
+	var record struct {
+		AutonomousSystemNumber int `maxminddb:"autonomous_system_number"`
+	}
+
+	err := mmdbASN.Lookup(addr).Decode(&record)
+	if err != nil {
+		return 0, err
+	}
+
+	return record.AutonomousSystemNumber, nil
 }

@@ -25,9 +25,13 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	m.Authoritative = true
 
-	clientIp := strings.Split(w.RemoteAddr().String(), ":")[0]
-	dnsLog := newLog()
+	clientIp, _, err := net.SplitHostPort(w.RemoteAddr().String())
+	if err != nil {
+		service.ErrorLog(fmt.Sprintf("failed to split host and port: %s", err.Error()))
+		return
+	}
 
+	dnsLog := newLog()
 	startTime := time.Now()
 
 	if len(r.Question) > 0 {
