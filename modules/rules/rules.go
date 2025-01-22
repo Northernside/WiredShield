@@ -213,6 +213,7 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 func evaluateGroup(rules []Rule, group string, ctx *fasthttp.RequestCtx) bool {
 	result := false
 	for _, rule := range rules {
+		services.ProcessService.InfoLog(fmt.Sprintf("###1 %s %s %s", rule.Group, rule.Rules, rule.Action))
 		if len(rule.Rules) > 0 {
 			result = evaluateGroup(rule.Rules, rule.Group, ctx)
 		} else {
@@ -233,8 +234,10 @@ func evaluateGroup(rules []Rule, group string, ctx *fasthttp.RequestCtx) bool {
 
 func evaluateRule(ctx *fasthttp.RequestCtx, rule Rule) bool {
 	if len(rule.Rules) > 0 {
+		services.ProcessService.InfoLog(fmt.Sprintf("###0 %s %s %s", rule.Group, rule.Rules, rule.Action))
 		return evaluateGroup(rule.Rules, rule.Group, ctx)
 	}
 
+	services.ProcessService.InfoLog(fmt.Sprintf("###X1 %s %s %s", rule.Field, rule.Operation, rule.Value))
 	return evaluateField(rule.Field, rule.Operation, rule.Value.(string), ctx)
 }
