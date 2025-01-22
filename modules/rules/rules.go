@@ -44,7 +44,11 @@ func Prepare(_service *services.Service) func() {
 		WAFService.InfoLog(fmt.Sprintf("Loaded %d rules from following files:", len(rules)))
 		var sb strings.Builder
 		for _, file := range files {
-			sb.WriteString(fmt.Sprintf("\t- %s\n", file))
+			sb.WriteString(fmt.Sprintf("\t- %s", file))
+
+			if file != files[len(files)-1] {
+				sb.WriteString("\n")
+			}
 		}
 
 		WAFService.InfoLog(sb.String())
