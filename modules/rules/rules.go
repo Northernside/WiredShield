@@ -85,7 +85,7 @@ func getGeoIP(ip string) (string, string, error) {
 	return country, fmt.Sprintf("%d", asn), nil
 }
 
-func evaluateField(field string, operation string, value string, ctx *fasthttp.RequestCtx) bool {
+func evaluateField(field string, operation string, value interface{}, ctx *fasthttp.RequestCtx) bool {
 	if strings.HasPrefix(field, "ip.geoip") {
 		ip := ctx.RemoteIP().String()
 		// check if ip is valid, if not, use "1.1.1.1"
@@ -152,7 +152,7 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 	case "in":
 		if valList, ok := value.([]interface{}); ok {
 			for _, v := range valList {
-				if val, ok := v.(string); ok && strings.EqualFold(fieldValue, val) {
+				if valStr, ok := v.(string); ok && strings.EqualFold(fieldValue, valStr) {
 					return true
 				}
 			}
@@ -160,7 +160,7 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 	case "not_in":
 		if valList, ok := value.([]interface{}); ok {
 			for _, v := range valList {
-				if val, ok := v.(string); ok && strings.EqualFold(fieldValue, val) {
+				if valStr, ok := v.(string); ok && strings.EqualFold(fieldValue, valStr) {
 					return false
 				}
 			}
