@@ -164,19 +164,17 @@ func evaluateFieldHelper(fieldValue string, operation string, value interface{})
 			return strings.Contains(strings.ToLower(fieldValue), strings.ToLower(val))
 		}
 	case "in":
-		if valList, ok := value.([]interface{}); ok {
+		if valList, ok := value.([]string); ok {
 			for _, v := range valList {
-				valStr := fmt.Sprintf("%v", v)
-				if strings.EqualFold(fieldValue, valStr) {
+				if strings.EqualFold(fieldValue, v) {
 					return true
 				}
 			}
 		}
 	case "not_in":
-		if valList, ok := value.([]interface{}); ok {
+		if valList, ok := value.([]string); ok {
 			for _, v := range valList {
-				valStr := fmt.Sprintf("%v", v)
-				if strings.EqualFold(fieldValue, valStr) {
+				if strings.EqualFold(fieldValue, v) {
 					return false
 				}
 			}
