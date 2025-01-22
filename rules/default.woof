@@ -364,7 +364,7 @@
     "rules": [
       {
         "field": "ip.geoip.asnum",
-        "operation": "eq",
+        "operation": "equal",
         "value": ["37284", "17762", "264771", "17451", "16735", "29182", "142321", "8167", "38320", "55685", "7516", "8585", "44217", "272011", "138089", "207633", "21887", "3741", "61345"]
       },
       {
@@ -372,6 +372,16 @@
         "operation": "equal",
         "value": ["CY"]
       }
+    ]
+  },
+  {
+    "group": "OR",
+    "rules": [
+      {
+        "field": "http.request.path",
+        "operation": "equal",
+        "value": ["/.wiredshield/waf-test"]
+      },
     ]
   }
 ]

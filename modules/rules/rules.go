@@ -2,9 +2,11 @@ package rules
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"wiredshield/modules/whois"
 
 	"github.com/valyala/fasthttp"
 )
@@ -70,9 +72,14 @@ func evaluateField(field, operation string, value []string, ctx *fasthttp.Reques
 	case "http.request.version":
 		fieldValue = string(ctx.Request.Header.Protocol())
 	case "ip.geoip.country":
-		fieldValue = "DE"
+		ip := ctx.RemoteIP().String()
+		country, _ := whois.GetCountry(ip)
+		fieldValue = country
 	case "ip.geoip.asnum":
-		fieldValue = "3320"
+		ip := ctx.RemoteIP().String()
+		asn, _ := whois.GetASN(ip)
+		asnStr := fmt.Sprintf("%d", asn)
+		fieldValue = asnStr
 	default:
 		fieldValue = string(ctx.Request.Header.Peek(field[len("http.request.headers."):]))
 	}
