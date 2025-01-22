@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 	"wiredshield/modules/whois"
@@ -66,7 +65,7 @@ func init() {
 		}
 
 		WAFService.OnlineSince = time.Now().Unix()
-		WAFService.InfoLog(fmt.Sprintf("Loaded Rules from %s: %+v\n", "rules/*.woof", Rules))
+		WAFService.InfoLog(fmt.Sprintf("Loaded %d rules", len(Rules)))
 	}
 }
 
@@ -86,17 +85,10 @@ func getGeoIP(ip string) (string, string, error) {
 	return country, fmt.Sprintf("%d", asn), nil
 }
 
-func evaluateField(field string, operation string, value interface{}, ctx *fasthttp.RequestCtx) bool {
-	defer func() {
-		if r := recover(); r != nil {
-			services.ProcessService.ErrorLog(fmt.Sprintf("Panic recovered in evaluateField: %v", r))
-		}
-	}()
-
-	services.ProcessService.InfoLog(fmt.Sprintf("Evaluating Field: %s, Operation: %s, Value: %v, Type: %T", field, operation, value, value))
-
+func evaluateField(field string, operation string, value string, ctx *fasthttp.RequestCtx) bool {
 	if strings.HasPrefix(field, "ip.geoip") {
 		ip := ctx.RemoteIP().String()
+		// check if ip is valid, if not, use "1.1.1.1"
 		if net.ParseIP(ip) == nil {
 			ip = "1.1.1.1"
 		}
@@ -107,34 +99,41 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 		}
 
 		switch field {
+		case "ip.geoip.country":
+			return evaluateFieldHelper(country, operation, value)
 		case "ip.geoip.asnum":
-			// Convert value to []string
-			if valList, ok := value.([]interface{}); ok {
-				converted := make([]string, len(valList))
-				for i, v := range valList {
-					converted[i] = fmt.Sprintf("%.0f", v) // Convert float64 to string
-				}
-
-				services.ProcessService.InfoLog(fmt.Sprintf("Converted ASN List: %v", converted))
-				return evaluateFieldHelper(asn, operation, converted)
-			}
-			services.ProcessService.InfoLog(fmt.Sprintf("Failed to convert ASN value: %v", value))
-		}
-
-		return false
-	}
-
-	// For HTTP header checks
-	if strings.HasPrefix(field, "http.request.headers.") {
+			services.ProcessService.InfoLog(fmt.Sprintf("asn", asn))
+			return evaluateFieldHelper(asn, operation, value)
+		default:
+			return false
+		} // header check
+	} else if strings.HasPrefix(field, "http.request.headers.") {
 		headerKey := strings.TrimPrefix(field, "http.request.headers.")
 		headerValue := ctx.Request.Header.Peek(headerKey)
-		if val, ok := value.(string); ok {
-			return evaluateFieldHelper(string(headerValue), operation, val)
+		return evaluateFieldHelper(string(headerValue), operation, value)
+	} else { // meta checks
+		switch field {
+		case "http.request.method":
+			return evaluateFieldHelper(string(ctx.Method()), operation, value)
+		case "http.request.uri":
+			return evaluateFieldHelper(string(ctx.RequestURI()), operation, value)
+		case "http.request.host":
+			return evaluateFieldHelper(string(ctx.Host()), operation, value)
+		case "http.request.path":
+			return evaluateFieldHelper(string(ctx.Path()), operation, value)
+		case "http.request.query":
+			return evaluateFieldHelper(string(ctx.QueryArgs().QueryString()), operation, value)
+		case "http.request.body":
+			return evaluateFieldHelper(string(ctx.PostBody()), operation, value)
+		case "http.user_agent":
+			return evaluateFieldHelper(string(ctx.UserAgent()), operation, value)
+		case "http.request.version":
+			version := string(ctx.Request.Header.Peek("Version"))
+			return evaluateFieldHelper(version, operation, value)
+		default:
+			return false
 		}
 	}
-
-	services.ProcessService.InfoLog(fmt.Sprintf("Unhandled field: %s", field))
-	return false
 }
 
 func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
@@ -152,20 +151,21 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 			return strings.Contains(strings.ToLower(fieldValue), strings.ToLower(val))
 		}
 	case "in":
-		if valList, ok := value.([]string); ok {
+		if valList, ok := value.([]interface{}); ok {
 			for _, v := range valList {
-				if strings.EqualFold(fieldValue, v) {
+				if val, ok := v.(string); ok && strings.EqualFold(fieldValue, val) {
 					return true
 				}
 			}
 		}
 	case "not_in":
-		if valList, ok := value.([]string); ok {
+		if valList, ok := value.([]interface{}); ok {
 			for _, v := range valList {
-				if strings.EqualFold(fieldValue, v) {
+				if val, ok := v.(string); ok && strings.EqualFold(fieldValue, val) {
 					return false
 				}
 			}
+
 			return true
 		}
 	}
@@ -176,7 +176,6 @@ func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 func evaluateGroup(rules []Rule, group string, ctx *fasthttp.RequestCtx) bool {
 	result := false
 	for _, rule := range rules {
-		services.ProcessService.InfoLog(fmt.Sprintf("###1 %s %s %s", rule.Group, rule.Rules, rule.Action))
 		if len(rule.Rules) > 0 {
 			result = evaluateGroup(rule.Rules, rule.Group, ctx)
 		} else {
@@ -197,34 +196,8 @@ func evaluateGroup(rules []Rule, group string, ctx *fasthttp.RequestCtx) bool {
 
 func evaluateRule(ctx *fasthttp.RequestCtx, rule Rule) bool {
 	if len(rule.Rules) > 0 {
-		services.ProcessService.InfoLog(fmt.Sprintf("###0 %s %v %s", rule.Group, rule.Rules, rule.Action))
 		return evaluateGroup(rule.Rules, rule.Group, ctx)
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("###X1 Field: %s, Operation: %s, Value: %v, Type: %T", rule.Field, rule.Operation, rule.Value, rule.Value))
-
-	// Check type of rule.Value explicitly
-	if valInt, ok := rule.Value.(int); ok {
-		rule.Value = strconv.Itoa(valInt)
-		services.ProcessService.InfoLog(fmt.Sprintf("Converted int Value: %s", rule.Value))
-	}
-
-	if valFloat, ok := rule.Value.(float64); ok {
-		rule.Value = fmt.Sprintf("%.0f", valFloat)
-		services.ProcessService.InfoLog(fmt.Sprintf("Converted float64 Value to string: %s", rule.Value))
-	}
-
-	if valList, ok := rule.Value.([]interface{}); ok {
-		services.ProcessService.InfoLog(fmt.Sprintf("Value is a list: %v", valList))
-	}
-
-	services.ProcessService.InfoLog(fmt.Sprintf("###X3 Processed Value Type: %T", rule.Value))
-
-	// Avoid crash by checking before casting
-	if valStr, ok := rule.Value.(string); ok {
-		return evaluateField(rule.Field, rule.Operation, valStr, ctx)
-	}
-
-	services.ProcessService.InfoLog("Value is not a string")
-	return false
+	return evaluateField(rule.Field, rule.Operation, rule.Value.(string), ctx)
 }
