@@ -88,9 +88,13 @@ func getGeoIP(ip string) (string, string, error) {
 
 func evaluateField(field string, operation string, value interface{}, ctx *fasthttp.RequestCtx) bool {
 	// convert value to string if it's an int
+	services.ProcessService.InfoLog(fmt.Sprintf("#-2 %s %s %s", field, operation, value))
 	if valInt, ok := value.(int); ok {
+		services.ProcessService.InfoLog(fmt.Sprintf("#-1 %s %s %s", field, operation, value))
 		value = strconv.Itoa(valInt)
 	}
+
+	services.ProcessService.InfoLog(fmt.Sprintf("#0 %s %s %s", field, operation, value))
 
 	services.ProcessService.InfoLog(fmt.Sprintf("#1 %s %s %s", field, operation, value))
 	if strings.HasPrefix(field, "ip.geoip") {
