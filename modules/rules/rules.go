@@ -213,19 +213,34 @@ func evaluateGroup(rules []Rule, group string, ctx *fasthttp.RequestCtx) bool {
 
 func evaluateRule(ctx *fasthttp.RequestCtx, rule Rule) bool {
 	if len(rule.Rules) > 0 {
-		services.ProcessService.InfoLog(fmt.Sprintf("###0 %s %s %s", rule.Group, rule.Rules, rule.Action))
+		services.ProcessService.InfoLog(fmt.Sprintf("###0 %s %v %s", rule.Group, rule.Rules, rule.Action))
 		return evaluateGroup(rule.Rules, rule.Group, ctx)
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("###X1 %s %s %s", rule.Field, rule.Operation, rule.Value))
-	// convert rule.Value to string first if its an int
+	services.ProcessService.InfoLog(fmt.Sprintf("###X1 Field: %s, Operation: %s, Value: %v, Type: %T", rule.Field, rule.Operation, rule.Value, rule.Value))
+
+	// Check type of rule.Value explicitly
 	if valInt, ok := rule.Value.(int); ok {
-		services.ProcessService.InfoLog(fmt.Sprintf("###X2 %s %s %s", rule.Field, rule.Operation, rule.Value))
 		rule.Value = strconv.Itoa(valInt)
+		services.ProcessService.InfoLog(fmt.Sprintf("Converted int Value: %s", rule.Value))
 	}
 
-	// log type
-	services.ProcessService.InfoLog(fmt.Sprintf("###X3 type: %T", rule.Value))
+	if valFloat, ok := rule.Value.(float64); ok {
+		rule.Value = fmt.Sprintf("%.0f", valFloat)
+		services.ProcessService.InfoLog(fmt.Sprintf("Converted float64 Value to string: %s", rule.Value))
+	}
 
-	return evaluateField(rule.Field, rule.Operation, rule.Value.(string), ctx)
+	if valList, ok := rule.Value.([]interface{}); ok {
+		services.ProcessService.InfoLog(fmt.Sprintf("Value is a list: %v", valList))
+	}
+
+	services.ProcessService.InfoLog(fmt.Sprintf("###X3 Processed Value Type: %T", rule.Value))
+
+	// Avoid crash by checking before casting
+	if valStr, ok := rule.Value.(string); ok {
+		return evaluateField(rule.Field, rule.Operation, valStr, ctx)
+	}
+
+	services.ProcessService.InfoLog("Value is not a string")
+	return false
 }
