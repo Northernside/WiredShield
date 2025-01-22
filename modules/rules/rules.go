@@ -106,30 +106,25 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 			return false
 		}
 
-		services.ProcessService.InfoLog(fmt.Sprintf("GeoIP ASN: %s, Country: %s", asn, country))
-
 		switch field {
-		case "ip.geoip.country":
-			if val, ok := value.(string); ok {
-				return evaluateFieldHelper(country, operation, val)
-			}
 		case "ip.geoip.asnum":
-			// Convert []interface{} to []string if "in"/"not_in" operations are required
+			// Convert value to []string
 			if valList, ok := value.([]interface{}); ok {
 				converted := make([]string, len(valList))
 				for i, v := range valList {
-					converted[i] = fmt.Sprintf("%.0f", v) // Convert float64 to string safely
+					converted[i] = fmt.Sprintf("%.0f", v) // Convert float64 to string
 				}
-				services.ProcessService.InfoLog(fmt.Sprintf("ASN Conversion to Strings: %v", converted))
+
+				services.ProcessService.InfoLog(fmt.Sprintf("Converted ASN List: %v", converted))
 				return evaluateFieldHelper(asn, operation, converted)
 			}
-			services.ProcessService.InfoLog("Failed to process ASN value as a list.")
+			services.ProcessService.InfoLog(fmt.Sprintf("Failed to convert ASN value: %v", value))
 		}
 
 		return false
 	}
 
-	// For other fields (e.g., headers)
+	// For HTTP header checks
 	if strings.HasPrefix(field, "http.request.headers.") {
 		headerKey := strings.TrimPrefix(field, "http.request.headers.")
 		headerValue := ctx.Request.Header.Peek(headerKey)
@@ -142,7 +137,7 @@ func evaluateField(field string, operation string, value interface{}, ctx *fasth
 	return false
 }
 
-func evaluateFieldHelper(fieldValue string, operation string, value interface{}) bool {
+func evaluateFieldHelper(fieldValue, operation string, value interface{}) bool {
 	switch operation {
 	case "equal":
 		if val, ok := value.(string); ok {
@@ -157,7 +152,6 @@ func evaluateFieldHelper(fieldValue string, operation string, value interface{})
 			return strings.Contains(strings.ToLower(fieldValue), strings.ToLower(val))
 		}
 	case "in":
-		// Ensure value is a []string
 		if valList, ok := value.([]string); ok {
 			for _, v := range valList {
 				if strings.EqualFold(fieldValue, v) {
@@ -166,7 +160,6 @@ func evaluateFieldHelper(fieldValue string, operation string, value interface{})
 			}
 		}
 	case "not_in":
-		// Ensure value is a []string
 		if valList, ok := value.([]string); ok {
 			for _, v := range valList {
 				if strings.EqualFold(fieldValue, v) {
