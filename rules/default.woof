@@ -381,7 +381,7 @@
         "field": "http.request.path",
         "operation": "equal",
         "value": ["/.wiredshield/waf-test"]
-      },
+      }
     ]
   }
 ]
