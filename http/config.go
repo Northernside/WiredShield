@@ -18,7 +18,7 @@ var (
 		Concurrency:    1024 ^ 2,
 		IdleTimeout:    10 * time.Second,
 		Handler:        httpsProxyHandler,
-		ReadBufferSize: 2 ^ 20, // 512KB,
+		ReadBufferSize: 1 << 19, // 512KB
 		Name:           "wiredshield",
 		MaxConnsPerIP:  2 ^ 5, // 32
 		ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
