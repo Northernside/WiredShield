@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -15,6 +17,16 @@ const (
 	domainIndexDB = "domain_index"
 	dnsDomainsKey = "dns_domains"
 )
+
+var (
+	cache      = make(map[string]cacheEntry)
+	cacheMutex sync.Mutex
+)
+
+type cacheEntry struct {
+	records []DNSRecord
+	expiry  time.Time
+}
 
 func InsertRecord(record DNSRecord, self bool) error {
 	eErr := env.Update(func(txn *lmdb.Txn) error {
@@ -369,8 +381,18 @@ func removeDuplicates(domains []string) []string {
 }
 
 func GetRecords(recordType, domain string) ([]DNSRecord, error) {
-	var records []DNSRecord
+	cacheKey := fmt.Sprintf("%s:%s", recordType, domain)
 
+	// check cache
+	cacheMutex.Lock()
+	entry, found := cache[cacheKey]
+	cacheMutex.Unlock()
+
+	if found && time.Now().Before(entry.expiry) {
+		return entry.records, nil
+	}
+
+	var records []DNSRecord
 	err := env.View(func(txn *lmdb.Txn) error {
 		entries, err := txn.OpenDBI(entriesDB, 0)
 		if err != nil {
@@ -422,6 +444,16 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 
 		return nil
 	})
+
+	if err == nil {
+		cacheMutex.Lock()
+		cache[cacheKey] = cacheEntry{
+			records: records,
+			expiry:  time.Now().Add(10 * time.Minute),
+		}
+
+		cacheMutex.Unlock()
+	}
 
 	return records, err
 }

@@ -78,15 +78,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}()
 
-	// internal routes
-	cleanedPath := strings.Split(string(ctx.Path()), "?")[0]
-	cleanedPath = strings.Split(cleanedPath, "#")[0]
-
-	if handler, exists := GetHandler(fmt.Sprintf("%s:%s", string(ctx.Method()), cleanedPath)); exists {
-		handler(ctx)
-		return
-	}
-
 	if rules.MatchRules(ctx) {
 		ctx.SetStatusCode(fasthttp.StatusForbidden)
 		ctx.Response.Header.Set("Content-Type", "text/html")
@@ -94,21 +85,34 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	// internal Routes
+	cleanedPath := string(ctx.Path())
+	if idx := strings.IndexByte(cleanedPath, '?'); idx != -1 {
+		cleanedPath = cleanedPath[:idx]
+	}
+
+	if idx := strings.IndexByte(cleanedPath, '#'); idx != -1 {
+		cleanedPath = cleanedPath[:idx]
+	}
+
+	if handler, exists := GetHandler(fmt.Sprintf("%s:%s", string(ctx.Method()), cleanedPath)); exists {
+		handler(ctx)
+		return
+	}
+
 	timeStart := time.Now()
 	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
 	if err != nil || len(targetRecords) == 0 {
-		// ctx.Error("could not resolve target", fasthttp.StatusBadGateway)
 		errorPage := errorpages.ErrorPage{Code: 601, Message: errorpages.Error601}
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-
-		services.GetService("https").ErrorLog(err.Error())
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
 		logRequest(ctx, nil, timeStart, 601, 0, 0)
 		return
 	}
 
-	if targetRecords[0].(*db.ARecord).IP == "45.157.11.82" || targetRecords[0].(*db.ARecord).IP == "85.117.241.142" {
+	targetRecord := targetRecords[0].(*db.ARecord)
+	if targetRecord.IP == "45.157.11.82" || targetRecord.IP == "85.117.241.142" {
 		errorPage := errorpages.ErrorPage{Code: 604, Message: errorpages.Error604}
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		ctx.Response.Header.Set("Content-Type", "text/html")
@@ -117,16 +121,13 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	targetRecord := targetRecords[0].(*db.ARecord)
-	targetURL := "http://" + targetRecord.IP + ":80" + string(ctx.Path())
-
-	requestSize := getRequestSize(ctx)
+	targetURL := fmt.Sprintf("http://%s:80%s", targetRecord.IP, ctx.Path())
 
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 
-	req.Header.Set("host", string(ctx.Host()))
-	req.Header.Set("wired-origin-ip", getIp(ctx))
+	req.Header.SetBytesKV([]byte("host"), ctx.Host())
+	req.Header.SetBytesKV([]byte("wired-origin-ip"), []byte(getIp(ctx)))
 	req.UseHostHeader = true
 	req.Header.SetMethodBytes(ctx.Method())
 	req.SetRequestURI(targetURL)
@@ -146,24 +147,22 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	timeout := 10 * time.Second
 	err = client.DoTimeout(req, resp, timeout)
 	if err != nil {
-		if err == fasthttp.ErrTimeout {
-			service.ErrorLog(fmt.Sprintf("timeout contacting backend (%s): %v", targetURL, err))
+		var errorCode int
+		var message []string
 
-			errorPage := errorpages.ErrorPage{Code: 605, Message: errorpages.Error605}
-			ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
-			ctx.Response.Header.Set("Content-Type", "text/html")
-			ctx.SetBodyString(errorPage.ToHTML())
-			logRequest(ctx, resp, timeStart, 605, 0, 0)
+		if err != fasthttp.ErrTimeout {
+			errorCode = fasthttp.StatusBadGateway
+			message = errorpages.Error603
 		} else {
-			service.ErrorLog(fmt.Sprintf("error contacting backend (%s): %v", targetURL, err))
-
-			errorPage := errorpages.ErrorPage{Code: 603, Message: errorpages.Error603}
-			ctx.SetStatusCode(fasthttp.StatusBadGateway)
-			ctx.Response.Header.Set("Content-Type", "text/html")
-			ctx.SetBodyString(errorPage.ToHTML())
-			logRequest(ctx, resp, timeStart, 603, 0, 0)
+			errorCode = fasthttp.StatusGatewayTimeout
+			message = errorpages.Error605
 		}
 
+		errorPage := errorpages.ErrorPage{Code: errorCode, Message: message}
+		ctx.SetStatusCode(errorCode)
+		ctx.Response.Header.Set("Content-Type", "text/html")
+		ctx.SetBodyString(errorPage.ToHTML())
+		logRequest(ctx, resp, timeStart, errorCode, 0, 0)
 		return
 	}
 
@@ -180,7 +179,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 		ctx.Response.Header.Set("Location", string(location))
 		ctx.SetStatusCode(statusCode)
-		logRequest(ctx, resp, timeStart, statusCode, requestSize, getResponseSize(ctx, resp))
+		logRequest(ctx, resp, timeStart, statusCode, getRequestSize(ctx), getResponseSize(ctx, resp))
 		return
 	}
 
@@ -203,7 +202,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		ctx.SetBody(resp.Body())
 	}
 
-	logRequest(ctx, resp, timeStart, resp.StatusCode(), requestSize, getResponseSize(ctx, resp))
+	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp))
 }
 
 func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
@@ -221,38 +220,31 @@ func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, erro
 		return nil, fmt.Errorf("no SNI provided by client")
 	}
 
-	certLoadMutex.RLock()
-	if cert, ok := certCache.Load(domain); ok {
-		certLoadMutex.RUnlock()
+	cert, ok := certCache.Load(domain)
+	if ok {
 		return cert.(*tls.Certificate), nil
 	}
-	certLoadMutex.RUnlock()
 
 	certLoadMutex.Lock()
 	defer certLoadMutex.Unlock()
 
-	if cert, ok := certCache.Load(domain); ok {
+	cert, ok = certCache.Load(domain)
+	if ok {
 		return cert.(*tls.Certificate), nil
 	}
 
 	c, err := tls.LoadX509KeyPair(fmt.Sprintf("certs/%s.crt", domain), fmt.Sprintf("certs/%s.key", domain))
 	if err == nil {
 		certCache.Store(domain, &c)
-	} else {
-		if strings.Contains(err.Error(), "no such file or directory") {
-			return &c, nil
-		}
 	}
 
 	return &c, err
 }
 
 func getIp(reqCtx *fasthttp.RequestCtx) string {
-	addr := reqCtx.RemoteAddr()
-	ipAddr, ok := addr.(*net.TCPAddr)
-	if !ok {
-		return ""
+	if tcpAddr, ok := reqCtx.RemoteAddr().(*net.TCPAddr); ok {
+		return tcpAddr.IP.String()
 	}
 
-	return ipAddr.IP.String()
+	return ""
 }

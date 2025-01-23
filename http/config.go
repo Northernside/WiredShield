@@ -16,11 +16,11 @@ var (
 	noOpLogger = log.New(io.Discard, "", 0)
 	server     = &fasthttp.Server{
 		Concurrency:    1024 ^ 2,
+		IdleTimeout:    10 * time.Second,
 		Handler:        httpsProxyHandler,
-		ReadBufferSize: 1 << 19, // 512KB,
+		ReadBufferSize: 2 ^ 20, // 512KB,
 		Name:           "wiredshield",
-		MaxConnsPerIP:  1024 ^ 2,
-		ReadTimeout:    5 * time.Second,
+		MaxConnsPerIP:  2 ^ 5, // 32
 		ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
 			errorPage := errorpages.ErrorPage{
 				Code:    500,

@@ -3,7 +3,6 @@ package wiredhttps
 import (
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -13,15 +12,12 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const maxRetries = 3
-const retryInterval = 5 * time.Minute
-
 // both methods still inaccurate, will fix at a later time
 func getRequestSize(ctx *fasthttp.RequestCtx) int64 {
-	totalSize := int64(0)
+	var totalSize int64
+
 	totalSize += int64(len(ctx.Method()))
-	url := ctx.URI().String()
-	totalSize += int64(len(url))
+	totalSize += int64(len(ctx.URI().String()))
 
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		totalSize += int64(len(key) + len(value))
@@ -33,40 +29,15 @@ func getRequestSize(ctx *fasthttp.RequestCtx) int64 {
 }
 
 func getResponseSize(ctx *fasthttp.RequestCtx, resp *fasthttp.Response) int64 {
-	totalSize := int64(0)
-	totalSize += int64(len(fmt.Sprintf("%d", resp.StatusCode())))
+	var totalSize int64
+
+	totalSize += 3
 	resp.Header.VisitAll(func(key, value []byte) {
 		totalSize += int64(len(key) + len(value))
 	})
 
 	totalSize += int64(len(resp.Body()))
-
 	return totalSize
-}
-
-func getCountryWithRetry(ip string) (string, error) {
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		country, err := whois.GetCountry(ip)
-		if err == nil {
-			return country, nil
-		}
-
-		if strings.Contains(err.Error(), "ARIN: no NET-... found in WHOIS response") {
-			if attempt < maxRetries {
-				service.ErrorLog(fmt.Sprintf("Retrying to fetch country for IP %s due to error: %v (attempt %d)", ip, err, attempt))
-				time.Sleep(retryInterval)
-				continue
-			} else {
-				service.ErrorLog(fmt.Sprintf("Failed to fetch country for IP %s after %d attempts: %v", ip, maxRetries, err))
-				return "", err
-			}
-		}
-
-		// return errors unrelated to "ARIN: no NET-..." instantly
-		return "", err
-	}
-
-	return "", errors.New("unknown error occurred while fetching country")
 }
 
 func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
@@ -90,7 +61,7 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 	}
 
 	ip := getIp(ctx)
-	country, err := getCountryWithRetry(ip)
+	country, err := whois.GetCountry(ip)
 	if err != nil {
 		service.ErrorLog(fmt.Sprintf("final failure to get country for IP %s: %v", ip, err))
 		country = "Unknown"
