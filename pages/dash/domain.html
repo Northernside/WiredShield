@@ -232,7 +232,11 @@
             const recordType = document.getElementById("recordType").value;
             const fields = Array.from(document.querySelectorAll("#recordFields input"))
                 .reduce((data, input) => {
-                    data[input.id.replace("field-", "")] = input.value;
+                    if (input.type == "text") {
+                        data[input.id.replace("field-", "")] = input.value;
+                    } else if (input.type == "checkbox") {
+                        data[input.id.replace("field-", "")] = input.checked;
+                    }
                     return data;
                 }, {});
 
