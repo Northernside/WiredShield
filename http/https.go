@@ -78,11 +78,14 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}()
 
-	if rules.MatchRules(ctx) {
-		ctx.SetStatusCode(fasthttp.StatusForbidden)
-		ctx.Response.Header.Set("Content-Type", "text/html")
-		ctx.SetBodyString(blockedPage)
-		return
+	var userIp = getIp(ctx)
+	if userIp != "85.117.241.142" && userIp != "45.157.11.82" {
+		if rules.MatchRules(ctx) {
+			ctx.SetStatusCode(fasthttp.StatusForbidden)
+			ctx.Response.Header.Set("Content-Type", "text/html")
+			ctx.SetBodyString(blockedPage)
+			return
+		}
 	}
 
 	// internal Routes
@@ -127,7 +130,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	defer fasthttp.ReleaseRequest(req)
 
 	req.Header.SetBytesKV([]byte("host"), ctx.Host())
-	req.Header.SetBytesKV([]byte("wired-origin-ip"), []byte(getIp(ctx)))
+	req.Header.SetBytesKV([]byte("wired-origin-ip"), []byte(userIp))
 	req.UseHostHeader = true
 	req.Header.SetMethodBytes(ctx.Method())
 	req.SetRequestURI(targetURL)
