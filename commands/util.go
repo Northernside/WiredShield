@@ -38,6 +38,7 @@ func init() {
 		{Key: "boot", Desc: "Boot all services", Fn: Boot},
 		{Key: "info", Desc: "Show service info", Fn: Info},
 		{Key: "dns", Desc: "DNS server", Fn: Dns},
+		{Key: "passthrough", Desc: "Passthrough", Fn: Passthrough},
 	}
 }
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 	"wiredshield/services"
 
@@ -17,16 +16,6 @@ const (
 	domainIndexDB = "domain_index"
 	dnsDomainsKey = "dns_domains"
 )
-
-var (
-	cache      = make(map[string]cacheEntry)
-	cacheMutex sync.Mutex
-)
-
-type cacheEntry struct {
-	records []DNSRecord
-	expiry  time.Time
-}
 
 func InsertRecord(record DNSRecord, self bool) error {
 	eErr := env.Update(func(txn *lmdb.Txn) error {
@@ -389,7 +378,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 	cacheMutex.Unlock()
 
 	if found && time.Now().Before(entry.expiry) {
-		return entry.records, nil
+		return entry.entries.([]DNSRecord), nil
 	}
 
 	var records []DNSRecord
@@ -448,7 +437,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 	if err == nil {
 		cacheMutex.Lock()
 		cache[cacheKey] = cacheEntry{
-			records: records,
+			entries: records,
 			expiry:  time.Now().Add(10 * time.Minute),
 		}
 

@@ -73,22 +73,22 @@ func GetService(name string) *Service {
 }
 
 func (s *Service) InfoLog(message string) {
-	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;34mINFO\033[0;37m] \033[0;37m→\033[0;37m "+
+	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;34mINFO\033[0;37m] →\033[0;37m "+
 		"\033[0;94m%s\033[0;37m \033[0;37m→\033[0;37m \033[0;37m%s\033[0m\n", s.DisplayName, message)
 }
 
 func (s *Service) WarnLog(message string) {
-	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;33mWARN\033[0;37m] \033[0;37m→\033[0;37m "+
+	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;33mWARN\033[0;37m] →\033[0;37m "+
 		"\033[0;94m%s\033[0;37m \033[0;37m→\033[0;37m \033[0;37m%s\033[0m\n", s.DisplayName, message)
 }
 
 func (s *Service) ErrorLog(message string) {
-	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m "+
+	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;31mERROR\033[0;37m] →\033[0;37m "+
 		"\033[0;94m%s\033[0;37m \033[0;37m→\033[0;37m \033[0;37m%s\033[0m\n", s.DisplayName, message)
 }
 
 func (s *Service) FatalLog(message string) {
-	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;31mERROR\033[0;37m] \033[0;37m→\033[0;37m "+
+	logPipeline <- fmt.Sprintf("\033[0;37m[\033[0;31mERROR\033[0;37m] →\033[0;37m "+
 		"\033[0;94m%s\033[0;37m \033[0;37m→\033[0;37m \033[0;37m%s\033[0m\n", s.DisplayName, message)
 }
 

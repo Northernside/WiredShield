@@ -34,11 +34,14 @@ func onlineSince(t time.Time) string {
 	if d.Seconds() < 60 {
 		return fmt.Sprintf("Since \033[1;35m%.0fs\033[0m", d.Seconds())
 	}
+
 	if d.Minutes() < 60 {
 		return fmt.Sprintf("Since \033[1;35m%.0fm\033[0m", d.Minutes())
 	}
+
 	if d.Hours() < 24 {
 		return fmt.Sprintf("Since \033[1;35m%.0fh\033[0m", d.Hours())
 	}
+
 	return fmt.Sprintf("Since \033[1;35m%.0fd\033[0m", d.Hours()/24)
 }

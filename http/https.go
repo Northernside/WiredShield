@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -41,15 +40,10 @@ func Prepare(_service *services.Service) func() {
 
 		// http redirect
 		go func() {
-			service.InfoLog("Starting HTTP redirect server on " + httpAddr)
-			httpServer := &http.Server{
-				Addr:    httpAddr,
-				Handler: http.HandlerFunc(redirectToHTTPS),
-			}
-
-			err := httpServer.ListenAndServe()
+			service.InfoLog("Starting HTTP proxy on " + httpAddr)
+			err := fasthttp.ListenAndServe(httpAddr, httpHandler)
 			if err != nil {
-				service.FatalLog(err.Error())
+				service.FatalLog(fmt.Sprintf("Error starting HTTP proxy: %v", err))
 			}
 		}()
 
@@ -88,7 +82,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	// internal Routes
+	// internal routes
 	cleanedPath := string(ctx.Path())
 	if idx := strings.IndexByte(cleanedPath, '?'); idx != -1 {
 		cleanedPath = cleanedPath[:idx]
@@ -104,27 +98,43 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	timeStart := time.Now()
-	targetRecords, err := db.GetRecords("A", string(ctx.Host()))
-	if err != nil || len(targetRecords) == 0 {
-		errorPage := errorpages.ErrorPage{Code: 601, Message: errorpages.Error601}
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.Response.Header.Set("Content-Type", "text/html")
-		ctx.SetBodyString(errorPage.ToHTML())
-		logRequest(ctx, nil, timeStart, 601, 0, 0)
-		return
-	}
+	var targetURL string
+	var resolve bool = ctx.UserValue("resolve") != nil
+	if !resolve {
+		targetRecords, err := db.GetRecords("A", string(ctx.Host()))
+		if err != nil || len(targetRecords) == 0 {
+			errorPage := errorpages.ErrorPage{Code: 601, Message: errorpages.Error601}
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.Response.Header.Set("Content-Type", "text/html")
+			ctx.SetBodyString(errorPage.ToHTML())
+			logRequest(ctx, nil, timeStart, 601, 0, 0)
+			return
+		}
 
-	targetRecord := targetRecords[0].(*db.ARecord)
-	if targetRecord.IP == "45.157.11.82" || targetRecord.IP == "85.117.241.142" {
-		errorPage := errorpages.ErrorPage{Code: 604, Message: errorpages.Error604}
-		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		ctx.Response.Header.Set("Content-Type", "text/html")
-		ctx.SetBodyString(errorPage.ToHTML())
-		logRequest(ctx, nil, timeStart, 604, 0, 0)
-		return
-	}
+		targetRecord := targetRecords[0].(*db.ARecord)
+		if targetRecord.IP == "45.157.11.82" || targetRecord.IP == "85.117.241.142" {
+			errorPage := errorpages.ErrorPage{Code: 604, Message: errorpages.Error604}
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			ctx.Response.Header.Set("Content-Type", "text/html")
+			ctx.SetBodyString(errorPage.ToHTML())
+			logRequest(ctx, nil, timeStart, 604, 0, 0)
+			return
+		}
 
-	targetURL := fmt.Sprintf("http://%s:80%s", targetRecord.IP, ctx.Path())
+		targetURL = fmt.Sprintf("http://%s:80%s", targetRecord.IP, ctx.Path())
+	} else {
+		if ctx.UserValue("targetURL") == nil {
+			errorPage := errorpages.ErrorPage{Code: 602, Message: errorpages.Error602}
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.Response.Header.Set("Content-Type", "text/html")
+			ctx.SetBodyString(errorPage.ToHTML())
+
+			logRequest(ctx, nil, timeStart, 602, 0, 0)
+			return
+		}
+
+		targetURL = ctx.UserValue("targetURL").(string)
+	}
 
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
@@ -148,7 +158,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	defer fasthttp.ReleaseResponse(resp)
 
 	timeout := 10 * time.Second
-	err = client.DoTimeout(req, resp, timeout)
+	err := client.DoTimeout(req, resp, timeout)
 	if err != nil {
 		var errorCode int
 		var message []string
@@ -208,13 +218,35 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp))
 }
 
-func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
-	target := "https://" + r.Host + r.URL.Path
-	if len(r.URL.RawQuery) > 0 {
-		target += "?" + r.URL.RawQuery
+func httpHandler(ctx *fasthttp.RequestCtx) {
+	passthroughs, err := db.GetAllPassthroughs()
+	if err != nil {
+		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+		return
 	}
 
-	http.Redirect(w, r, target, http.StatusMovedPermanently)
+	for _, passthrough := range passthroughs {
+		if string(ctx.Host()) == passthrough.Domain && strings.HasPrefix(string(ctx.Path()), passthrough.Path) {
+			var protocol string = "http"
+			if passthrough.Ssl {
+				protocol += "s"
+			}
+
+			target := fmt.Sprintf("%s://%s:%d%s", protocol, passthrough.TargetAddr, passthrough.TargetPort, string(ctx.Path()))
+			// httpsProxyHandler(ctx *fasthttp.RequestCtx)
+			ctx.SetUserValue("targetURL", target)
+			ctx.SetUserValue("resolve", true)
+			httpsProxyHandler(ctx)
+			return
+		}
+	}
+
+	target := "https://" + string(ctx.Host()) + string(ctx.Path())
+	if len(ctx.URI().QueryString()) > 0 {
+		target += "?" + string(ctx.URI().QueryString())
+	}
+
+	ctx.Redirect(target, fasthttp.StatusMovedPermanently)
 }
 
 func getCertificateForDomain(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {

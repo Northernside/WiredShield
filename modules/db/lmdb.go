@@ -55,6 +55,11 @@ func Init() {
 			return fmt.Errorf("failed to create/open domain_index DB: %w", err)
 		}
 
+		_, err = txn.OpenDBI("passthrough", lmdb.Create)
+		if err != nil {
+			return fmt.Errorf("failed to create/open passthrough DB: %w", err)
+		}
+
 		return nil
 	})
 
