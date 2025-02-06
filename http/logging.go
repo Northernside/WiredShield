@@ -67,6 +67,11 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		country = "Unknown"
 	}
 
+	var tlsVersion string = "Unknown"
+	if ctx.TLSConnectionState() != nil {
+		tlsVersion = tlsVersionToString(ctx.TLSConnectionState().Version)
+	}
+
 	logging.RequestLogsChannel <- &logging.HTTPRequestLog{
 		RequestTime:          timeStart.UnixMilli(),
 		ClientIP:             ip,
@@ -85,7 +90,7 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 			return resp.StatusCode()
 		}(),
 		ResponseTime:       time.Since(timeStart).Milliseconds(),
-		TLSVersion:         tlsVersionToString(ctx.TLSConnectionState().Version),
+		TLSVersion:         tlsVersion,
 		RequestSize:        requestSize,
 		ResponseSize:       responseSize,
 		RequestHTTPVersion: string(ctx.Request.Header.Protocol()),
