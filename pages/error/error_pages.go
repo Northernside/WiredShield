@@ -31,6 +31,9 @@ var (
 		"The website you're trying to reach is currently not responding (Timeout exceeded).",
 		"This could occur due to a few different reasons, very likely due to the server being offline.",
 	}
+	Error606 = []string{
+		"Internal Server Error (Backend Panic)",
+	}
 )
 
 var ErrorBase []byte
