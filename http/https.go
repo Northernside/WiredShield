@@ -108,11 +108,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	timeStart := time.Now()
 	var targetURL string
-	service.InfoLog("(1)")
 	var resolve bool = ctx.UserValue("resolve") != nil
-	service.InfoLog("(2)")
 	if !resolve {
-		service.InfoLog(fmt.Sprintf("(3) %s%s", string(ctx.Host()), string(ctx.Path())))
 		targetRecords, err := db.GetRecords("A", string(ctx.Host()))
 		if err != nil || len(targetRecords) == 0 {
 			errorPage := errorpages.ErrorPage{Code: 601, Message: errorpages.Error601}
@@ -135,7 +132,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 		targetURL = fmt.Sprintf("http://%s:80%s", targetRecord.IP, ctx.Path())
 	} else {
-		service.InfoLog("(4)")
 		if ctx.UserValue("targetURL") == nil {
 			errorPage := errorpages.ErrorPage{Code: 602, Message: errorpages.Error602}
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
@@ -146,9 +142,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		service.InfoLog("(5)")
 		targetURL = ctx.UserValue("targetURL").(string)
-		service.InfoLog("(6)")
 	}
 
 	req := fasthttp.AcquireRequest()
