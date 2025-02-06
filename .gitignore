@@ -29,3 +29,4 @@ go.work.sum
 *.lmdb*
 ./wiredshield
 *.mmdb
+certs/*.asc
