@@ -244,7 +244,6 @@ func httpHandler(ctx *fasthttp.RequestCtx) {
 			// ctx.Path but minus passthrough.Path
 			normalizedPath := string(ctx.Path())[len(passthrough.Path):]
 			target := fmt.Sprintf("%s://%s:%d%s", protocol, passthrough.TargetAddr, passthrough.TargetPort, normalizedPath)
-			// httpsProxyHandler(ctx *fasthttp.RequestCtx)
 			ctx.SetUserValue("targetURL", target)
 			ctx.SetUserValue("resolve", true)
 			httpsProxyHandler(ctx)

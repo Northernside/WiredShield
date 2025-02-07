@@ -3,6 +3,7 @@ package wiredhttps
 import (
 	"fmt"
 	"strings"
+	wellknown_routes "wiredshield/http/routes/.well-known"
 	internal_routes "wiredshield/http/routes/.wiredshield"
 	auth_routes "wiredshield/http/routes/api/auth"
 	domain_routes "wiredshield/http/routes/api/domains"
@@ -27,6 +28,8 @@ func init() {
 	passThroughHandler("/.wiredshield/api/auth", auth_routes.Auth, "GET")
 	passThroughHandler("/.wiredshield/api/auth/discord", auth_routes.AuthDiscord, "GET")
 	passThroughHandler("/.wiredshield/api/auth/discord/callback", auth_routes.AuthDiscordCallback, "GET")
+
+	passThroughHandler("/.well-known/acme-challenge/:token", wellknown_routes.ACMEChallenge, "GET")
 
 	userHandler("/.wiredshield/api/domains", domain_routes.GetDomains, "GET")
 	userHandler("/.wiredshield/api/domains/records", record_routes.GetRecords, "GET")

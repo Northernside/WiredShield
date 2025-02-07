@@ -166,7 +166,7 @@ func Dns(model *Model) {
 			}
 
 			if protected {
-				ssl.GenSSL(split[3])
+				ssl.GenSSL(split[3], true)
 			}
 		case "AAAA":
 			record = db.AAAARecord{

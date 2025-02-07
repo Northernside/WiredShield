@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	ssl "wiredshield/commands/libs"
 	"wiredshield/modules/db"
 
 	"github.com/fatih/color"
@@ -75,6 +76,13 @@ func Passthrough(model *Model) {
 		if err != nil {
 			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Failed to set passthrough"))
 			break
+		}
+
+		if passthrough.Ssl {
+			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Generating SSL certificate for "+passthrough.Domain))
+			go func() {
+				ssl.GenSSL(passthrough.Domain, false)
+			}()
 		}
 
 		sb.WriteString(fmt.Sprintf("%s%s", prefix, "Passthrough set successfully"))

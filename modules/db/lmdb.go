@@ -60,6 +60,11 @@ func Init() {
 			return fmt.Errorf("failed to create/open passthrough DB: %w", err)
 		}
 
+		_, err = txn.OpenDBI("acme_http", lmdb.Create)
+		if err != nil {
+			return fmt.Errorf("failed to create/open passthrough DB: %w", err)
+		}
+
 		return nil
 	})
 

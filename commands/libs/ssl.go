@@ -45,7 +45,7 @@ func getClient() *acme.Client {
 	return _client
 }
 
-func GenerateCertificate(domain string) ([]byte, []byte, error) {
+func GenerateCertificate(domain string, dnsChal bool) ([]byte, []byte, error) {
 	client = getClient()
 	if client == nil {
 		return nil, nil, fmt.Errorf("failed to get ACME client")
@@ -62,9 +62,9 @@ func GenerateCertificate(domain string) ([]byte, []byte, error) {
 
 	authzURLs := order.AuthzURLs
 	for _, authzURL := range authzURLs {
-		err = dns01Handling(domain, authzURL)
+		err = challengeHandling(domain, authzURL, dnsChal)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to handle DNS-01 challenge: %v", err)
+			return nil, nil, fmt.Errorf("failed to handle challenge: %v", err)
 		}
 	}
 
@@ -112,7 +112,7 @@ func GenerateCertificate(domain string) ([]byte, []byte, error) {
 	return certPEM, privKeyPEM, nil
 }
 
-func dns01Handling(domain string, authzURL string) error {
+func challengeHandling(domain string, authzURL string, dnsChal bool) error {
 	authz, err := client.GetAuthorization(ctx, authzURL)
 	if err != nil {
 		return errors.Errorf("failed to get authorization: %v", err)
@@ -124,7 +124,10 @@ func dns01Handling(domain string, authzURL string) error {
 
 	var chal *acme.Challenge
 	for _, c := range authz.Challenges {
-		if c.Type == "dns-01" {
+		if dnsChal && c.Type == "dns-01" {
+			chal = c
+			break
+		} else if !dnsChal && c.Type == "http-01" {
 			chal = c
 			break
 		}
@@ -134,6 +137,14 @@ func dns01Handling(domain string, authzURL string) error {
 		return fmt.Errorf("authorization challenge not available")
 	}
 
+	if dnsChal {
+		return handleDNSChallenge(domain, chal)
+	} else {
+		return handleHTTPChallenge(domain, chal)
+	}
+}
+
+func handleDNSChallenge(domain string, chal *acme.Challenge) error {
 	challengeText, err := client.DNS01ChallengeRecord(chal.Token)
 	if err != nil {
 		return errors.Errorf("failed to get DNS-01 challenge record: %v", err)
@@ -178,6 +189,42 @@ func dns01Handling(domain string, authzURL string) error {
 	return nil
 }
 
+func handleHTTPChallenge(domain string, chal *acme.Challenge) error {
+	token, err := client.HTTP01ChallengeResponse(chal.Token)
+	if err != nil {
+		return errors.Errorf("failed to get HTTP-01 challenge response: %v", err)
+	}
+
+	var httpChallenge db.HttpChallenge = db.HttpChallenge{
+		Token:  token,
+		Domain: domain,
+	}
+
+	err = db.InsertHttpChallenge(httpChallenge)
+	if err != nil {
+		return errors.Errorf("failed to insert HTTP challenge: %v", err)
+	}
+
+	_, err = client.Accept(ctx, chal)
+	if err != nil {
+		return errors.Errorf("failed to accept challenge: %v", err)
+	}
+
+	_, err = client.WaitAuthorization(ctx, chal.URI)
+	if err != nil {
+		return errors.Errorf("failed to wait for authorization: %v", err)
+	}
+
+	defer func() {
+		err = db.DeleteHttpChallenge(token)
+		if err != nil {
+			fmt.Printf("failed to delete HTTP challenge: %v", err)
+		}
+	}()
+
+	return nil
+}
+
 func createCSR(domain string, key *rsa.PrivateKey) ([]byte, error) {
 	tmpl := x509.CertificateRequest{
 		DNSNames: []string{domain},
@@ -187,10 +234,10 @@ func createCSR(domain string, key *rsa.PrivateKey) ([]byte, error) {
 	return x509.CreateCertificateRequest(rand.Reader, &tmpl, key)
 }
 
-func GenSSL(domain string) {
+func GenSSL(domain string, dnsChal bool) {
 	services.ProcessService.InfoLog("Generating SSL certificate for " + domain)
 	go func() {
-		certPEM, keyPEM, err := GenerateCertificate(domain)
+		certPEM, keyPEM, err := GenerateCertificate(domain, dnsChal)
 		if err != nil {
 			services.ProcessService.ErrorLog("Failed to generate certificate: " + err.Error())
 			return

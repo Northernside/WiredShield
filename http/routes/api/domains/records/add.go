@@ -63,7 +63,7 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.IP = ip
 		record.Protected = protected == "true"
 		if record.Protected {
-			ssl.GenSSL(domain)
+			ssl.GenSSL(domain, true)
 		}
 
 		db.InsertRecord(record, false)
@@ -74,7 +74,7 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.IP = ip
 		record.Protected = protected == "true"
 		if record.Protected {
-			ssl.GenSSL(domain)
+			ssl.GenSSL(domain, true)
 		}
 
 		db.InsertRecord(record, false)
