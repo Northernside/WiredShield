@@ -228,6 +228,10 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.SetBytesKV(key, value)
 	})
 
+	// Etag is completely broken, fix it @Northernside
+	// remove following resp headers: Etag
+	ctx.Response.Header.Del("Etag")
+
 	ctx.Response.Header.Set("server", "wiredshield")
 	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
 	ctx.SetBody(resp.Body())
