@@ -165,14 +165,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	req.Header.SetMethodBytes(ctx.Method())
 	req.SetRequestURI(targetURL)
 
-	// TODO: ETag is completely broken, fix it @Northernside
-	// remove following req headers: If-Modified-Since, If-None-Match, If-Range, If-Unmodified-Since, Cache-Control
-	req.Header.Del("If-Modified-Since")
-	req.Header.Del("If-None-Match")
-	req.Header.Del("If-Range")
-	req.Header.Del("If-Unmodified-Since")
-	req.Header.Del("Cache-Control")
-
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		req.Header.SetBytesKV(key, value)
 	})
@@ -229,13 +221,14 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.SetBytesKV(key, value)
 	})
 
-	// Etag is completely broken, fix it @Northernside
-	// remove following resp headers: Etag
-	ctx.Response.Header.Del("Etag")
-
 	ctx.Response.Header.Set("server", "wiredshield")
 	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
+
 	ctx.SetBody(resp.Body())
+	// check if passthrough != nil
+	if ctx.UserValue("passthrough") != nil {
+		service.InfoLog(fmt.Sprintf("response: %s", string(resp.Body())))
+	}
 
 	if bodyStream := resp.BodyStream(); bodyStream != nil {
 		_, err = io.Copy(ctx.Response.BodyWriter(), bodyStream)
@@ -244,8 +237,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 			return
 		}
-	} else {
-		ctx.SetBody(resp.Body())
 	}
 
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp))
@@ -257,6 +248,7 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) {
 		if entry.(ptEntry).expiry.After(time.Now()) {
 			ctx.SetUserValue("targetURL", entry.(ptEntry).target)
 			ctx.SetUserValue("resolve", true)
+			ctx.SetUserValue("passthrough", true)
 			return
 		} else {
 			passthroughCache.Delete(cacheKey)
