@@ -25,7 +25,6 @@ func syncSet(passthrough Passthrough) error {
 
 	req.Header.Set("change_action", "SET")
 
-	services.ProcessService.InfoLog(fmt.Sprintf("%v", passthrough))
 	req.Header.Set("id", strconv.Itoa(int(passthrough.Id)))
 	req.Header.Set("domain", passthrough.Domain)
 	req.Header.Set("path", passthrough.Path)
@@ -33,9 +32,6 @@ func syncSet(passthrough Passthrough) error {
 	req.Header.Set("target_port", strconv.Itoa(int(passthrough.TargetPort)))
 	req.Header.Set("target_path", passthrough.TargetPath)
 	req.Header.Set("ssl", strconv.FormatBool(passthrough.Ssl))
-
-	services.ProcessService.InfoLog(fmt.Sprintf(">>> %s %s %s %s %s %s %s",
-		strconv.Itoa(int(passthrough.Id)), passthrough.Domain, passthrough.Path, passthrough.TargetAddr, strconv.Itoa(int(passthrough.TargetPort)), passthrough.TargetPath, strconv.FormatBool(passthrough.Ssl)))
 
 	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)

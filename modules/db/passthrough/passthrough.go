@@ -35,14 +35,13 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 		}
 
 		var id uint64 = _id
-		if _id != 0 {
+		if _id == 0 {
 			snowflake, err := epoch.NewSnowflake(512)
 			if err != nil {
 				return fmt.Errorf("failed to create snowflake: %v", err)
 			}
 
 			id = snowflake.GenerateID()
-			passthrough.Id = id
 		}
 
 		// save as json, key is the snowflake id
@@ -56,10 +55,12 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 			return fmt.Errorf("failed to put data: %v", err)
 		}
 
-		go syncSet(passthrough)
-
 		return nil
 	})
+
+	if pErr == nil && !self {
+		go syncSet(passthrough)
+	}
 
 	return pErr
 }
