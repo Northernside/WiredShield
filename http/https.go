@@ -97,8 +97,10 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			return
 		}
 	}
-
-	// loadPassthrough(ctx)
+	var targetURL_UV bool = ctx.UserValue("targetURL") != nil
+	if !targetURL_UV {
+		loadPassthrough(ctx)
+	}
 
 	// internal routes
 	cleanedPath := string(ctx.Path())
