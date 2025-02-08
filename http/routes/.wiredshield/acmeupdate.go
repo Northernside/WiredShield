@@ -89,6 +89,8 @@ func ACMEUpdate(ctx *fasthttp.RequestCtx) {
 			Token:  token,
 		}
 
+		services.GetService("https").InfoLog(fmt.Sprintf("xxxx ACMEUpdate: %s", challenge))
+
 		err := acme_http.InsertHttpChallenge(challenge, true)
 		if err != nil {
 			services.GetService("https").ErrorLog(err.Error())

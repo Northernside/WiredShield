@@ -39,7 +39,7 @@ func syncSet(domain, token string) error {
 		return err
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("response: %s", string(bodyBytes)))
+	services.ProcessService.InfoLog(fmt.Sprintf("response (x): %s", string(bodyBytes)))
 
 	return err
 }

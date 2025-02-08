@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"wiredshield/modules/db"
+	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -38,6 +39,7 @@ func InsertHttpChallenge(httpChallenge HttpChallenge, self bool) error {
 	})
 
 	if aErr == nil && !self {
+		services.GetService("https").InfoLog(fmt.Sprintf("acme_http: InsertHttpChallenge: %s", httpChallenge.Domain))
 		go syncSet(httpChallenge.Domain, httpChallenge.Token)
 	}
 

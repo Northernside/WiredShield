@@ -79,7 +79,7 @@ func Passthrough(model *Model) {
 		}
 
 		if passthrough.Ssl {
-			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Generating SSL certificate for "+passthrough.Domain))
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Generating SSL certificate for "+passthrough.Domain))
 			go func() {
 				ssl.GenSSL(passthrough.Domain, false)
 			}()
