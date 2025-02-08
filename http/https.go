@@ -98,7 +98,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	loadPassthrough(ctx)
+	// loadPassthrough(ctx)
 
 	// internal routes
 	cleanedPath := string(ctx.Path())
