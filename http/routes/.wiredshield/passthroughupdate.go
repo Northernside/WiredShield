@@ -80,12 +80,15 @@ func PassthroughUpdate(ctx *fasthttp.RequestCtx) {
 	var target_path = string(ctx.Request.Header.Peek("target_path"))
 	var ssl = bool(string(ctx.Request.Header.Peek("ssl")) == "true")
 
+	services.ProcessService.InfoLog(fmt.Sprintf("<<< %s %s %s %s %d %s %t",
+		string(ctx.Request.Header.Peek("id")), domain, path, target_addr, target_port, target_path, ssl))
+
 	switch change_action {
 	case "SET":
 		// insert the challenge into db via passthrough.InsertPassthrough
-		if id == 0 || domain == "" || path == "" || target_addr == "" || target_port == 0 || target_path == "" || ssl == false {
+		if id == 0 || domain == "" || path == "" || target_addr == "" || target_port == 0 || target_path == "" {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			ctx.SetBodyString("BAD_REQUEST: id, domain, path, target_addr, target_port, target_path or ssl missing")
+			ctx.SetBodyString("BAD_REQUEST: id, domain, path, target_addr, target_port or target_path missing")
 			return
 		}
 
