@@ -80,9 +80,6 @@ func PassthroughUpdate(ctx *fasthttp.RequestCtx) {
 	var target_path = string(ctx.Request.Header.Peek("target_path"))
 	var ssl = bool(string(ctx.Request.Header.Peek("ssl")) == "true")
 
-	services.ProcessService.InfoLog(fmt.Sprintf("<<< %s %s %s %s %d %s %t",
-		string(ctx.Request.Header.Peek("id")), domain, path, target_addr, target_port, target_path, ssl))
-
 	switch change_action {
 	case "SET":
 		// insert the challenge into db via passthrough.InsertPassthrough
