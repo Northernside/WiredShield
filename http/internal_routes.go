@@ -25,6 +25,7 @@ func init() {
 	passThroughHandler("/.wiredshield/dns-update", internal_routes.DNSUpdate, "GET")
 	passThroughHandler("/.wiredshield/ssl-update", internal_routes.SSLUpdate, "GET")
 	passThroughHandler("/.wiredshield/acme-update", internal_routes.ACMEUpdate, "GET")
+	passThroughHandler("/.wiredshield/passthrough-update", internal_routes.PassthroughUpdate, "GET")
 
 	passThroughHandler("/.wiredshield/api/auth", auth_routes.Auth, "GET")
 	passThroughHandler("/.wiredshield/api/auth/discord", auth_routes.AuthDiscord, "GET")
