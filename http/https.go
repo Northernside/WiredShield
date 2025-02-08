@@ -166,11 +166,12 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	req.SetRequestURI(targetURL)
 
 	// TODO: ETag is completely broken, fix it @Northernside
-	// remove following req headers: If-Modified-Since, If-None-Match, If-Range, If-Unmodified-Since
+	// remove following req headers: If-Modified-Since, If-None-Match, If-Range, If-Unmodified-Since, Cache-Control
 	req.Header.Del("If-Modified-Since")
 	req.Header.Del("If-None-Match")
 	req.Header.Del("If-Range")
 	req.Header.Del("If-Unmodified-Since")
+	req.Header.Del("Cache-Control")
 
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		req.Header.SetBytesKV(key, value)
