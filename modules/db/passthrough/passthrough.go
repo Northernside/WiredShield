@@ -56,12 +56,10 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 			return fmt.Errorf("failed to put data: %v", err)
 		}
 
+		go syncSet(passthrough)
+
 		return nil
 	})
-
-	if pErr == nil && !self {
-		go syncSet(passthrough)
-	}
 
 	return pErr
 }
