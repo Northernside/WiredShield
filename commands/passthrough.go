@@ -18,7 +18,7 @@ func Passthrough(model *Model) {
 
 	split := strings.Split(model.TextInput.Value(), " ")
 	if len(split) < 2 {
-		sb.WriteString(fmt.Sprintf("%s%s", prefix, "Usage: passthrough <list|set|del> [domain] [path] [target_addr] [target_port] [target_path] [ssl]"))
+		sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Usage: passthrough <list|set|del> [domain] [path] [target_addr] [target_port] [target_path] [ssl]"))
 		return
 	}
 
@@ -26,7 +26,7 @@ func Passthrough(model *Model) {
 	case "list":
 		passthroughs, _ := db.GetAllPassthroughs()
 		if len(passthroughs) == 0 {
-			sb.WriteString(fmt.Sprintf("%s%s", prefix, "No passthroughs found"))
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "No passthroughs found"))
 		} else {
 			headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
 			columnFmt := color.New(color.FgYellow).SprintfFunc()
@@ -53,13 +53,13 @@ func Passthrough(model *Model) {
 		}
 	case "set":
 		if len(split) < 8 {
-			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Usage: passthrough set [domain] [path] [target_addr] [target_port] [target_path] [ssl]"))
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Usage: passthrough set [domain] [path] [target_addr] [target_port] [target_path] [ssl]"))
 			break
 		}
 
 		targetPort, err := strconv.ParseUint(split[5], 10, 16)
 		if err != nil {
-			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Invalid port: "+err.Error()))
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Invalid port: "+err.Error()))
 			break
 		}
 
@@ -74,7 +74,7 @@ func Passthrough(model *Model) {
 
 		err = db.InsertPassthrough(passthrough)
 		if err != nil {
-			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Failed to set passthrough"))
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Failed to set passthrough"))
 			break
 		}
 
@@ -85,26 +85,26 @@ func Passthrough(model *Model) {
 			}()
 		}
 
-		sb.WriteString(fmt.Sprintf("%s%s", prefix, "Passthrough set successfully"))
+		sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Passthrough set successfully"))
 	case "del":
 		if len(split) < 3 {
-			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Usage: passthrough del [id]"))
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Usage: passthrough del [id]"))
 			break
 		}
 
 		id, err := strconv.ParseUint(split[2], 10, 64)
 		if err != nil {
-			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Invalid id: "+err.Error()))
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Invalid id: "+err.Error()))
 			break
 		}
 
 		err = db.DeletePassthrough(id)
 		if err != nil {
-			sb.WriteString(fmt.Sprintf("%s%s", prefix, "Failed to delete passthrough"))
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Failed to delete passthrough"))
 			break
 		}
 
-		sb.WriteString(fmt.Sprintf("%s%s", prefix, "Passthrough deleted successfully"))
+		sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Passthrough deleted successfully"))
 	}
 
 	model.Output += sb.String()
