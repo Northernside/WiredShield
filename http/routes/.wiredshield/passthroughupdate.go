@@ -72,6 +72,7 @@ func PassthroughUpdate(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 
 	var change_action = string(ctx.Request.Header.Peek("change_action"))
+	services.GetService("https").InfoLog(string(ctx.Request.Header.Peek("id")))
 	var id, _ = strconv.Atoi(string(ctx.Request.Header.Peek("id")))
 	var domain = string(ctx.Request.Header.Peek("domain"))
 	var path = string(ctx.Request.Header.Peek("path"))

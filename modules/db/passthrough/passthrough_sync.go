@@ -25,6 +25,7 @@ func syncSet(passthrough Passthrough) error {
 
 	req.Header.Set("change_action", "SET")
 
+	services.GetService("https").InfoLog(strconv.Itoa(int(passthrough.Id)))
 	req.Header.Set("id", strconv.Itoa(int(passthrough.Id)))
 	req.Header.Set("domain", passthrough.Domain)
 	req.Header.Set("path", passthrough.Path)
