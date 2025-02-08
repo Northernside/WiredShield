@@ -40,7 +40,7 @@ func syncSet(httpChallenge HttpChallenge) error {
 		return err
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("response (x): %s", string(bodyBytes)))
+	services.ProcessService.InfoLog(fmt.Sprintf("response (y): %s", string(bodyBytes)))
 
 	return err
 }
