@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	acme_http "wiredshield/modules/db/acme"
 	"wiredshield/modules/env"
 	"wiredshield/modules/pgp"
 	"wiredshield/services"
@@ -103,7 +104,7 @@ func ACMEUpdate(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		err := acme_http.DeleteHttpChallenge(token)
+		err := acme_http.DeleteHttpChallenge(token, true)
 		if err != nil {
 			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)

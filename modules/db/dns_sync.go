@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	_env "wiredshield/modules/env"
+	"wiredshield/modules/env"
 	"wiredshield/services"
 	"wiredshield/utils/signing"
 )
 
 func syncSet(record DNSRecord) error {
 	var partnerMaster string
-	if _env.GetEnv("CLIENT_NAME", "meow") == "woof" {
+	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
 		partnerMaster = "meow"
 	} else {
 		partnerMaster = "woof"
@@ -83,7 +83,7 @@ func syncSet(record DNSRecord) error {
 
 func syncDel(id uint64, domain string) error {
 	var partnerMaster string
-	if _env.GetEnv("CLIENT_NAME", "meow") == "woof" {
+	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
 		partnerMaster = "meow"
 	} else {
 		partnerMaster = "woof"

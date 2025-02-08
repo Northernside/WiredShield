@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"wiredshield/services"
 
-	_env "wiredshield/modules/env"
+	"wiredshield/modules/env"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -18,10 +18,10 @@ func PInit(service *services.Service) {
 	var err error
 	connString := fmt.Sprintf(
 		"postgres://%s:%s@%s:5432/%s?sslmode=disable",
-		_env.GetEnv("PSQL_USER", "wiredshield"),
-		_env.GetEnv("PSQL_PASSWORD", ""),
-		_env.GetEnv("PSQL_ADDR", "45.157.11.82"),
-		_env.GetEnv("PSQL_DB", "reverseproxy"),
+		env.GetEnv("PSQL_USER", "wiredshield"),
+		env.GetEnv("PSQL_PASSWORD", ""),
+		env.GetEnv("PSQL_ADDR", "45.157.11.82"),
+		env.GetEnv("PSQL_DB", "reverseproxy"),
 	)
 
 	PsqlConn, err = pgxpool.Connect(context.Background(), connString)

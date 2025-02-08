@@ -217,7 +217,7 @@ func handleHTTPChallenge(domain string, chal *acme.Challenge) error {
 	}
 
 	defer func() {
-		err = acme_http.DeleteHttpChallenge(token)
+		err = acme_http.DeleteHttpChallenge(token, false)
 		if err != nil {
 			fmt.Printf("failed to delete HTTP challenge: %v", err)
 		}

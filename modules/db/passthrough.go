@@ -27,7 +27,7 @@ type Passthrough struct { // omit key in json
 }
 
 func InsertPassthrough(passthrough Passthrough) error {
-	pErr := Env.Update(func(txn *lmdb.Txn) error {
+	pErr := LEnv.Update(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(passthroughDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -61,7 +61,7 @@ func InsertPassthrough(passthrough Passthrough) error {
 func GetAllPassthroughs() ([]Passthrough, error) {
 	var passthroughs []Passthrough
 
-	pErr := Env.View(func(txn *lmdb.Txn) error {
+	pErr := LEnv.View(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(passthroughDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -101,7 +101,7 @@ func GetAllPassthroughs() ([]Passthrough, error) {
 }
 
 func DeletePassthrough(id uint64) error {
-	pErr := Env.Update(func(txn *lmdb.Txn) error {
+	pErr := LEnv.Update(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(passthroughDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)

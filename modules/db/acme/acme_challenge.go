@@ -18,7 +18,7 @@ type HttpChallenge struct {
 }
 
 func InsertHttpChallenge(httpChallenge HttpChallenge, self bool) error {
-	aErr := db.Env.Update(func(txn *lmdb.Txn) error {
+	aErr := db.LEnv.Update(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(acmeHttpDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -47,7 +47,7 @@ func InsertHttpChallenge(httpChallenge HttpChallenge, self bool) error {
 func GetHttpChallenge(token string) (HttpChallenge, error) {
 	var httpChallenge HttpChallenge
 
-	aErr := db.Env.View(func(txn *lmdb.Txn) error {
+	aErr := db.LEnv.View(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(acmeHttpDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -70,7 +70,7 @@ func GetHttpChallenge(token string) (HttpChallenge, error) {
 }
 
 func DeleteHttpChallenge(token string, self bool) error {
-	aErr := db.Env.Update(func(txn *lmdb.Txn) error {
+	aErr := db.LEnv.Update(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(acmeHttpDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
