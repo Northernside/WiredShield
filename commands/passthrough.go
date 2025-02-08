@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 	ssl "wiredshield/commands/libs"
-	"wiredshield/modules/db"
+	"wiredshield/modules/db/passthrough"
 
 	"github.com/fatih/color"
 	"github.com/rodaine/table"
@@ -24,7 +24,7 @@ func Passthrough(model *Model) {
 
 	switch split[1] {
 	case "list":
-		passthroughs, _ := db.GetAllPassthroughs()
+		passthroughs, _ := passthrough.GetAllPassthroughs()
 		if len(passthroughs) == 0 {
 			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "No passthroughs found"))
 		} else {
@@ -63,7 +63,7 @@ func Passthrough(model *Model) {
 			break
 		}
 
-		passthrough := db.Passthrough{
+		pt := passthrough.Passthrough{
 			Domain:     split[2],
 			Path:       split[3],
 			TargetAddr: split[4],
@@ -72,16 +72,16 @@ func Passthrough(model *Model) {
 			Ssl:        split[7] == "true",
 		}
 
-		err = db.InsertPassthrough(passthrough)
+		err = passthrough.InsertPassthrough(pt, 0, false)
 		if err != nil {
 			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Failed to set passthrough"))
 			break
 		}
 
-		if passthrough.Ssl {
-			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Generating SSL certificate for "+passthrough.Domain))
+		if pt.Ssl {
+			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Generating SSL certificate for "+pt.Domain))
 			go func() {
-				ssl.GenSSL(passthrough.Domain, false)
+				ssl.GenSSL(pt.Domain, false)
 			}()
 		}
 
@@ -98,7 +98,7 @@ func Passthrough(model *Model) {
 			break
 		}
 
-		err = db.DeletePassthrough(id)
+		err = passthrough.DeletePassthrough(id, false)
 		if err != nil {
 			sb.WriteString(fmt.Sprintf("%s%s\n", prefix, "Failed to delete passthrough"))
 			break

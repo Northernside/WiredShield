@@ -1,15 +1,16 @@
-package acme_http
+package passthrough
 
 import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"wiredshield/modules/env"
 	"wiredshield/services"
 	"wiredshield/utils/signing"
 )
 
-func syncSet(httpChallenge HttpChallenge) error {
+func syncSet(passthrough Passthrough) error {
 	var partnerMaster string
 	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
 		partnerMaster = "meow"
@@ -17,15 +18,20 @@ func syncSet(httpChallenge HttpChallenge) error {
 		partnerMaster = "woof"
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.wired.rip/.wiredshield/acme-update", partnerMaster), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.wired.rip/.wiredshield/passthrough-update", partnerMaster), nil)
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("change_action", "SET")
-	req.Header.Set("domain", httpChallenge.Domain)
-	req.Header.Set("public_token", httpChallenge.PublicToken)
-	req.Header.Set("full_token", httpChallenge.FullToken)
+
+	req.Header.Set("id", fmt.Sprintf("%d", passthrough.Id))
+	req.Header.Set("domain", passthrough.Domain)
+	req.Header.Set("path", passthrough.Path)
+	req.Header.Set("target_addr", passthrough.TargetAddr)
+	req.Header.Set("target_port", fmt.Sprintf("%d", passthrough.TargetPort))
+	req.Header.Set("target_path", passthrough.TargetPath)
+	req.Header.Set("ssl", strconv.FormatBool(passthrough.Ssl))
 
 	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
@@ -45,7 +51,7 @@ func syncSet(httpChallenge HttpChallenge) error {
 	return err
 }
 
-func syncDel(token string) error {
+func syncDel(id uint64) error {
 	var partnerMaster string
 	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
 		partnerMaster = "meow"
@@ -53,13 +59,13 @@ func syncDel(token string) error {
 		partnerMaster = "woof"
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.wired.rip/.wiredshield/acme-update", partnerMaster), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s.wired.rip/.wiredshield/passthrough-update", partnerMaster), nil)
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("change_action", "DEL")
-	req.Header.Set("public_token", token)
+	req.Header.Set("id", fmt.Sprintf("%d", id))
 
 	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
@@ -74,7 +80,7 @@ func syncDel(token string) error {
 		return err
 	}
 
-	services.ProcessService.InfoLog(fmt.Sprintf("response: %s", string(bodyBytes)))
+	services.ProcessService.InfoLog(fmt.Sprintf("response (x): %s", string(bodyBytes)))
 
 	return err
 }

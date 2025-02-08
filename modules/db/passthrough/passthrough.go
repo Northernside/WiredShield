@@ -1,9 +1,10 @@
-package db
+package passthrough
 
 import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
@@ -26,20 +27,22 @@ type Passthrough struct { // omit key in json
 	Ssl        bool   `json:"ssl"`
 }
 
-func InsertPassthrough(passthrough Passthrough) error {
-	pErr := LEnv.Update(func(txn *lmdb.Txn) error {
+func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
+	pErr := db.LEnv.Update(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(passthroughDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
 		}
 
-		var id uint64
-		snowflake, err := epoch.NewSnowflake(512)
-		if err != nil {
-			return fmt.Errorf("failed to create snowflake: %v", err)
-		}
+		var id uint64 = _id
+		if _id != 0 {
+			snowflake, err := epoch.NewSnowflake(512)
+			if err != nil {
+				return fmt.Errorf("failed to create snowflake: %v", err)
+			}
 
-		id = snowflake.GenerateID()
+			id = snowflake.GenerateID()
+		}
 
 		// save as json, key is the snowflake id
 		data, err := json.Marshal(passthrough)
@@ -55,13 +58,17 @@ func InsertPassthrough(passthrough Passthrough) error {
 		return nil
 	})
 
+	if pErr == nil && !self {
+		go syncSet(passthrough)
+	}
+
 	return pErr
 }
 
 func GetAllPassthroughs() ([]Passthrough, error) {
 	var passthroughs []Passthrough
 
-	pErr := LEnv.View(func(txn *lmdb.Txn) error {
+	pErr := db.LEnv.View(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(passthroughDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -100,8 +107,8 @@ func GetAllPassthroughs() ([]Passthrough, error) {
 	return passthroughs, pErr
 }
 
-func DeletePassthrough(id uint64) error {
-	pErr := LEnv.Update(func(txn *lmdb.Txn) error {
+func DeletePassthrough(id uint64, self bool) error {
+	pErr := db.LEnv.Update(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(passthroughDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -114,6 +121,10 @@ func DeletePassthrough(id uint64) error {
 
 		return nil
 	})
+
+	if pErr == nil && !self {
+		go syncDel(id)
+	}
 
 	return pErr
 }

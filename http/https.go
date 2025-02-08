@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 	"wiredshield/modules/db"
+	"wiredshield/modules/db/passthrough"
 	"wiredshield/modules/env"
 	"wiredshield/modules/rules"
 	errorpages "wiredshield/pages/error"
@@ -25,6 +26,11 @@ var (
 	passthroughCache sync.Map
 	blockedPage      string
 )
+
+type ptEntry struct {
+	target string
+	expiry time.Time
+}
 
 func Prepare(_service *services.Service) func() {
 	service = _service
@@ -231,15 +237,18 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func loadPassthrough(ctx *fasthttp.RequestCtx) {
-	cacheKey := fmt.Sprintf("%s:%s", ctx.Host(), ctx.Path())
-	if cachedTarget, ok := passthroughCache.Load(cacheKey); ok {
-		ctx.SetUserValue("targetURL", cachedTarget.(string))
-		ctx.SetUserValue("resolve", true)
-		httpsProxyHandler(ctx)
-		return
+	cacheKey := fmt.Sprintf("%s:%s", string(ctx.Host()), string(ctx.Path()))
+	if entry, ok := passthroughCache.Load(cacheKey); ok {
+		if entry.(ptEntry).expiry.After(time.Now()) {
+			ctx.SetUserValue("targetURL", entry.(ptEntry).target)
+			ctx.SetUserValue("resolve", true)
+			return
+		} else {
+			passthroughCache.Delete(cacheKey)
+		}
 	}
 
-	passthroughs, err := db.GetAllPassthroughs()
+	passthroughs, err := passthrough.GetAllPassthroughs()
 	if err != nil {
 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 		return
@@ -255,11 +264,9 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) {
 			// ctx.Path but minus passthrough.Path
 			normalizedPath := string(ctx.Path())[len(passthrough.Path):]
 			target := fmt.Sprintf("%s://%s:%d%s", protocol, passthrough.TargetAddr, passthrough.TargetPort, normalizedPath)
-			passthroughCache.Store(cacheKey, target)
-			go func() {
-				time.Sleep(24 * time.Hour)
-				passthroughCache.Delete(cacheKey)
-			}()
+
+			entry := ptEntry{target: target, expiry: time.Now().Add(24 * time.Hour)}
+			passthroughCache.Store(cacheKey, entry)
 
 			ctx.SetUserValue("targetURL", target)
 			ctx.SetUserValue("resolve", true)
