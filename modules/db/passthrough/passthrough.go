@@ -55,7 +55,7 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 			return fmt.Errorf("failed to marshal passthrough: %v", err)
 		}
 
-		services.GetService("https").InfoLog(fmt.Sprintf("Inserting data %v", data))
+		services.GetService("https").InfoLog(fmt.Sprintf("Inserting data %v", string(data)))
 
 		key := strconv.FormatUint(id, 10)
 		if err := txn.Put(dbi, []byte(key), data, 0); err != nil {
