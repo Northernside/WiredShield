@@ -33,9 +33,6 @@ func syncSet(passthrough Passthrough) error {
 	req.Header.Set("target_path", passthrough.TargetPath)
 	req.Header.Set("ssl", strconv.FormatBool(passthrough.Ssl))
 
-	services.ProcessService.InfoLog(fmt.Sprintf(">>> %s %s %s %s %s %s %s",
-		strconv.Itoa(int(passthrough.Id)), passthrough.Domain, passthrough.Path, passthrough.TargetAddr, strconv.Itoa(int(passthrough.TargetPort)), passthrough.TargetPath, strconv.FormatBool(passthrough.Ssl)))
-
 	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

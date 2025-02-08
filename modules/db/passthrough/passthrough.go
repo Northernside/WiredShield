@@ -42,6 +42,7 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 			}
 
 			id = snowflake.GenerateID()
+			passthrough.Id = id
 		}
 
 		// save as json, key is the snowflake id
