@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
+	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -34,7 +35,7 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 			return fmt.Errorf("failed to open db: %v", err)
 		}
 
-		var id uint64 = _id
+		var id uint64
 		if _id == 0 {
 			snowflake, err := epoch.NewSnowflake(512)
 			if err != nil {
@@ -42,6 +43,7 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 			}
 
 			id = snowflake.GenerateID()
+			services.ProcessService.InfoLog(fmt.Sprintf("generated id: %d", id))
 		}
 
 		// save as json, key is the snowflake id
@@ -59,6 +61,7 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 	})
 
 	if pErr == nil && !self {
+		services.ProcessService.InfoLog(fmt.Sprintf("passthrough: %v", passthrough))
 		go syncSet(passthrough)
 	}
 
