@@ -3,6 +3,7 @@ package routes
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 	acme_http "wiredshield/modules/db/acme"
 	"wiredshield/modules/env"
@@ -84,12 +85,11 @@ func ACMEUpdate(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
+		var _token string = strings.Split(token, ".")[0]
 		challenge := acme_http.HttpChallenge{
 			Domain: domain,
-			Token:  token,
+			Token:  _token,
 		}
-
-		services.GetService("https").InfoLog(fmt.Sprintf("xxxx ACMEUpdate: %s", challenge))
 
 		err := acme_http.InsertHttpChallenge(challenge, true)
 		if err != nil {

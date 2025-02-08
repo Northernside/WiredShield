@@ -4,15 +4,12 @@ import (
 	"strings"
 	acme_http "wiredshield/modules/db/acme"
 	errorpages "wiredshield/pages/error"
-	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
 
 func ACMEChallenge(ctx *fasthttp.RequestCtx) {
 	var token = strings.Split(string(ctx.Path()), "/")[len(strings.Split(string(ctx.Path()), "/"))-1]
-
-	services.GetService("https").InfoLog("ACMEChallenge: " + token)
 
 	// get the challenge from db
 	httpChallenge, err := acme_http.GetHttpChallenge(token)

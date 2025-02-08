@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"wiredshield/modules/db"
 	acme_http "wiredshield/modules/db/acme"
 	"wiredshield/modules/epoch"
@@ -196,8 +197,11 @@ func handleHTTPChallenge(domain string, chal *acme.Challenge) error {
 		return errors.Errorf("failed to get HTTP-01 challenge response: %v", err)
 	}
 
+	// split by ".", then grab [0]
+	var _token string = strings.Split(token, ".")[0]
+
 	var httpChallenge acme_http.HttpChallenge = acme_http.HttpChallenge{
-		Token:  token,
+		Token:  _token,
 		Domain: domain,
 	}
 
