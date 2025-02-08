@@ -183,6 +183,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 		if err != fasthttp.ErrTimeout {
 			errorCode = fasthttp.StatusBadGateway
+			service.ErrorLog(fmt.Sprintf("error fetching target URL: %v", err))
 			message = errorpages.Error603
 		} else {
 			errorCode = fasthttp.StatusGatewayTimeout
