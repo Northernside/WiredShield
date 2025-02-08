@@ -19,10 +19,11 @@ import (
 )
 
 var (
-	service       *services.Service
-	certCache     sync.Map
-	certLoadMutex sync.RWMutex
-	blockedPage   string
+	service          *services.Service
+	certCache        sync.Map
+	certLoadMutex    sync.RWMutex
+	passthroughCache sync.Map
+	blockedPage      string
 )
 
 func Prepare(_service *services.Service) func() {
@@ -90,6 +91,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			return
 		}
 	}
+
+	loadPassthrough(ctx)
 
 	// internal routes
 	cleanedPath := string(ctx.Path())
@@ -227,7 +230,15 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp))
 }
 
-func httpHandler(ctx *fasthttp.RequestCtx) {
+func loadPassthrough(ctx *fasthttp.RequestCtx) {
+	cacheKey := fmt.Sprintf("%s:%s", ctx.Host(), ctx.Path())
+	if cachedTarget, ok := passthroughCache.Load(cacheKey); ok {
+		ctx.SetUserValue("targetURL", cachedTarget.(string))
+		ctx.SetUserValue("resolve", true)
+		httpsProxyHandler(ctx)
+		return
+	}
+
 	passthroughs, err := db.GetAllPassthroughs()
 	if err != nil {
 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
@@ -244,12 +255,22 @@ func httpHandler(ctx *fasthttp.RequestCtx) {
 			// ctx.Path but minus passthrough.Path
 			normalizedPath := string(ctx.Path())[len(passthrough.Path):]
 			target := fmt.Sprintf("%s://%s:%d%s", protocol, passthrough.TargetAddr, passthrough.TargetPort, normalizedPath)
+			passthroughCache.Store(cacheKey, target)
+			go func() {
+				time.Sleep(24 * time.Hour)
+				passthroughCache.Delete(cacheKey)
+			}()
+
 			ctx.SetUserValue("targetURL", target)
 			ctx.SetUserValue("resolve", true)
 			httpsProxyHandler(ctx)
 			return
 		}
 	}
+}
+
+func httpHandler(ctx *fasthttp.RequestCtx) {
+	loadPassthrough(ctx)
 
 	target := "https://" + string(ctx.Host()) + string(ctx.Path())
 	if len(ctx.URI().QueryString()) > 0 {
