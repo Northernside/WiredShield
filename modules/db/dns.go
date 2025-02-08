@@ -18,7 +18,7 @@ const (
 )
 
 func InsertRecord(record DNSRecord, self bool) error {
-	eErr := env.Update(func(txn *lmdb.Txn) error {
+	eErr := Env.Update(func(txn *lmdb.Txn) error {
 		// open "entries" and "domain_index" dbs
 		entries, err := txn.OpenDBI(entriesDB, lmdb.Create)
 		if err != nil {
@@ -91,7 +91,7 @@ func InsertRecord(record DNSRecord, self bool) error {
 }
 
 func DeleteRecord(id uint64, domain string, self bool) error {
-	eErr := env.Update(func(txn *lmdb.Txn) error {
+	eErr := Env.Update(func(txn *lmdb.Txn) error {
 		// open "entries" and "domain_index" databases
 		entries, err := txn.OpenDBI(entriesDB, 0)
 		if err != nil {
@@ -160,7 +160,7 @@ func DeleteRecord(id uint64, domain string, self bool) error {
 func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 	var records []DNSRecord
 
-	err := env.View(func(txn *lmdb.Txn) error {
+	err := Env.View(func(txn *lmdb.Txn) error {
 		entries, err := txn.OpenDBI(entriesDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open entries DB: %w", err)
@@ -311,7 +311,7 @@ func unmarshalRecord(data []byte, record *DNSRecord) error {
 func GetAllDomains() ([]string, error) {
 	var domains []string
 
-	err := env.View(func(txn *lmdb.Txn) error {
+	err := Env.View(func(txn *lmdb.Txn) error {
 		domainIndex, err := txn.OpenDBI(domainIndexDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open domain_index DB: %w", err)
@@ -382,7 +382,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 	}
 
 	var records []DNSRecord
-	err := env.View(func(txn *lmdb.Txn) error {
+	err := Env.View(func(txn *lmdb.Txn) error {
 		entries, err := txn.OpenDBI(entriesDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open entries DB: %w", err)

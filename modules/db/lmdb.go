@@ -6,40 +6,40 @@ import (
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 
-	_env "wiredshield/modules/env"
+	_Env "wiredshield/modules/Env"
 )
 
-var env *lmdb.Env
+var Env *lmdb.Env
 
 func Init() {
 	var err error
-	env, err = lmdb.NewEnv()
+	Env, err = lmdb.NewEnv()
 	if err != nil {
-		log.Fatal("failed to create LMDB environment:", err)
+		log.Fatal("failed to create LMDB Environment:", err)
 	}
 
-	err = env.SetMaxReaders(1024 * 32)
+	err = Env.SetMaxReaders(1024 * 32)
 	if err != nil {
 		log.Fatal("failed to set max readers:", err)
 	}
 
-	err = env.SetMaxDBs(2 ^ 32 - 1)
+	err = Env.SetMaxDBs(2 ^ 32 - 1)
 	if err != nil {
 		log.Fatal("failed to set max DBs:", err)
 	}
 
-	err = env.SetMapSize(1 << 22) // 4MB
+	err = Env.SetMapSize(1 << 22) // 4MB
 	if err != nil {
 		log.Fatal("failed to set map size:", err)
 	}
 
-	lmdbPath := _env.GetEnv("LMDB_PATH", "./wiredshield.lmdb")
-	err = env.Open(lmdbPath, lmdb.Create|lmdb.NoSubdir, 0644)
+	lmdbPath := _Env.GetEnv("LMDB_PATH", "./wiredshield.lmdb")
+	err = Env.Open(lmdbPath, lmdb.Create|lmdb.NoSubdir, 0644)
 	if err != nil {
-		log.Fatal("failed to open LMDB environment:", err)
+		log.Fatal("failed to open LMDB Environment:", err)
 	}
 
-	err = env.Update(func(txn *lmdb.Txn) error {
+	err = Env.Update(func(txn *lmdb.Txn) error {
 		_, err := txn.OpenDBI("wiredshield", lmdb.Create)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)

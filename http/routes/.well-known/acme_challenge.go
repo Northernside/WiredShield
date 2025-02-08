@@ -2,7 +2,6 @@ package routes
 
 import (
 	"strings"
-	"wiredshield/modules/db"
 	errorpages "wiredshield/pages/error"
 
 	"github.com/valyala/fasthttp"
@@ -12,7 +11,7 @@ func ACMEChallenge(ctx *fasthttp.RequestCtx) {
 	var token = strings.Split(string(ctx.Path()), "/")[len(strings.Split(string(ctx.Path()), "/"))-1]
 
 	// get the challenge from db
-	httpChallenge, err := db.GetHttpChallenge(token)
+	httpChallenge, err := acme_http.GetHttpChallenge(token)
 	if err != nil {
 		if strings.Contains(err.Error(), "MDB_NOTFOUND") {
 			errorPage := errorpages.ErrorPage{Code: 404, Message: errorpages.Error604}

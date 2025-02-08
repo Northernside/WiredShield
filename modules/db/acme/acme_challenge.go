@@ -1,8 +1,9 @@
-package db
+package acme_http
 
 import (
 	"encoding/json"
 	"fmt"
+	"wiredshield/modules/db"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -16,8 +17,8 @@ type HttpChallenge struct {
 	Domain string `json:"domain"`
 }
 
-func InsertHttpChallenge(httpChallenge HttpChallenge) error {
-	aErr := env.Update(func(txn *lmdb.Txn) error {
+func InsertHttpChallenge(httpChallenge HttpChallenge, self bool) error {
+	aErr := db.Env.Update(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(acmeHttpDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -36,13 +37,17 @@ func InsertHttpChallenge(httpChallenge HttpChallenge) error {
 		return nil
 	})
 
+	if aErr == nil && !self {
+		go syncSet(httpChallenge.Domain, httpChallenge.Token)
+	}
+
 	return aErr
 }
 
 func GetHttpChallenge(token string) (HttpChallenge, error) {
 	var httpChallenge HttpChallenge
 
-	aErr := env.View(func(txn *lmdb.Txn) error {
+	aErr := db.Env.View(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(acmeHttpDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -64,8 +69,8 @@ func GetHttpChallenge(token string) (HttpChallenge, error) {
 	return httpChallenge, aErr
 }
 
-func DeleteHttpChallenge(token string) error {
-	aErr := env.Update(func(txn *lmdb.Txn) error {
+func DeleteHttpChallenge(token string, self bool) error {
+	aErr := db.Env.Update(func(txn *lmdb.Txn) error {
 		dbi, err := txn.OpenDBI(acmeHttpDB, 0)
 		if err != nil {
 			return fmt.Errorf("failed to open db: %v", err)
@@ -77,6 +82,10 @@ func DeleteHttpChallenge(token string) error {
 
 		return nil
 	})
+
+	if aErr == nil && !self {
+		go syncDel(token)
+	}
 
 	return aErr
 }

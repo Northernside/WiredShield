@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"wiredshield/modules/db"
+	acme_http "wiredshield/modules/db/acme"
 	"wiredshield/modules/epoch"
 	"wiredshield/services"
 
@@ -108,7 +109,7 @@ func GenerateCertificate(domain string, dnsChal bool) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to encode private key to PEM")
 	}
 
-	syncSet(domain, string(certPEM), string(privKeyPEM))
+	go syncSet(domain, string(certPEM), string(privKeyPEM))
 	return certPEM, privKeyPEM, nil
 }
 
@@ -195,12 +196,12 @@ func handleHTTPChallenge(domain string, chal *acme.Challenge) error {
 		return errors.Errorf("failed to get HTTP-01 challenge response: %v", err)
 	}
 
-	var httpChallenge db.HttpChallenge = db.HttpChallenge{
+	var httpChallenge acme_http.HttpChallenge = acme_http.HttpChallenge{
 		Token:  token,
 		Domain: domain,
 	}
 
-	err = db.InsertHttpChallenge(httpChallenge)
+	err = acme_http.InsertHttpChallenge(httpChallenge, false)
 	if err != nil {
 		return errors.Errorf("failed to insert HTTP challenge: %v", err)
 	}
@@ -216,7 +217,7 @@ func handleHTTPChallenge(domain string, chal *acme.Challenge) error {
 	}
 
 	defer func() {
-		err = db.DeleteHttpChallenge(token)
+		err = acme_http.DeleteHttpChallenge(token)
 		if err != nil {
 			fmt.Printf("failed to delete HTTP challenge: %v", err)
 		}
