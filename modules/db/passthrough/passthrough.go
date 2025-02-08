@@ -47,6 +47,8 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 			passthrough.Id = id
 		}
 
+		services.GetService("https").InfoLog(fmt.Sprintf("Inserting passthrough %v", passthrough))
+
 		// save as json, key is the snowflake id
 		data, err := json.Marshal(passthrough)
 		if err != nil {
