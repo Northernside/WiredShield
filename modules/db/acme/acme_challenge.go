@@ -13,8 +13,9 @@ const (
 )
 
 type HttpChallenge struct {
-	Token  string `json:"token"`
-	Domain string `json:"domain"`
+	PublicToken string `json:"token"`
+	FullToken   string `json:"full_token"`
+	Domain      string `json:"domain"`
 }
 
 func InsertHttpChallenge(httpChallenge HttpChallenge, self bool) error {
@@ -30,7 +31,7 @@ func InsertHttpChallenge(httpChallenge HttpChallenge, self bool) error {
 			return fmt.Errorf("failed to marshal httpChallenge: %v", err)
 		}
 
-		if err := txn.Put(dbi, []byte(httpChallenge.Token), data, 0); err != nil {
+		if err := txn.Put(dbi, []byte(httpChallenge.PublicToken), data, 0); err != nil {
 			return fmt.Errorf("failed to put data: %v", err)
 		}
 
@@ -38,7 +39,7 @@ func InsertHttpChallenge(httpChallenge HttpChallenge, self bool) error {
 	})
 
 	if aErr == nil && !self {
-		go syncSet(httpChallenge.Domain, httpChallenge.Token)
+		go syncSet(httpChallenge)
 	}
 
 	return aErr

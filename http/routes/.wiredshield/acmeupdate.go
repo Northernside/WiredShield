@@ -3,7 +3,6 @@ package routes
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 	acme_http "wiredshield/modules/db/acme"
 	"wiredshield/modules/env"
@@ -74,21 +73,22 @@ func ACMEUpdate(ctx *fasthttp.RequestCtx) {
 
 	var change_action = string(ctx.Request.Header.Peek("change_action"))
 	var domain = string(ctx.Request.Header.Peek("domain"))
-	var token = string(ctx.Request.Header.Peek("token"))
+	var public_token = string(ctx.Request.Header.Peek("public_token"))
+	var full_token = string(ctx.Request.Header.Peek("full_token"))
 
 	switch change_action {
 	case "SET":
 		// insert the challenge into db via acme_http.InsertHttpChallenge
-		if domain == "" || token == "" {
+		if domain == "" || public_token == "" || full_token == "" {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			ctx.SetBodyString("BAD_REQUEST: domain or token missing")
+			ctx.SetBodyString("BAD_REQUEST: domain, public_token or full_token missing")
 			return
 		}
 
-		var _token string = strings.Split(token, ".")[0]
 		challenge := acme_http.HttpChallenge{
-			Domain: domain,
-			Token:  _token,
+			Domain:      domain,
+			PublicToken: public_token,
+			FullToken:   full_token,
 		}
 
 		err := acme_http.InsertHttpChallenge(challenge, true)
@@ -100,13 +100,13 @@ func ACMEUpdate(ctx *fasthttp.RequestCtx) {
 		}
 	case "DEL":
 		// delete the challenge from db via acme_http.DeleteHttpChallenge
-		if token == "" {
+		if public_token == "" {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			ctx.SetBodyString("BAD_REQUEST: token missing")
+			ctx.SetBodyString("BAD_REQUEST: public_token missing")
 			return
 		}
 
-		err := acme_http.DeleteHttpChallenge(token, true)
+		err := acme_http.DeleteHttpChallenge(public_token, true)
 		if err != nil {
 			services.GetService("https").ErrorLog(err.Error())
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)

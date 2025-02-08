@@ -33,5 +33,5 @@ func ACMEChallenge(ctx *fasthttp.RequestCtx) {
 
 	// return the challenge
 	ctx.SetContentType("text/plain")
-	ctx.SetBodyString(httpChallenge.Token)
+	ctx.SetBodyString(httpChallenge.FullToken)
 }

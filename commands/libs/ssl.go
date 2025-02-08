@@ -201,8 +201,9 @@ func handleHTTPChallenge(domain string, chal *acme.Challenge) error {
 	var _token string = strings.Split(token, ".")[0]
 
 	var httpChallenge acme_http.HttpChallenge = acme_http.HttpChallenge{
-		Token:  _token,
-		Domain: domain,
+		PublicToken: _token,
+		FullToken:   token,
+		Domain:      domain,
 	}
 
 	err = acme_http.InsertHttpChallenge(httpChallenge, false)
@@ -221,7 +222,7 @@ func handleHTTPChallenge(domain string, chal *acme.Challenge) error {
 	}
 
 	defer func() {
-		err = acme_http.DeleteHttpChallenge(token, false)
+		err = acme_http.DeleteHttpChallenge(_token, false)
 		if err != nil {
 			fmt.Printf("failed to delete HTTP challenge: %v", err)
 		}

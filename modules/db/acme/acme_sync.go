@@ -9,7 +9,7 @@ import (
 	"wiredshield/utils/signing"
 )
 
-func syncSet(domain, token string) error {
+func syncSet(httpChallenge HttpChallenge) error {
 	var partnerMaster string
 	if env.GetEnv("CLIENT_NAME", "meow") == "woof" {
 		partnerMaster = "meow"
@@ -23,8 +23,9 @@ func syncSet(domain, token string) error {
 	}
 
 	req.Header.Set("change_action", "SET")
-	req.Header.Set("domain", domain)
-	req.Header.Set("token", token)
+	req.Header.Set("domain", httpChallenge.Domain)
+	req.Header.Set("public_token", httpChallenge.PublicToken)
+	req.Header.Set("full_token", httpChallenge.FullToken)
 
 	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
@@ -58,7 +59,7 @@ func syncDel(token string) error {
 	}
 
 	req.Header.Set("change_action", "DEL")
-	req.Header.Set("token", token)
+	req.Header.Set("public_token", token)
 
 	signing.SignHTTPRequest(req)
 	resp, err := http.DefaultClient.Do(req)
