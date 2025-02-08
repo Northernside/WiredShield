@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
+	"wiredshield/services"
 
 	"github.com/bmatsuo/lmdb-go/lmdb"
 )
@@ -36,6 +37,7 @@ func InsertPassthrough(passthrough Passthrough, _id uint64, self bool) error {
 
 		var id uint64
 		if _id == 0 {
+			services.GetService("https").InfoLog(fmt.Sprintf("Generating new snowflake id %d", _id))
 			snowflake, err := epoch.NewSnowflake(512)
 			if err != nil {
 				return fmt.Errorf("failed to create snowflake: %v", err)
