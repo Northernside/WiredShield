@@ -206,7 +206,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	case 301, 308, 302, 303, 307:
 		location := resp.Header.Peek("Location")
 		if len(location) == 0 {
-			services.GetService("https").ErrorLog(err.Error())
 			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 			return
 		}
@@ -225,10 +224,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
 
 	ctx.SetBody(resp.Body())
-	// check if passthrough != nil
-	if ctx.UserValue("passthrough") != nil {
-		service.InfoLog(fmt.Sprintf("response: %s", string(resp.Body())))
-	}
 
 	if bodyStream := resp.BodyStream(); bodyStream != nil {
 		_, err = io.Copy(ctx.Response.BodyWriter(), bodyStream)
