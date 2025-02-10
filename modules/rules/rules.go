@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"wiredshield/modules/whois"
@@ -20,9 +21,10 @@ var (
 )
 
 type Rule struct {
-	Group  string    `json:"group"`
-	Action string    `json:"action"`
-	Rules  []SubRule `json:"rules"`
+	Group    string    `json:"group"`
+	Priority int       `json:"priority"`
+	Action   string    `json:"action"`
+	Rules    []SubRule `json:"rules"`
 }
 
 type SubRule struct {
@@ -111,7 +113,11 @@ func evaluateField(field, operation string, value []string, ctx *fasthttp.Reques
 		asnStr := fmt.Sprintf("%d", asn)
 		fieldValue = asnStr
 	default:
-		fieldValue = string(ctx.Request.Header.Peek(field[len("http.request.headers."):]))
+		if strings.HasPrefix(field, "http.request.headers.") {
+			fieldValue = string(ctx.Request.Header.Peek(field[len("http.request.headers."):]))
+		} else {
+			return false
+		}
 	}
 
 	switch operation {
@@ -159,6 +165,11 @@ func loadRules(pattern string) ([]Rule, []string, error) {
 
 		allRules = append(allRules, rules...)
 	}
+
+	sort.Slice(allRules, func(i, j int) bool {
+		fmt.Println(allRules[i].Priority, allRules[j].Priority)
+		return allRules[i].Priority < allRules[j].Priority
+	})
 
 	return allRules, files, nil
 }
