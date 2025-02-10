@@ -262,7 +262,7 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) {
 			// ctx.Path but minus passthrough.Path
 			normalizedPath := string(ctx.Path())[len(passthrough.Path):]
 			if !strings.HasSuffix(normalizedPath, "/") {
-				normalizedPath += "/"
+				normalizedPath = "/" + normalizedPath
 			}
 
 			target := fmt.Sprintf("http://%s:%d%s", passthrough.TargetAddr, passthrough.TargetPort, normalizedPath)
