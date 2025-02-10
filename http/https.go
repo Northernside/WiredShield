@@ -99,7 +99,10 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	}
 	var targetURL_UV bool = ctx.UserValue("targetURL") != nil
 	if !targetURL_UV {
-		loadPassthrough(ctx)
+		found := loadPassthrough(ctx)
+		if found {
+			return
+		}
 	}
 
 	// internal routes
@@ -237,15 +240,14 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp))
 }
 
-func loadPassthrough(ctx *fasthttp.RequestCtx) {
+func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
 	cacheKey := fmt.Sprintf("%s:%s", string(ctx.Host()), string(ctx.Path()))
 	if entry, ok := passthroughCache.Load(cacheKey); ok {
 		if entry.(ptEntry).expiry.After(time.Now()) {
 			ctx.SetUserValue("targetURL", entry.(ptEntry).target)
-			service.DebugLog(entry.(ptEntry).target)
 			ctx.SetUserValue("resolve", true)
 			ctx.SetUserValue("passthrough", true)
-			return
+			return true
 		} else {
 			passthroughCache.Delete(cacheKey)
 		}
@@ -254,7 +256,7 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) {
 	passthroughs, err := passthrough.GetAllPassthroughs()
 	if err != nil {
 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
-		return
+		return false
 	}
 
 	for _, passthrough := range passthroughs {
@@ -273,13 +275,18 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) {
 			ctx.SetUserValue("targetURL", target)
 			ctx.SetUserValue("resolve", true)
 			httpsProxyHandler(ctx)
-			return
+			return true
 		}
 	}
+
+	return false
 }
 
 func httpHandler(ctx *fasthttp.RequestCtx) {
-	loadPassthrough(ctx)
+	found := loadPassthrough(ctx)
+	if found {
+		return
+	}
 
 	target := "https://" + string(ctx.Host()) + string(ctx.Path())
 	if len(ctx.URI().QueryString()) > 0 {
