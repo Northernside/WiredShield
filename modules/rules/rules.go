@@ -21,6 +21,7 @@ var (
 )
 
 type Rule struct {
+	Name     string    `json:"name"`
 	Group    string    `json:"group"`
 	Priority int       `json:"priority"`
 	Action   string    `json:"action"`
@@ -58,7 +59,7 @@ func Prepare(_service *services.Service) func() {
 	}
 }
 
-func MatchRules(ctx *fasthttp.RequestCtx) bool {
+func MatchRules(ctx *fasthttp.RequestCtx) (bool, string) {
 	defer func() {
 		if r := recover(); r != nil {
 
@@ -76,11 +77,11 @@ func MatchRules(ctx *fasthttp.RequestCtx) bool {
 		}
 
 		if ruleMatched {
-			return rule.Action == "block"
+			return rule.Action == "block", rule.Name
 		}
 	}
 
-	return false
+	return false, ""
 }
 
 func evaluateField(field, operation string, value []string, ctx *fasthttp.RequestCtx) bool {

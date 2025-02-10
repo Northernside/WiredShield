@@ -25,6 +25,8 @@ type HTTPRequestLog struct {
 	ResponseSize         int64           `json:"response_size"`
 	RequestHTTPVersion   string          `json:"request_http_version"`
 	ClientCountry        string          `json:"client_country"`
+	WAFBlocked           bool            `json:"waf_blocked"`
+	WAFRuleName          string          `json:"waf_rule_name"`
 }
 
 type DNSRequestLog struct {
@@ -77,17 +79,19 @@ func (log *HTTPRequestLog) BatchInsert(logs []*HTTPRequestLog) error {
 	defer transaction.Rollback(context.Background())
 
 	placeholders := make([]string, len(logs))
-	values := make([]interface{}, 0, len(logs)*16)
+	values := make([]interface{}, 0, len(logs)*18)
 
 	for i, log := range logs {
 		log.ClientIP = strings.ReplaceAll(log.ClientIP, "[", "")
 		log.ClientIP = strings.ReplaceAll(log.ClientIP, "]", "")
 
 		placeholders[i] = fmt.Sprintf(
-			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			i*15+1, i*15+2, i*15+3, i*15+4, i*15+5, i*15+6, i*15+7, i*15+8,
 			i*15+9, i*15+10, i*15+11, i*15+12, i*15+13, i*15+14, i*15+15, i*15+16,
+			i*15+17, i*15+18,
 		)
+
 		values = append(values,
 			log.RequestTime,
 			log.ClientIP,
@@ -105,6 +109,8 @@ func (log *HTTPRequestLog) BatchInsert(logs []*HTTPRequestLog) error {
 			log.ResponseSize,
 			log.RequestHTTPVersion,
 			log.ClientCountry,
+			log.WAFBlocked,
+			log.WAFRuleName,
 		)
 	}
 
@@ -114,7 +120,7 @@ func (log *HTTPRequestLog) BatchInsert(logs []*HTTPRequestLog) error {
 			request_headers, response_headers, response_status_origin, 
 			response_status_proxy, response_time, tls_version, 
 			request_size, response_size, request_http_version,
-			client_country
+			client_country, waf_blocked, waf_rule_name
 		) VALUES %s
 	`, strings.Join(placeholders, ","))
 

@@ -40,7 +40,7 @@ func getResponseSize(ctx *fasthttp.RequestCtx, resp *fasthttp.Response) int64 {
 	return totalSize
 }
 
-func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64) {
+func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart time.Time, internalCode int, requestSize, responseSize int64, ruleName string) {
 	reqHeadersMap := make(map[string]string)
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		reqHeadersMap[string(key)] = string(value)
@@ -95,6 +95,8 @@ func logRequest(ctx *fasthttp.RequestCtx, resp *fasthttp.Response, timeStart tim
 		ResponseSize:       responseSize,
 		RequestHTTPVersion: string(ctx.Request.Header.Protocol()),
 		ClientCountry:      country,
+		WAFBlocked:         len(ruleName) > 0,
+		WAFRuleName:        ruleName,
 	}
 }
 

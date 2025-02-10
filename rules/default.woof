@@ -1,7 +1,9 @@
 [
   {
+    "name": "default",
     "group": "OR",
     "action": "block",
+    "priority": 0,
     "rules": [
       {
         "field": "http.request.version",

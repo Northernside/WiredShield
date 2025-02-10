@@ -84,16 +84,17 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			ctx.Response.Header.Set("Content-Type", "text/html")
 			ctx.SetBodyString(errorPage.ToHTML())
 
-			logRequest(ctx, nil, time.Now(), 606, 0, 0)
+			logRequest(ctx, nil, time.Now(), 606, 0, 0, "")
 		}
 	}()
 
 	var userIp = getIp(ctx)
 	if userIp != "85.117.241.142" && userIp != "45.157.11.82" {
-		if rules.MatchRules(ctx) {
+		if matched, ruleName := rules.MatchRules(ctx); matched {
 			ctx.SetStatusCode(fasthttp.StatusForbidden)
 			ctx.Response.Header.Set("Content-Type", "text/html")
 			ctx.SetBodyString(blockedPage)
+			logRequest(ctx, nil, time.Now(), 606, 0, 0, ruleName)
 			return
 		}
 	}
@@ -130,7 +131,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			ctx.Response.Header.Set("Content-Type", "text/html")
 			ctx.SetBodyString(errorPage.ToHTML())
-			logRequest(ctx, nil, timeStart, 601, 0, 0)
+			logRequest(ctx, nil, timeStart, 601, 0, 0, "")
 			return
 		}
 
@@ -140,7 +141,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(fasthttp.StatusNotFound)
 			ctx.Response.Header.Set("Content-Type", "text/html")
 			ctx.SetBodyString(errorPage.ToHTML())
-			logRequest(ctx, nil, timeStart, 604, 0, 0)
+			logRequest(ctx, nil, timeStart, 604, 0, 0, "")
 			return
 		}
 
@@ -153,7 +154,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			ctx.Response.Header.Set("Content-Type", "text/html")
 			ctx.SetBodyString(errorPage.ToHTML())
 
-			logRequest(ctx, nil, timeStart, 602, 0, 0)
+			logRequest(ctx, nil, timeStart, 602, 0, 0, "")
 			return
 		}
 
@@ -200,7 +201,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		ctx.SetStatusCode(errorCode)
 		ctx.Response.Header.Set("Content-Type", "text/html")
 		ctx.SetBodyString(errorPage.ToHTML())
-		logRequest(ctx, resp, timeStart, errorCode, 0, 0)
+		logRequest(ctx, resp, timeStart, errorCode, 0, 0, "")
 		return
 	}
 
@@ -216,7 +217,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 		ctx.Response.Header.Set("Location", string(location))
 		ctx.SetStatusCode(statusCode)
-		logRequest(ctx, resp, timeStart, statusCode, getRequestSize(ctx), getResponseSize(ctx, resp))
+		logRequest(ctx, resp, timeStart, statusCode, getRequestSize(ctx), getResponseSize(ctx, resp), "")
 		return
 	}
 
@@ -242,7 +243,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp))
+	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp), "")
 }
 
 func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
