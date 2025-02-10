@@ -261,6 +261,10 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) {
 		if string(ctx.Host()) == passthrough.Domain && strings.HasPrefix(string(ctx.Path()), passthrough.Path) {
 			// ctx.Path but minus passthrough.Path
 			normalizedPath := string(ctx.Path())[len(passthrough.Path):]
+			if len(normalizedPath) < 1 {
+				normalizedPath = "/"
+			}
+
 			target := fmt.Sprintf("http://%s:%d%s", passthrough.TargetAddr, passthrough.TargetPort, normalizedPath)
 
 			entry := ptEntry{target: target, expiry: time.Now().Add(24 * time.Hour)}
