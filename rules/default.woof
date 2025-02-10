@@ -1,6 +1,7 @@
 [
   {
     "group": "OR",
+    "action": "block",
     "rules": [
       {
         "field": "http.request.version",

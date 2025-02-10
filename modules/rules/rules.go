@@ -20,8 +20,9 @@ var (
 )
 
 type Rule struct {
-	Group string    `json:"group"`
-	Rules []SubRule `json:"rules"`
+	Group  string    `json:"group"`
+	Action string    `json:"action"`
+	Rules  []SubRule `json:"rules"`
 }
 
 type SubRule struct {
@@ -73,7 +74,7 @@ func MatchRules(ctx *fasthttp.RequestCtx) bool {
 		}
 
 		if ruleMatched {
-			return true
+			return rule.Action == "block"
 		}
 	}
 
