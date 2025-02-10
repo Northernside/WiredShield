@@ -241,7 +241,7 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) {
 	cacheKey := fmt.Sprintf("%s:%s", string(ctx.Host()), string(ctx.Path()))
 	if entry, ok := passthroughCache.Load(cacheKey); ok {
 		if entry.(ptEntry).expiry.After(time.Now()) {
-			service.InfoLog(fmt.Sprint("%s%s - %s", ctx.Host(), ctx.Path(), entry.(ptEntry).target))
+			service.InfoLog(fmt.Sprintf("%s%s - %s", ctx.Host(), ctx.Path(), entry.(ptEntry).target))
 			ctx.SetUserValue("targetURL", entry.(ptEntry).target)
 			ctx.SetUserValue("resolve", true)
 			ctx.SetUserValue("passthrough", true)
