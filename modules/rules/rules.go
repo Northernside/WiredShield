@@ -167,7 +167,6 @@ func loadRules(pattern string) ([]Rule, []string, error) {
 	}
 
 	sort.Slice(allRules, func(i, j int) bool {
-		fmt.Println(allRules[i].Priority, allRules[j].Priority)
 		return allRules[i].Priority < allRules[j].Priority
 	})
 
