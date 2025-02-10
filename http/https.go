@@ -247,6 +247,7 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
 			ctx.SetUserValue("targetURL", entry.(ptEntry).target)
 			ctx.SetUserValue("resolve", true)
 			ctx.SetUserValue("passthrough", true)
+			httpsProxyHandler(ctx)
 			return true
 		} else {
 			passthroughCache.Delete(cacheKey)
