@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"wiredshield/modules/caching"
 	"wiredshield/modules/db"
 	"wiredshield/modules/db/passthrough"
 	"wiredshield/modules/env"
@@ -71,6 +72,11 @@ func Prepare(_service *services.Service) func() {
 	}
 }
 
+var (
+	cacheInstances          = make(map[string]*caching.Cache)
+	allowedTypes   []string = []string{"html", "css", "js", "jpg", "jpeg", "gif", "png", "mp4", "webp", "webm", "mov", "mkv", "tiff", "pdf", "ico", "mp3", "apng", "svg", "aac", "flac"}
+)
+
 func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -88,6 +94,11 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}()
 
+	// check if cacheInstances[domain] exists
+	if _, ok := cacheInstances[string(ctx.Host())]; !ok {
+		cacheInstances[string(ctx.Host())] = caching.NewCache(string(ctx.Host()))
+	}
+
 	var userIp = getIp(ctx)
 	if userIp != "85.117.241.142" && userIp != "45.157.11.82" {
 		if matched, ruleName := rules.MatchRules(ctx); matched {
@@ -98,6 +109,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			return
 		}
 	}
+
 	var targetURL_UV bool = ctx.UserValue("targetURL") != nil
 	if !targetURL_UV {
 		found := loadPassthrough(ctx)
@@ -123,6 +135,31 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	timeStart := time.Now()
 	var targetURL string
+
+	// check if in cache
+	var cachable bool = false
+	// check if url ends with . + ${html, css, js, jpg, jpeg, gif, png, mp4, webp, webm, mov, mkv, tiff, pdf, ico, mp3, apng, svg, aac, flac}
+	if strings.HasSuffix(string(ctx.Path()), ".") {
+		for _, allowedType := range allowedTypes {
+			if strings.HasSuffix(string(ctx.Path()), "."+allowedType) {
+				// check if in cache
+				if respStatus, respHeaders, respBody, found := cacheInstances[string(ctx.Host())].Get(string(ctx.Path())); found {
+					for key, value := range respHeaders {
+						ctx.Response.Header.Set(key, value)
+					}
+
+					ctx.SetStatusCode(respStatus)
+					ctx.SetBody(respBody)
+
+					logRequest(ctx, &ctx.Response, timeStart, respStatus, getRequestSize(ctx), getResponseSize(ctx, nil), "")
+					return
+				} else {
+					cachable = true
+				}
+			}
+		}
+	}
+
 	var resolve bool = ctx.UserValue("resolve") != nil
 	if !resolve {
 		targetRecords, err := db.GetRecords("A", string(ctx.Host()))
@@ -233,6 +270,15 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Set("Expires", "0")
 
 	ctx.SetBody(resp.Body())
+
+	if cachable {
+		headers := make(map[string]string)
+		ctx.Response.Header.VisitAll(func(key, value []byte) {
+			headers[string(key)] = string(value)
+		})
+
+		cacheInstances[string(ctx.Host())].Set(string(ctx.Host()), string(ctx.Path()), resp.StatusCode(), headers, ctx.Response.Body(), 24*time.Hour)
+	}
 
 	if bodyStream := resp.BodyStream(); bodyStream != nil {
 		_, err = io.Copy(ctx.Response.BodyWriter(), bodyStream)
