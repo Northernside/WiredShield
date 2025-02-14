@@ -74,6 +74,7 @@ func Prepare(_service *services.Service) func() {
 
 var (
 	cacheInstances = make(map[string]*caching.Cache)
+	cacheMutex     sync.Mutex
 	allowedTypes   = []string{"html", "css", "js", "jpg", "jpeg", "gif", "png", "mp4", "webp", "webm", "mov", "mkv", "tiff", "pdf", "ico", "mp3", "apng", "svg", "aac", "flac"}
 )
 
@@ -98,6 +99,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	if _, ok := cacheInstances[string(ctx.Host())]; !ok {
 		cacheInstances[string(ctx.Host())] = caching.NewCache(string(ctx.Host()))
 	}
+	cache := cacheInstances[string(ctx.Host())]
 
 	var userIp = getIp(ctx)
 	if userIp != "85.117.241.142" && userIp != "45.157.11.82" {
@@ -135,7 +137,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	timeStart := time.Now()
 	var targetURL string
-
 	var cachable bool = false
 
 	// check if url ends with . + ${html, css, js, jpg, jpeg, gif, png, mp4, webp, webm, mov, mkv, tiff, pdf, ico, mp3, apng, svg, aac, flac}
@@ -281,7 +282,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Set("Pragma", "no-cache")
 	ctx.Response.Header.Set("Expires", "0")
 
-	ctx.SetBody(resp.Body())
+	var body []byte = resp.Body()
+	ctx.SetBody(body)
 
 	if bodyStream := resp.BodyStream(); bodyStream != nil {
 		_, err = io.Copy(ctx.Response.BodyWriter(), bodyStream)
@@ -298,7 +300,9 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			headers[string(key)] = string(value)
 		})
 
-		cacheInstances[string(ctx.Host())].Set(string(ctx.Host()), string(ctx.URI().FullURI()), resp.StatusCode(), headers, resp.Body(), 5*time.Minute)
+		cacheMutex.Lock()
+		cache.Set(string(ctx.Host()), string(ctx.URI().FullURI()), resp.StatusCode(), headers, body, 5*time.Minute)
+		cacheMutex.Unlock()
 	}
 
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp), "")
