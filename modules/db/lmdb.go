@@ -14,7 +14,7 @@ func Init() {
 	var err error
 	LEnv, err = lmdb.NewEnv()
 	if err != nil {
-		log.Fatal("failed to create LMDB LEnvironment:", err)
+		log.Fatal("failed to create LMDB Environment:", err)
 	}
 
 	err = LEnv.SetMaxReaders(1024 * 32)
@@ -35,7 +35,7 @@ func Init() {
 	lmdbPath := env.GetEnv("LMDB_PATH", "./wiredshield.lmdb")
 	err = LEnv.Open(lmdbPath, lmdb.Create|lmdb.NoSubdir, 0644)
 	if err != nil {
-		log.Fatal("failed to open LMDB LEnvironment:", err)
+		log.Fatal("failed to open LMDB Environment:", err)
 	}
 
 	err = LEnv.Update(func(txn *lmdb.Txn) error {

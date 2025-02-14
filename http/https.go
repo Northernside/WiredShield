@@ -183,7 +183,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 		targetURL = fmt.Sprintf("http://%s:80%s", targetRecord.IP, ctx.Path())
-		service.DebugLog(fmt.Sprintf("1 resolved %s%s to %s", string(ctx.Host()), ctx.Path(), targetURL))
 	} else {
 		if ctx.UserValue("targetURL") == nil {
 			errorPage := errorpages.ErrorPage{Code: 602, Message: errorpages.Error602}
@@ -321,7 +320,6 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
 			}
 
 			target := fmt.Sprintf("http://%s:%d%s", passthrough.TargetAddr, passthrough.TargetPort, normalizedPath)
-			service.DebugLog(fmt.Sprintf("2 resolved %s%s to %s", string(ctx.Host()), ctx.Path(), target))
 
 			entry := ptEntry{target: target, expiry: time.Now().Add(24 * time.Hour)}
 			passthroughCache.Store(cacheKey, entry)
