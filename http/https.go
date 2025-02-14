@@ -298,7 +298,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			headers[string(key)] = string(value)
 		})
 
-		service.InfoLog(fmt.Sprintf("caching %s", string(ctx.URI().FullURI())))
 		cacheInstances[string(ctx.Host())].Set(string(ctx.Host()), string(ctx.URI().FullURI()), resp.StatusCode(), headers, resp.Body(), 5*time.Minute)
 	}
 
