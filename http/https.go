@@ -73,8 +73,8 @@ func Prepare(_service *services.Service) func() {
 }
 
 var (
-	cacheInstances          = make(map[string]*caching.Cache)
-	allowedTypes   []string = []string{"html", "css", "js", "jpg", "jpeg", "gif", "png", "mp4", "webp", "webm", "mov", "mkv", "tiff", "pdf", "ico", "mp3", "apng", "svg", "aac", "flac"}
+	cacheInstances = make(map[string]*caching.Cache)
+	allowedTypes   = []string{"html", "css", "js", "jpg", "jpeg", "gif", "png", "mp4", "webp", "webm", "mov", "mkv", "tiff", "pdf", "ico", "mp3", "apng", "svg", "aac", "flac"}
 )
 
 func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
@@ -136,26 +136,39 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	timeStart := time.Now()
 	var targetURL string
 
-	// check if in cache
 	var cachable bool = false
+
 	// check if url ends with . + ${html, css, js, jpg, jpeg, gif, png, mp4, webp, webm, mov, mkv, tiff, pdf, ico, mp3, apng, svg, aac, flac}
-	if strings.HasSuffix(string(ctx.Path()), ".") {
-		for _, allowedType := range allowedTypes {
-			if strings.HasSuffix(string(ctx.Path()), "."+allowedType) {
-				// check if in cache
-				if respStatus, respHeaders, respBody, found := cacheInstances[string(ctx.Host())].Get(string(ctx.Path())); found {
+	for _, allowedType := range allowedTypes {
+		if strings.HasSuffix(string(ctx.Path()), "."+allowedType) {
+			// check if in cache
+			if respStatus, respHeaders, respBody, found := cacheInstances[string(ctx.Host())].Get(string(ctx.URI().FullURI())); found {
+				for key, value := range respHeaders {
+					ctx.Response.Header.Set(key, value)
+				}
+
+				ctx.SetStatusCode(respStatus)
+				ctx.SetBody(respBody)
+
+				var cachedResponse *fasthttp.Response
+				if respBody != nil {
+					cachedResponse = &fasthttp.Response{}
+
 					for key, value := range respHeaders {
-						ctx.Response.Header.Set(key, value)
+						cachedResponse.Header.Set(key, value)
 					}
 
-					ctx.SetStatusCode(respStatus)
-					ctx.SetBody(respBody)
+					cachedResponse.SetStatusCode(respStatus)
+					cachedResponse.SetBody(respBody)
+					var requestSize = getRequestSize(ctx)
+					var responseSize = getResponseSize(ctx, cachedResponse)
 
-					logRequest(ctx, &ctx.Response, timeStart, respStatus, getRequestSize(ctx), getResponseSize(ctx, nil), "")
-					return
-				} else {
-					cachable = true
+					logRequest(ctx, cachedResponse, timeStart, respStatus, requestSize, responseSize, "")
 				}
+
+				return
+			} else {
+				cachable = true
 			}
 		}
 	}
@@ -270,15 +283,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	ctx.SetBody(resp.Body())
 
-	if cachable {
-		headers := make(map[string]string)
-		ctx.Response.Header.VisitAll(func(key, value []byte) {
-			headers[string(key)] = string(value)
-		})
-
-		cacheInstances[string(ctx.Host())].Set(string(ctx.Host()), string(ctx.Path()), resp.StatusCode(), headers, ctx.Response.Body(), 24*time.Hour)
-	}
-
 	if bodyStream := resp.BodyStream(); bodyStream != nil {
 		_, err = io.Copy(ctx.Response.BodyWriter(), bodyStream)
 		if err != nil {
@@ -288,11 +292,21 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	if cachable {
+		headers := make(map[string]string)
+		ctx.Response.Header.VisitAll(func(key, value []byte) {
+			headers[string(key)] = string(value)
+		})
+
+		service.InfoLog(fmt.Sprintf("caching %s", string(ctx.URI().FullURI())))
+		cacheInstances[string(ctx.Host())].Set(string(ctx.Host()), string(ctx.URI().FullURI()), resp.StatusCode(), headers, resp.Body(), 5*time.Minute)
+	}
+
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp), "")
 }
 
 func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
-	cacheKey := fmt.Sprintf("%s:%s", string(ctx.Host()), string(ctx.Path()))
+	cacheKey := fmt.Sprintf("%s:%s", string(ctx.Host()), string(ctx.URI().Path()))
 	if entry, ok := passthroughCache.Load(cacheKey); ok {
 		if entry.(ptEntry).expiry.After(time.Now()) {
 			ctx.SetUserValue("targetURL", entry.(ptEntry).target)

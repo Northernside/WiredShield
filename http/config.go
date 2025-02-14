@@ -20,7 +20,7 @@ var (
 		Handler:        httpsProxyHandler,
 		ReadBufferSize: 1 << 19, // 512KB
 		Name:           "wiredshield",
-		MaxConnsPerIP:  2 ^ 5, // 32
+		MaxConnsPerIP:  2 ^ 6, // 64
 		ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
 			errorPage := errorpages.ErrorPage{
 				Code:    500,
