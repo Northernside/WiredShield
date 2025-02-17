@@ -269,6 +269,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			m.Extra = append(m.Extra, txtRecord)
+			rrList = append(rrList, txtRecord)
 
 			// update, send to client, and log
 			updateCache(cacheKey, rrList)
