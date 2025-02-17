@@ -310,7 +310,7 @@ func Prepare(_service *services.Service) func() {
 				if !ipnet.IP.IsLoopback() && !ipnet.IP.IsLinkLocalUnicast() {
 
 					// ipv4
-					if ipnet.IP.To4() != nil && ProcessIPv4 == "" {
+					if ipnet.IP.To4() != nil {
 						service.InfoLog("Primary IPv4 address: " + ipnet.IP.String())
 
 						country, err := whois.GetCountry(ipnet.IP.String())

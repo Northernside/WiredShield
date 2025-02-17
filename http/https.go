@@ -153,11 +153,12 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 					ctx.Response.Header.Set(key, value)
 				}
 
+				var tBody []byte = respBody
 				ctx.SetStatusCode(respStatus)
-				ctx.SetBody(respBody)
+				ctx.SetBody(tBody)
 
 				var cachedResponse *fasthttp.Response
-				if respBody != nil {
+				if tBody != nil {
 					cachedResponse = &fasthttp.Response{}
 
 					for key, value := range respHeaders {
@@ -165,11 +166,9 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 					}
 
 					cachedResponse.SetStatusCode(respStatus)
-					cachedResponse.SetBody(respBody)
-					var requestSize = getRequestSize(ctx)
-					var responseSize = getResponseSize(ctx, cachedResponse)
+					cachedResponse.SetBody(tBody)
 
-					logRequest(ctx, cachedResponse, timeStart, respStatus, requestSize, responseSize, "")
+					logRequest(ctx, cachedResponse, timeStart, respStatus, getRequestSize(ctx), getResponseSize(ctx, cachedResponse), "")
 				}
 
 				cacheMutex.Unlock()
@@ -179,7 +178,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 				cachable = true
 			}
 			cacheMutex.Unlock()
-
 		}
 	}
 
