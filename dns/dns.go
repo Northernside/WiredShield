@@ -18,7 +18,7 @@ var (
 	ResolversV6      = map[string][]net.IP{}
 	ProcessIPv4      string
 	ProcessIPv6      string
-	watermarkStrings = []string{"Managed by WiredShield", "https://github.com/Northernside/Wiredshield", "", "woof :3"}
+	watermarkStrings = []string{"Managed by WiredShield", "https://github.com/Northernside/Wiredshield", "woof :3"}
 )
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
