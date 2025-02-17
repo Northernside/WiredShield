@@ -105,7 +105,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	cacheInstancesMutex.Unlock()
 
 	var userIp = getIp(ctx)
-	if userIp != "85.117.241.142" && userIp != "45.157.11.82" {
+	if userIp != env.GetEnv("WOOF_IP", "2.56.244.12") && userIp != env.GetEnv("MEOW_IP", "2.56.244.19") {
 		if matched, ruleName := rules.MatchRules(ctx); matched {
 			ctx.SetStatusCode(fasthttp.StatusForbidden)
 			ctx.Response.Header.Set("Content-Type", "text/html")
@@ -194,7 +194,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 		targetRecord := targetRecords[0].(*db.ARecord)
-		if targetRecord.IP == "45.157.11.82" || targetRecord.IP == "85.117.241.142" {
+		if targetRecord.IP == env.GetEnv("WOOF_IP", "2.56.244.12") || targetRecord.IP == env.GetEnv("MEOW_IP", "2.56.244.19") {
 			errorPage := errorpages.ErrorPage{Code: 604, Message: errorpages.Error604}
 			ctx.SetStatusCode(fasthttp.StatusNotFound)
 			ctx.Response.Header.Set("Content-Type", "text/html")

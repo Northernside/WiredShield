@@ -311,7 +311,7 @@ func Prepare(_service *services.Service) func() {
 
 					// ipv4
 					if ipnet.IP.To4() != nil {
-						service.InfoLog("Primary IPv4 address: " + ipnet.IP.String())
+						service.InfoLog("Registered IPv4 address: " + ipnet.IP.String())
 
 						country, err := whois.GetCountry(ipnet.IP.String())
 						if err != nil {
@@ -327,7 +327,7 @@ func Prepare(_service *services.Service) func() {
 
 					// ipv6
 					if ipnet.IP.To16() != nil && ipnet.IP.To4() == nil && ProcessIPv6 == "" {
-						service.InfoLog("Primary IPv6 address: " + ipnet.IP.String())
+						service.InfoLog("Registered IPv6 address: " + ipnet.IP.String())
 
 						country, err := whois.GetCountry(ipnet.IP.String())
 						if err != nil {
