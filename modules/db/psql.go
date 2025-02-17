@@ -20,7 +20,7 @@ func PInit(service *services.Service) {
 		"postgres://%s:%s@%s:5432/%s?sslmode=disable",
 		env.GetEnv("PSQL_USER", "wiredshield"),
 		env.GetEnv("PSQL_PASSWORD", ""),
-		env.GetEnv("PSQL_ADDR", "45.157.11.82"),
+		env.GetEnv("PSQL_ADDR", "2.56.244.12"),
 		env.GetEnv("PSQL_DB", "reverseproxy"),
 	)
 
