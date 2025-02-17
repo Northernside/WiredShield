@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	service     *services.Service
-	ResolversV4 = map[string][]net.IP{}
-	ResolversV6 = map[string][]net.IP{}
-	ProcessIPv4 string
-	ProcessIPv6 string
+	service          *services.Service
+	ResolversV4      = map[string][]net.IP{}
+	ResolversV6      = map[string][]net.IP{}
+	ProcessIPv4      string
+	ProcessIPv6      string
+	watermarkStrings = []string{"Managed by WiredShield", "https://github.com/Northernside/Wiredshield", "", "woof :3"}
 )
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -43,13 +44,15 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				questionName = questionName + "."
 			}
 
-			// "watermark"
-			txtRecord := &dns.TXT{
-				Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
-				Txt: []string{"Managed by WiredShield", "https://github.com/Northernside/Wiredshield", "", "woof :3"},
-			}
+			for _, watermarkString := range watermarkStrings {
+				// "watermark"
+				txtRecord := &dns.TXT{
+					Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
+					Txt: []string{watermarkString},
+				}
 
-			m.Extra = append(m.Extra, txtRecord)
+				m.Extra = append(m.Extra, txtRecord)
+			}
 
 			country, err := whois.GetCountry(clientIp)
 			if err != nil {
