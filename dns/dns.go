@@ -262,6 +262,14 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				return
 			}
 
+			// add a TXT record
+			txtRecord := &dns.TXT{
+				Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 300},
+				Txt: []string{"WiredShield DNS"},
+			}
+
+			m.Extra = append(m.Extra, txtRecord)
+
 			// update, send to client, and log
 			updateCache(cacheKey, rrList)
 			err = w.WriteMsg(&m)
