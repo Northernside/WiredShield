@@ -175,7 +175,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 				return
 			} else {
-				cachable = true
+				//cachable = true
 			}
 			cacheMutex.Unlock()
 		}
