@@ -128,7 +128,7 @@ func (log *HTTPRequestLog) BatchInsert(logs []*HTTPRequestLog) error {
 	_, err = transaction.Exec(context.Background(), query, values...)
 	if err != nil {
 		if strings.Contains(err.Error(), "request_time") {
-			services.ProcessService.ErrorLog(fmt.Sprintf("%s", values))
+			services.ProcessService.ErrorLog(fmt.Sprintf("%s -------- %s", query, values))
 		}
 		return fmt.Errorf("batch insert failed: %v", err)
 	}
