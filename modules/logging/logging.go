@@ -94,7 +94,7 @@ func (log *HTTPRequestLog) BatchInsert(logs []*HTTPRequestLog) error {
 		)
 
 		values = append(values,
-			fmt.Sprintf("%d", log.RequestTime),
+			log.RequestTime,
 			log.ClientIP,
 			log.Method,
 			log.Host,
