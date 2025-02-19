@@ -226,7 +226,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					rr = &dns.NS{
 						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
 						Ns:  r.NS + ".",
-					}x
+					}
 				case "MX":
 					r := record.(*db.MXRecord)
 					rr = &dns.MX{
