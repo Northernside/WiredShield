@@ -1,0 +1,23 @@
+[
+  {
+    "group": "OR",
+    "action": "allow",
+    "rules": [
+      {
+        "field": "http.request.query",
+        "operation": "contains",
+        "value": ["LCDF2aJt2vwvKEjWBSPArydXCZbQPZeNzyEs7yz5hgaJwucuqNovTzBMf9pXkahq"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "equal",
+        "value": ["ws-zoll"]
+      },
+      {
+        "field": "http.user_agent",
+        "operation": "contains",
+        "value": ["Bearer "]
+      }
+    ]
+  }
+]
