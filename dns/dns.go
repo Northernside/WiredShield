@@ -257,12 +257,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
-			// always attach a SOA record if no records found
-			if len(records) == 0 {
-				rr := buildSoaRecord(lookupName) // default SOA record
-				m.Answer = append(m.Answer, rr)
-				rrList = append(rrList, rr)
-			}
+			rr := buildSoaRecord(lookupName) // default SOA record
+			m.Answer = append(m.Answer, rr)
+			rrList = append(rrList, rr)
 
 			// empty reply
 			if len(m.Answer) == 0 {
