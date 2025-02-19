@@ -24,6 +24,7 @@ var (
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := dns.Msg{}
 	m.SetReply(r)
+	m.Rcode = dns.RcodeSuccess
 	m.Authoritative = true
 
 	clientIp, _, err := net.SplitHostPort(w.RemoteAddr().String())
@@ -225,7 +226,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					rr = &dns.NS{
 						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
 						Ns:  r.NS + ".",
-					}
+					}x
 				case "MX":
 					r := record.(*db.MXRecord)
 					rr = &dns.MX{
@@ -291,7 +292,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 func emptyReply(w dns.ResponseWriter, m *dns.Msg) {
 	m.SetReply(m)
-	m.Rcode = dns.RcodeNameError
+	// m.Rcode = dns.RcodeNameError
 	w.WriteMsg(m)
 }
 
