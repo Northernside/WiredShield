@@ -153,6 +153,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
+			rr := buildSoaRecord(lookupName) // default SOA record
+			m.Answer = append(m.Answer, rr)
+			rrList = append(rrList, rr)
+
 			if dns.TypeToString[question.Qtype] == "NS" {
 				records, _ := db.GetRecords("NS", lookupName)
 				if len(records) == 0 {
@@ -256,10 +260,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					rrList = append(rrList, rr)
 				}
 			}
-
-			rr := buildSoaRecord(lookupName) // default SOA record
-			m.Answer = append(m.Answer, rr)
-			rrList = append(rrList, rr)
 
 			// empty reply
 			if len(m.Answer) == 0 {
