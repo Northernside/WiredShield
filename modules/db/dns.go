@@ -410,6 +410,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 
 		// fetch and filter records by id and type
 		for _, id := range recordIDs {
+			services.ProcessService.InfoLog(fmt.Sprintf("ID: %v", id))
 			services.ProcessService.InfoLog(fmt.Sprintf("%s, %s", recordType, domain))
 			entryData, err := txn.Get(entries, uint64ToByteArray(id))
 			if err != nil {
@@ -418,6 +419,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 
 				// remove from "entries" db
 				if err := txn.Del(entries, uint64ToByteArray(id), nil); err != nil {
+					services.ProcessService.InfoLog(fmt.Sprintf("Failed to delete record from entries DB: %v", err))
 					return fmt.Errorf("failed to delete record from entries DB: %w", err)
 				}
 
@@ -436,6 +438,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				// deserialize, remove the id & reserialize
 				var _recordIDs []uint64
 				if err := json.Unmarshal(_indexData, &_recordIDs); err != nil {
+					services.ProcessService.InfoLog(fmt.Sprintf("Failed to unmarshal domain index: %v", err))
 					return fmt.Errorf("failed to unmarshal domain index: %w", err)
 				}
 
@@ -446,25 +449,26 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 					}
 				}
 
+				services.ProcessService.InfoLog(fmt.Sprintf("New record IDs: %v", newRecordIDs))
+
 				if len(newRecordIDs) == 0 {
 					// no more records for this domain, delete the domain key
 					if err := txn.Del(domainIndex, []byte(domain), nil); err != nil {
+						services.ProcessService.InfoLog(fmt.Sprintf("Failed to delete domain index: %v", err))
 						return fmt.Errorf("failed to delete domain index: %w", err)
 					}
 				} else {
 					// otherwise, update the domains id list
 					indexBytes, err := json.Marshal(newRecordIDs)
 					if err != nil {
+						services.ProcessService.InfoLog(fmt.Sprintf("Failed to serialize updated domain index: %v", err))
 						return fmt.Errorf("failed to serialize updated domain index: %w", err)
 					}
 
 					if err := txn.Put(domainIndex, []byte(domain), indexBytes, 0); err != nil {
+						services.ProcessService.InfoLog(fmt.Sprintf("Failed to update domain index: %v", err))
 						return fmt.Errorf("failed to update domain index: %w", err)
 					}
-				}
-
-				if errors.Is(err, lmdb.NotFound) {
-					continue // skip missing records
 				}
 			}
 
