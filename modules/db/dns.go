@@ -425,6 +425,10 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
 
+			if record.GetType() == "SRV" {
+				services.ProcessService.InfoLog(fmt.Sprintf("SRV record: %v, %s, %s", record, record.GetDomain(), domain))
+			}
+
 			// check the record type
 			if record.GetType() == recordType && record.GetDomain() == domain {
 				records = append(records, record)
