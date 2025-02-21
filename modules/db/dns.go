@@ -221,6 +221,7 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 						return fmt.Errorf("failed to deserialize record: %w", err)
 					}
 
+					services.ProcessService.InfoLog(fmt.Sprintf("Record: %v", record))
 					records = append(records, record)
 				}
 			}

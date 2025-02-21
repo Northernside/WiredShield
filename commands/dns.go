@@ -105,6 +105,10 @@ func Dns(model *Model) {
 						}
 						return "🔓"
 					}()+" CNAME %s %s\n", r.ID, r.Domain, r.Target))
+				case "SRV":
+					r := record.(*db.SRVRecord)
+					sb.WriteString(fmt.Sprintf("[%d] SRV %s %d %d %d %s\n",
+						r.ID, r.Domain, r.Priority, r.Weight, r.Port, r.Target))
 				default:
 					sb.WriteString("Unknown record type " + record.GetType() + "\n")
 					sb.WriteString(fmt.Sprintf("%+v\n", record))

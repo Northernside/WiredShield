@@ -1,10 +1,12 @@
 package routes
 
 import (
+	"fmt"
 	"strconv"
 	ssl "wiredshield/commands/libs"
 	"wiredshield/modules/db"
 	"wiredshield/modules/epoch"
+	"wiredshield/services"
 
 	"github.com/valyala/fasthttp"
 )
@@ -124,6 +126,8 @@ func AddRecord(ctx *fasthttp.RequestCtx) {
 		record.Weight = weight
 		record.Port = port
 		record.Target = target
+
+		services.GetService("dns").InfoLog(fmt.Sprintf("SRV Record: %v", record))
 
 		db.InsertRecord(record, false)
 	case "SOA":
