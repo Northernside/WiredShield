@@ -412,73 +412,83 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 		for _, id := range recordIDs {
 			services.ProcessService.InfoLog(fmt.Sprintf("ID: %v", id))
 			services.ProcessService.InfoLog(fmt.Sprintf("%s, %s", recordType, domain))
-			entryData, err := txn.Get(entries, uint64ToByteArray(id))
+
+			var _entryData []byte
+			// Hole den Eintrag in einer separaten Transaktion
+			err := LEnv.View(func(txn *lmdb.Txn) error {
+				data, err := txn.Get(entries, uint64ToByteArray(id))
+				if err != nil {
+					return err
+				}
+
+				_entryData = data
+				return nil
+			})
+
 			if err != nil {
 				services.ProcessService.InfoLog(fmt.Sprintf("Failed to get entry data for id: %v, error: %v", id, err))
-				// delete id from index by replacing the array with a new one (without the id)
 
-				// remove from "entries" db
-				if err := txn.Del(entries, uint64ToByteArray(id), nil); err != nil {
+				// Lösche den fehlerhaften Eintrag
+				if err := LEnv.Update(func(txn *lmdb.Txn) error {
+					if delErr := txn.Del(entries, uint64ToByteArray(id), nil); delErr != nil {
+						return fmt.Errorf("failed to delete record from entries DB: %w", delErr)
+					}
+					return nil
+				}); err != nil {
 					services.ProcessService.InfoLog(fmt.Sprintf("Failed to delete record from entries DB: %v", err))
 					return fmt.Errorf("failed to delete record from entries DB: %w", err)
 				}
 
-				// remove from "domain_index" db
-				_indexData, err := txn.Get(domainIndex, []byte(domain))
-				if err != nil {
-					services.ProcessService.InfoLog(fmt.Sprintf("Failed to get index data for domain: %v, error: %v", domain, err))
-
+				// Entferne den ID-Eintrag im domainIndex
+				if err := LEnv.Update(func(txn *lmdb.Txn) error {
+					_indexData, err := txn.Get(domainIndex, []byte(domain))
 					if errors.Is(err, lmdb.NotFound) {
-						return nil // no records for this domain
+						return nil // kein Index vorhanden, nichts zu tun
+					}
+					if err != nil {
+						return fmt.Errorf("failed to fetch domain index: %w", err)
 					}
 
-					return fmt.Errorf("failed to fetch domain index: %w", err)
-				}
-
-				// deserialize, remove the id & reserialize
-				var _recordIDs []uint64
-				if err := json.Unmarshal(_indexData, &_recordIDs); err != nil {
-					services.ProcessService.InfoLog(fmt.Sprintf("Failed to unmarshal domain index: %v", err))
-					return fmt.Errorf("failed to unmarshal domain index: %w", err)
-				}
-
-				newRecordIDs := []uint64{}
-				for _, existingID := range _recordIDs {
-					if existingID != id {
-						newRecordIDs = append(newRecordIDs, existingID)
+					var _recordIDs []uint64
+					if err := json.Unmarshal(_indexData, &_recordIDs); err != nil {
+						return fmt.Errorf("failed to unmarshal domain index: %w", err)
 					}
-				}
 
-				services.ProcessService.InfoLog(fmt.Sprintf("New record IDs: %v", newRecordIDs))
-
-				if len(newRecordIDs) == 0 {
-					// no more records for this domain, delete the domain key
-					if err := txn.Del(domainIndex, []byte(domain), nil); err != nil {
-						services.ProcessService.InfoLog(fmt.Sprintf("Failed to delete domain index: %v", err))
-						return fmt.Errorf("failed to delete domain index: %w", err)
+					// ID entfernen
+					newRecordIDs := []uint64{}
+					for _, existingID := range _recordIDs {
+						if existingID != id {
+							newRecordIDs = append(newRecordIDs, existingID)
+						}
 					}
-				} else {
-					// otherwise, update the domains id list
+
+					if len(newRecordIDs) == 0 {
+						// Keine IDs mehr -> Domain-Index löschen
+						return txn.Del(domainIndex, []byte(domain), nil)
+					}
+
+					// Ansonsten den Index aktualisieren
 					indexBytes, err := json.Marshal(newRecordIDs)
 					if err != nil {
-						services.ProcessService.InfoLog(fmt.Sprintf("Failed to serialize updated domain index: %v", err))
 						return fmt.Errorf("failed to serialize updated domain index: %w", err)
 					}
 
-					if err := txn.Put(domainIndex, []byte(domain), indexBytes, 0); err != nil {
-						services.ProcessService.InfoLog(fmt.Sprintf("Failed to update domain index: %v", err))
-						return fmt.Errorf("failed to update domain index: %w", err)
-					}
+					return txn.Put(domainIndex, []byte(domain), indexBytes, 0)
+				}); err != nil {
+					services.ProcessService.InfoLog(fmt.Sprintf("Failed to update domain index: %v", err))
+					return fmt.Errorf("failed to update domain index: %w", err)
 				}
+
+				continue
 			}
 
+			// Wenn ein Eintrag vorhanden ist, deserialisieren und verarbeiten
 			if recordType == "SRV" {
-				services.ProcessService.InfoLog(fmt.Sprintf("SRV record gfdzgszdg: %s", string(entryData)))
+				services.ProcessService.InfoLog(fmt.Sprintf("SRV record data: %s", string(_entryData)))
 			}
 
-			// deserialize the record
 			var record DNSRecord
-			if err := unmarshalRecord(entryData, &record); err != nil {
+			if err := unmarshalRecord(_entryData, &record); err != nil {
 				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
 
@@ -486,7 +496,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				services.ProcessService.InfoLog(fmt.Sprintf("SRV record: %v, %s, %s", record, record.GetDomain(), domain))
 			}
 
-			// check the record type
+			// Füge passende Records zur Ergebnisliste hinzu
 			if record.GetType() == recordType && record.GetDomain() == domain {
 				records = append(records, record)
 			}
