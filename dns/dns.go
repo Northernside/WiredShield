@@ -187,12 +187,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 			// get record(s) from db
 			records, err := db.GetRecords(dns.TypeToString[question.Qtype], lookupName)
-			if question.Qtype == dns.TypeSRV {
-				service.InfoLog(fmt.Sprintf("%d, %d, %s", question.Qtype, dns.TypeSRV, dns.TypeToString[question.Qtype]))
-				service.InfoLog(fmt.Sprintf("domain: %v", lookupName))
-				service.InfoLog(fmt.Sprintf("SRV record requested: %v", records))
-			}
-
 			if err != nil {
 				emptyReply(w, &m)
 				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
@@ -257,10 +251,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Priority: uint16(r.Priority),
 						Weight:   uint16(r.Weight),
 						Port:     uint16(r.Port),
-						Target:   r.Target,
+						Target:   r.Target + ".",
 					}
-
-					service.InfoLog(fmt.Sprintf("SRV record: %v", rr))
 				}
 
 				if rr != nil {
