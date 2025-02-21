@@ -299,6 +299,8 @@ func Dns(model *Model) {
 		if err != nil {
 			sb.WriteString("Failed to delete record: " + err.Error() + "\n")
 		}
+	case "fix":
+		// 17617412880859136
 	default:
 		sb.WriteString("Unknown command: " + split[1] + "\n")
 	}
