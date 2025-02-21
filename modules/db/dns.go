@@ -414,10 +414,53 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			entryData, err := txn.Get(entries, uint64ToByteArray(id))
 			if err != nil {
 				services.ProcessService.InfoLog(fmt.Sprintf("Failed to get entry data for id: %v, error: %v", id, err))
-				// delete from index if record not found
+				// delete id from index by replacing the array with a new one (without the id)
 
-				if err := txn.Del(domainIndex, []byte(domain), nil); err != nil {
-					return fmt.Errorf("failed to delete domain index: %w", err)
+				// remove from "entries" db
+				if err := txn.Del(entries, uint64ToByteArray(id), nil); err != nil {
+					return fmt.Errorf("failed to delete record from entries DB: %w", err)
+				}
+
+				// remove from "domain_index" db
+				_indexData, err := txn.Get(domainIndex, []byte(domain))
+				if err != nil {
+					services.ProcessService.InfoLog(fmt.Sprintf("Failed to get index data for domain: %v, error: %v", domain, err))
+
+					if errors.Is(err, lmdb.NotFound) {
+						return nil // no records for this domain
+					}
+
+					return fmt.Errorf("failed to fetch domain index: %w", err)
+				}
+
+				// deserialize, remove the id & reserialize
+				var _recordIDs []uint64
+				if err := json.Unmarshal(_indexData, &_recordIDs); err != nil {
+					return fmt.Errorf("failed to unmarshal domain index: %w", err)
+				}
+
+				newRecordIDs := []uint64{}
+				for _, existingID := range _recordIDs {
+					if existingID != id {
+						newRecordIDs = append(newRecordIDs, existingID)
+					}
+				}
+
+				if len(newRecordIDs) == 0 {
+					// no more records for this domain, delete the domain key
+					if err := txn.Del(domainIndex, []byte(domain), nil); err != nil {
+						return fmt.Errorf("failed to delete domain index: %w", err)
+					}
+				} else {
+					// otherwise, update the domains id list
+					indexBytes, err := json.Marshal(newRecordIDs)
+					if err != nil {
+						return fmt.Errorf("failed to serialize updated domain index: %w", err)
+					}
+
+					if err := txn.Put(domainIndex, []byte(domain), indexBytes, 0); err != nil {
+						return fmt.Errorf("failed to update domain index: %w", err)
+					}
 				}
 
 				if errors.Is(err, lmdb.NotFound) {
