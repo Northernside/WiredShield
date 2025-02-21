@@ -410,6 +410,7 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 
 		// fetch and filter records by id and type
 		for _, id := range recordIDs {
+			services.ProcessService.InfoLog(fmt.Sprintf("%s, %s", recordType, domain))
 			entryData, err := txn.Get(entries, uint64ToByteArray(id))
 			if err != nil {
 				if errors.Is(err, lmdb.NotFound) {
@@ -425,7 +426,6 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 				return fmt.Errorf("failed to deserialize record: %w", err)
 			}
 
-			services.ProcessService.InfoLog(fmt.Sprintf("%s, %s, %s", record.GetType(), record.GetDomain(), recordType))
 			if record.GetType() == "SRV" {
 				services.ProcessService.InfoLog(fmt.Sprintf("SRV record: %v, %s, %s", record, record.GetDomain(), domain))
 			}
