@@ -35,8 +35,6 @@ func InsertRecord(record DNSRecord, self bool) error {
 			return fmt.Errorf("failed to serialize record: %w", err)
 		}
 
-		services.ProcessService.InfoLog(fmt.Sprintf("Record: %v", string(recordBytes)))
-
 		// insert into "entries" DB
 		if err := txn.Put(entries, uint64ToByteArray(record.GetID()), recordBytes, 0); err != nil {
 			return fmt.Errorf("failed to add record to entries DB: %w", err)
@@ -223,8 +221,6 @@ func GetRecordsByDomain(domain string) ([]DNSRecord, error) {
 						return fmt.Errorf("failed to deserialize record: %w", err)
 					}
 
-					services.ProcessService.InfoLog(fmt.Sprintf("Record by: %s", string(entryData)))
-					services.ProcessService.InfoLog(fmt.Sprintf("Record: %v", record))
 					records = append(records, record)
 				}
 			}

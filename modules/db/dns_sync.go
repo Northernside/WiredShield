@@ -48,6 +48,7 @@ func syncSet(record DNSRecord) error {
 		req.Header.Set("priority", fmt.Sprintf("%d", record.Priority))
 		req.Header.Set("weight", fmt.Sprintf("%d", record.Weight))
 		req.Header.Set("port", fmt.Sprintf("%d", record.Port))
+		req.Header.Set("target", record.Target)
 	case SOARecord:
 		req.Header.Set("dns_domain", record.Domain)
 		req.Header.Set("primary_ns", record.PrimaryNS)
