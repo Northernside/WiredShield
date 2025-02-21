@@ -413,13 +413,13 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			services.ProcessService.InfoLog(fmt.Sprintf("%s, %s", recordType, domain))
 			entryData, err := txn.Get(entries, uint64ToByteArray(id))
 			if err != nil {
-				//services.ProcessService.InfoLog(fmt.Sprintf("Failed to get entry data for id: %v, error: %v", id, err))
-				if errors.Is(err, lmdb.NotFound) {
-					continue // skip missing records
-				}
-
+				services.ProcessService.InfoLog(fmt.Sprintf("Failed to get entry data for id: %v, error: %v", id, err))
 				if err := DeleteRecord(id, domain, true); err != nil {
 					return fmt.Errorf("failed to delete missing record: %w", err)
+				}
+
+				if errors.Is(err, lmdb.NotFound) {
+					continue // skip missing records
 				}
 			}
 
