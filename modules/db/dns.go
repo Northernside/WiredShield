@@ -414,8 +414,10 @@ func GetRecords(recordType, domain string) ([]DNSRecord, error) {
 			entryData, err := txn.Get(entries, uint64ToByteArray(id))
 			if err != nil {
 				services.ProcessService.InfoLog(fmt.Sprintf("Failed to get entry data for id: %v, error: %v", id, err))
-				if err := DeleteRecord(id, domain, true); err != nil {
-					return fmt.Errorf("failed to delete missing record: %w", err)
+				// delete from index if record not found
+
+				if err := txn.Del(domainIndex, []byte(domain), nil); err != nil {
+					return fmt.Errorf("failed to delete domain index: %w", err)
 				}
 
 				if errors.Is(err, lmdb.NotFound) {
