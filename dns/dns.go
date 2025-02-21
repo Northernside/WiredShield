@@ -188,6 +188,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			// get record(s) from db
 			records, err := db.GetRecords(dns.TypeToString[question.Qtype], lookupName)
 			if question.Qtype == dns.TypeSRV {
+				service.InfoLog(fmt.Sprintf("%d, %d, %s", question.Qtype, dns.TypeSRV, dns.TypeToString[question.Qtype]))
 				service.InfoLog(fmt.Sprintf("domain: %v", lookupName))
 				service.InfoLog(fmt.Sprintf("SRV record requested: %v", records))
 			}
