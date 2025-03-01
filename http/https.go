@@ -99,6 +99,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	// check if cacheInstances[domain] exists
 	if _, ok := cacheInstances[string(ctx.Host())]; !ok {
+		service.DebugLog(fmt.Sprintf("creating new threadsafe cache map for %s", ctx.Host()))
 		cacheInstances[string(ctx.Host())] = threadsafe.NewMap[string, cacheEntry]()
 	}
 
@@ -140,7 +141,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	timeStart := time.Now()
 	var targetURL string
-
 	var cachable bool = false
 
 	// check if url ends with . + ${html, css, js, jpg, jpeg, gif, png, mp4, webp, webm, mov, mkv, tiff, pdf, ico, mp3, apng, svg, aac, flac}
@@ -148,6 +148,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		if strings.HasSuffix(string(ctx.Path()), "."+allowedType) {
 			// check if in cache
 			if entry, found := cache.Get(string(ctx.Path())); found {
+				service.DebugLog(fmt.Sprintf("%s cache hit", ctx.Path()))
 				for key, value := range entry.headers {
 					ctx.Response.Header.Set(key, value)
 				}
@@ -172,7 +173,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 				return
 			} else {
-				cachable = true
+				// cachable = true
+				// service.DebugLog(fmt.Sprintf("%s cache miss", ctx.Path()))
 			}
 		}
 	}
@@ -304,6 +306,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		})
 
 		entry := cacheEntry{status: resp.StatusCode(), headers: headers, body: body}
+		service.DebugLog(fmt.Sprintf("cacheEntry: %v", entry))
 		cache.Set(string(ctx.Path()), entry)
 	}
 
