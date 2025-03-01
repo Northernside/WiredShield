@@ -8,11 +8,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"wiredshield/modules/caching"
 	"wiredshield/modules/db"
 	"wiredshield/modules/db/passthrough"
 	"wiredshield/modules/env"
 	"wiredshield/modules/rules"
+	"wiredshield/modules/threadsafe"
 	errorpages "wiredshield/pages/error"
 	"wiredshield/services"
 
@@ -20,18 +20,26 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type cacheEntry struct {
+	status  int
+	headers map[string]string
+	body    []byte
+}
+
+type ptEntry struct {
+	target string
+	expiry time.Time
+}
+
 var (
 	service          *services.Service
 	certCache        sync.Map
 	certLoadMutex    sync.RWMutex
 	passthroughCache sync.Map
 	blockedPage      string
+	cacheInstances   = make(map[string]*threadsafe.Map[string, cacheEntry])
+	allowedTypes     = []string{"html", "css", "js", "jpg", "jpeg", "gif", "png", "mp4", "webp", "webm", "mov", "mkv", "tiff", "pdf", "ico", "mp3", "apng", "svg", "aac", "flac"}
 )
-
-type ptEntry struct {
-	target string
-	expiry time.Time
-}
 
 func Prepare(_service *services.Service) func() {
 	service = _service
@@ -72,13 +80,6 @@ func Prepare(_service *services.Service) func() {
 	}
 }
 
-var (
-	cacheInstances      = make(map[string]*caching.Cache)
-	cacheInstancesMutex sync.Mutex
-	cacheMutex          sync.Mutex
-	allowedTypes        = []string{"html", "css", "js", "jpg", "jpeg", "gif", "png", "mp4", "webp", "webm", "mov", "mkv", "tiff", "pdf", "ico", "mp3", "apng", "svg", "aac", "flac"}
-)
-
 func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -97,12 +98,11 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	}()
 
 	// check if cacheInstances[domain] exists
-	cacheInstancesMutex.Lock()
 	if _, ok := cacheInstances[string(ctx.Host())]; !ok {
-		cacheInstances[string(ctx.Host())] = caching.NewCache(string(ctx.Host()))
+		cacheInstances[string(ctx.Host())] = threadsafe.NewMap[string, cacheEntry]()
 	}
+
 	cache := cacheInstances[string(ctx.Host())]
-	cacheInstancesMutex.Unlock()
 
 	var userIp = getIp(ctx)
 	if userIp != env.GetEnv("WOOF_IP", "2.56.244.12") && userIp != env.GetEnv("MEOW_IP", "2.56.244.19") {
@@ -147,37 +147,33 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 	for _, allowedType := range allowedTypes {
 		if strings.HasSuffix(string(ctx.Path()), "."+allowedType) {
 			// check if in cache
-			cacheMutex.Lock()
-			if respStatus, respHeaders, respBody, found := cacheInstances[string(ctx.Host())].Get(string(ctx.URI().FullURI())); found {
-				for key, value := range respHeaders {
+			if entry, found := cache.Get(string(ctx.Path())); found {
+				for key, value := range entry.headers {
 					ctx.Response.Header.Set(key, value)
 				}
 
-				var tBody []byte = respBody
-				ctx.SetStatusCode(respStatus)
+				var tBody []byte = entry.body
+				ctx.SetStatusCode(entry.status)
 				ctx.SetBody(tBody)
 
 				var cachedResponse *fasthttp.Response
 				if tBody != nil {
 					cachedResponse = &fasthttp.Response{}
 
-					for key, value := range respHeaders {
+					for key, value := range entry.headers {
 						cachedResponse.Header.Set(key, value)
 					}
 
-					cachedResponse.SetStatusCode(respStatus)
+					cachedResponse.SetStatusCode(entry.status)
 					cachedResponse.SetBody(tBody)
 
-					logRequest(ctx, cachedResponse, timeStart, respStatus, getRequestSize(ctx), getResponseSize(ctx, cachedResponse), "")
+					logRequest(ctx, cachedResponse, timeStart, entry.status, getRequestSize(ctx), getResponseSize(ctx, cachedResponse), "")
 				}
-
-				cacheMutex.Unlock()
 
 				return
 			} else {
-				//cachable = true
+				cachable = true
 			}
-			cacheMutex.Unlock()
 		}
 	}
 
@@ -307,9 +303,8 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			headers[string(key)] = string(value)
 		})
 
-		cacheMutex.Lock()
-		cache.Set(string(ctx.Host()), string(ctx.URI().FullURI()), resp.StatusCode(), headers, body, 5*time.Minute)
-		cacheMutex.Unlock()
+		entry := cacheEntry{status: resp.StatusCode(), headers: headers, body: body}
+		cache.Set(string(ctx.Path()), entry)
 	}
 
 	logRequest(ctx, resp, timeStart, resp.StatusCode(), getRequestSize(ctx), getResponseSize(ctx, resp), "")
