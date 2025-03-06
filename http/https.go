@@ -319,7 +319,13 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
-	cacheKey := fmt.Sprintf("%s:%s", string(ctx.Host()), string(ctx.URI().Path()))
+	var cachePath string = string(ctx.Path())
+	queryString := string(ctx.URI().QueryString())
+	if len(queryString) > 0 {
+		cachePath += "?" + queryString
+	}
+
+	cacheKey := fmt.Sprintf("%s:%s", string(ctx.Host()), cachePath)
 	if entry, ok := passthroughCache.Load(cacheKey); ok {
 		if entry.(ptEntry).expiry.After(time.Now()) {
 			ctx.SetUserValue("targetURL", entry.(ptEntry).target)
@@ -346,7 +352,6 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
 				normalizedPath = "/" + normalizedPath
 			}
 
-			queryString := string(ctx.URI().QueryString())
 			if len(queryString) > 0 {
 				normalizedPath += "?" + queryString
 			}
