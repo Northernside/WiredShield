@@ -265,6 +265,17 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	resp.Header.VisitAll(func(key, value []byte) {
+		ctx.Response.Header.SetBytesKV(key, value)
+	})
+
+	ctx.Response.Header.Set("server", "wiredshield")
+	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
+
+	ctx.Response.Header.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	ctx.Response.Header.Set("Pragma", "no-cache")
+	ctx.Response.Header.Set("Expires", "0")
+
 	switch statusCode := resp.StatusCode(); statusCode {
 	// 301 & 308 -> permanent redirect
 	// 302, 303, 307 -> temporary redirect
@@ -280,17 +291,6 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		logRequest(ctx, resp, timeStart, statusCode, getRequestSize(ctx), getResponseSize(ctx, resp), "")
 		return
 	}
-
-	resp.Header.VisitAll(func(key, value []byte) {
-		ctx.Response.Header.SetBytesKV(key, value)
-	})
-
-	ctx.Response.Header.Set("server", "wiredshield")
-	ctx.Response.Header.Set("x-proxy-time", time.Since(timeStart).String())
-
-	ctx.Response.Header.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-	ctx.Response.Header.Set("Pragma", "no-cache")
-	ctx.Response.Header.Set("Expires", "0")
 
 	var body []byte = resp.Body()
 	ctx.SetBody(body)
