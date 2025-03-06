@@ -346,6 +346,11 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
 				normalizedPath = "/" + normalizedPath
 			}
 
+			queryString := string(ctx.URI().QueryString())
+			if len(queryString) > 0 {
+				normalizedPath += "?" + queryString
+			}
+
 			target := fmt.Sprintf("http://%s:%d%s", passthrough.TargetAddr, passthrough.TargetPort, normalizedPath)
 
 			entry := ptEntry{target: target, expiry: time.Now().Add(24 * time.Hour)}
