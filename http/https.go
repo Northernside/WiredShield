@@ -179,6 +179,11 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	var ctxPath = string(ctx.Path())
+	if !strings.HasPrefix(ctxPath, "/") {
+		ctxPath = "/" + ctxPath
+	}
+
 	var resolve bool = ctx.UserValue("resolve") != nil
 	if !resolve {
 		targetRecords, err := db.GetRecords("A", string(ctx.Host()))
@@ -201,7 +206,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		targetURL = fmt.Sprintf("http://%s:80%s", targetRecord.IP, ctx.Path())
+		targetURL = fmt.Sprintf("http://%s:80%s", targetRecord.IP, ctxPath)
 	} else {
 		if ctx.UserValue("targetURL") == nil {
 			errorPage := errorpages.ErrorPage{Code: 602, Message: errorpages.Error602}
@@ -337,7 +342,7 @@ func loadPassthrough(ctx *fasthttp.RequestCtx) bool {
 		if string(ctx.Host()) == passthrough.Domain && strings.HasPrefix(string(ctx.Path()), passthrough.Path) {
 			// ctx.Path but minus passthrough.Path
 			normalizedPath := string(ctx.Path())[len(passthrough.Path):]
-			if !strings.HasSuffix(normalizedPath, "/") {
+			if !strings.HasPrefix(normalizedPath, "/") {
 				normalizedPath = "/" + normalizedPath
 			}
 
