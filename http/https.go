@@ -294,6 +294,7 @@ func httpsProxyHandler(ctx *fasthttp.RequestCtx) {
 
 	var body []byte = resp.Body()
 	ctx.SetBody(body)
+	ctx.SetStatusCode(resp.StatusCode())
 
 	if bodyStream := resp.BodyStream(); bodyStream != nil {
 		_, err = io.Copy(ctx.Response.BodyWriter(), bodyStream)
