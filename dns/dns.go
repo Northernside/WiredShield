@@ -241,7 +241,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					}
 
 					rrList = append(rrList, rr)
-					m.Answer = append(m.Answer, rr)
+					m.Ns = append(m.Ns, rr)
 				}
 			} else {
 				m.Authoritative = true
