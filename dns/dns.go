@@ -192,8 +192,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Ns:  ns_record.(*db.NSRecord).NS + ".",
 					}
 
-					rrList = append(rrList, rr)
+					service.InfoLog(fmt.Sprintf("NS record: %s", ns_record.(*db.NSRecord).NS))
+
 					m.Answer = append(m.Answer, rr)
+					rrList = append(rrList, rr)
 				}
 			}
 
