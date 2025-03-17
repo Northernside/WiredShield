@@ -213,12 +213,12 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						Ns:  ns.NS + ".",
 					}
 
-					rrList = append(rrList, rr)
-					m.Answer = append(m.Answer, rr)
-
 					if strings.HasSuffix(ns.NS, ".ns.wired.rip") {
 						m.Authoritative = true
 					}
+
+					rrList = append(rrList, rr)
+					m.Answer = append(m.Answer, rr)
 				}
 			} else {
 				m.Authoritative = true
