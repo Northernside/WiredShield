@@ -158,45 +158,42 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			// rrList = append(rrList, rr)
 
 			var nsed bool = false
-			if dns.TypeToString[question.Qtype] == "NS" {
-				records, _ := db.GetRecords("NS", lookupName)
-				if len(records) == 0 {
-					nsList := []string{"woof", "meow"}
-					for _, ns := range nsList {
-						rr := &dns.NS{
-							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
-							Ns:  ns + ".ns.wired.rip.",
-						}
-
-						rrList = append(rrList, rr)
-						m.Answer = append(m.Answer, rr)
+			ns_records, _ := db.GetRecords("NS", lookupName)
+			if len(ns_records) == 0 {
+				nsList := []string{"woof", "meow"}
+				for _, ns := range nsList {
+					rr := &dns.NS{
+						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+						Ns:  ns + ".ns.wired.rip.",
 					}
 
-					updateCache(cacheKey, rrList)
-					err = w.WriteMsg(&m)
-					if err != nil {
-						service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s",
-							cacheKey, err.Error()))
+					rrList = append(rrList, rr)
+					m.Answer = append(m.Answer, rr)
+				}
+
+				updateCache(cacheKey, rrList)
+				err = w.WriteMsg(&m)
+				if err != nil {
+					service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s",
+						cacheKey, err.Error()))
+				}
+
+				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+				dnsLog.IsSuccessful = true
+				logDNSRequest(dnsLog)
+			} else {
+				m.Authoritative = false
+				nsed = true
+
+				for _, ns_record := range ns_records {
+					rr := &dns.NS{
+						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+						Ns:  ns_record.(*db.NSRecord).NS + ".",
 					}
 
-					dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
-					dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
-					dnsLog.IsSuccessful = true
-					logDNSRequest(dnsLog)
-				} else {
-					m.Authoritative = false
-					nsed = true
-
-					for _, record := range records {
-						r := record.(*db.NSRecord)
-						rr := &dns.NS{
-							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
-							Ns:  r.NS + ".",
-						}
-
-						rrList = append(rrList, rr)
-						m.Answer = append(m.Answer, rr)
-					}
+					rrList = append(rrList, rr)
+					m.Answer = append(m.Answer, rr)
 				}
 			}
 
