@@ -153,9 +153,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
-			rr := buildSoaRecord(lookupName, false) // default SOA record
-			m.Answer = append(m.Answer, rr)
-			rrList = append(rrList, rr)
+			// rr := buildSoaRecord(lookupName, false) // default SOA record
+			// m.Answer = append(m.Answer, rr)
+			// rrList = append(rrList, rr)
 
 			var nsed bool = false
 			if dns.TypeToString[question.Qtype] == "NS" {
