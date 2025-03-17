@@ -185,7 +185,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			if dns.TypeToString[question.Qtype] == "NS" {
 				records, _ := db.GetRecords("NS", lookupName)
 				if len(records) == 0 {
-					nsList := []string{"woof", "meow"}
+					/*nsList := []string{"woof", "meow"}
 					for _, ns := range nsList {
 						rr := &dns.NS{
 							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
@@ -195,7 +195,11 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						m.Authoritative = true
 						rrList = append(rrList, rr)
 						m.Answer = append(m.Answer, rr)
-					}
+					}*/
+
+					soa := buildSoaRecord(lookupName)
+					rrList = append(rrList, soa)
+					m.Answer = append(m.Answer, soa)
 
 					updateCache(cacheKey, rrList)
 					err = w.WriteMsg(&m)
