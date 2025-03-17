@@ -222,9 +222,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					rrList = append(rrList, rr)
 					m.Answer = append(m.Answer, rr)
 				}
-			}
-
-			if !managed_externally {
+			} else {
 				m.Authoritative = true
 			}
 
@@ -289,6 +287,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 
 				if rr != nil {
+					if !managed_externally {
+						m.Authoritative = true
+					}
+
 					m.Answer = append(m.Answer, rr)
 					rrList = append(rrList, rr)
 				}
