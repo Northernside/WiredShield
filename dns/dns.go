@@ -186,6 +186,17 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				} else {
 					m.Authoritative = false
 					nsed = true
+
+					for _, record := range records {
+						r := record.(*db.NSRecord)
+						rr := &dns.NS{
+							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+							Ns:  r.NS + ".",
+						}
+
+						rrList = append(rrList, rr)
+						m.Answer = append(m.Answer, rr)
+					}
 				}
 			}
 
