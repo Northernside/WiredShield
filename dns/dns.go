@@ -107,11 +107,17 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				m.Answer = entry
 
 				ns_records, _ := db.GetRecords("NS", lookupName)
-				if len(ns_records) != 0 {
+				if len(ns_records) == 0 {
 					m.Authoritative = true
 				} else {
-					if strings.HasSuffix(lookupName, ".ns.wired.rip") {
-						m.Authoritative = true
+					for _, record := range ns_records {
+						if ns, ok := record.(*db.NSRecord); ok {
+							if strings.HasSuffix(ns.NS, ".ns.wired.rip") {
+								m.Authoritative = true
+							}
+						} else {
+							// service.ErrorLog("unexpected record type in ns_records")
+						}
 					}
 				}
 
