@@ -153,10 +153,11 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
-			rr := buildSoaRecord(lookupName) // default SOA record
+			rr := buildSoaRecord(lookupName, false) // default SOA record
 			m.Answer = append(m.Answer, rr)
 			rrList = append(rrList, rr)
 
+			var nsed bool = false
 			if dns.TypeToString[question.Qtype] == "NS" {
 				records, _ := db.GetRecords("NS", lookupName)
 				if len(records) == 0 {
@@ -182,6 +183,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
 					dnsLog.IsSuccessful = true
 					logDNSRequest(dnsLog)
+				} else {
+					m.Authoritative = false
+					nsed = true
 				}
 			}
 
@@ -218,7 +222,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						}
 					}
 				case "SOA":
-					rr = buildSoaRecord(lookupName)
+					_rr := buildSoaRecord(lookupName, nsed)
+					if _rr != nil {
+						rr = _rr
+					}
 				case "CNAME":
 					r := record.(*db.CNAMERecord)
 					rr = &dns.CNAME{
