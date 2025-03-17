@@ -105,6 +105,16 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			entry, found := getCache(cacheKey)
 			if found {
 				m.Answer = entry
+
+				ns_records, _ := db.GetRecords("NS", lookupName)
+				if len(ns_records) != 0 {
+					m.Authoritative = true
+				} else {
+					if strings.HasSuffix(lookupName, ".ns.wired.rip") {
+						m.Authoritative = true
+					}
+				}
+
 				err := w.WriteMsg(&m)
 				if err != nil {
 					service.ErrorLog(fmt.Sprintf("failed to write message (cache, %s) to client: %s",
