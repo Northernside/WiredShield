@@ -205,6 +205,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			ns_records, _ := db.GetRecords("NS", lookupName)
+			var managed_externally bool = true
 			if len(ns_records) != 0 {
 				for _, ns_record := range ns_records {
 					ns := ns_record.(*db.NSRecord)
@@ -214,13 +215,16 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					}
 
 					if strings.HasSuffix(ns.NS, ".ns.wired.rip") {
+						managed_externally = false
 						m.Authoritative = true
 					}
 
 					rrList = append(rrList, rr)
 					m.Answer = append(m.Answer, rr)
 				}
-			} else {
+			}
+
+			if !managed_externally {
 				m.Authoritative = true
 			}
 
