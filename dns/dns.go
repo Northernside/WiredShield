@@ -216,6 +216,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					rrList = append(rrList, rr)
 					m.Answer = append(m.Answer, rr)
 				}
+			} else {
+				m.Authoritative = true
 			}
 
 			// append records to response and cache
