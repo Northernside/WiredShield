@@ -8,11 +8,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-func buildSoaRecord(queryName string, nsed bool) *dns.SOA {
-	if nsed {
-		return nil
-	}
-
+func buildSoaRecord(queryName string) *dns.SOA {
 	return &dns.SOA{
 		Hdr: dns.RR_Header{
 			Name:   queryName + ".",

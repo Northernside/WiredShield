@@ -25,7 +25,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := dns.Msg{}
 	m.SetReply(r)
 	m.Rcode = dns.RcodeSuccess
-	m.Authoritative = true
+	// m.Authoritative = true
 
 	clientIp, _, err := net.SplitHostPort(w.RemoteAddr().String())
 	if err != nil {
@@ -121,24 +121,65 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				// check if AAAA exists, if yes, return it, if not, return return getResponseIps with AAAA set in record
 				records, _ := db.GetRecords("AAAA", lookupName)
 				if len(records) == 0 {
-					r := &db.AAAARecord{
-						ID:        0,
-						Domain:    lookupName,
-						IP:        getOptimalResolvers("AAAA", clientIp, country)[0].String(),
-						Protected: true,
+					a_records, _ := db.GetRecords("A", lookupName)
+					var protected bool
+					if len(a_records) != 0 {
+						a_record := a_records[0].(*db.ARecord)
+						protected = a_record.Protected
 					}
 
-					var responseIps = getResponseIps(r, clientIp, country)
-					var rr dns.RR
-					for _, ip := range responseIps {
-						rr = &dns.AAAA{
-							Hdr:  dns.RR_Header{Name: questionName, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600},
-							AAAA: ip,
+					if protected {
+						r := &db.AAAARecord{
+							ID:        0,
+							Domain:    lookupName,
+							IP:        getOptimalResolvers("AAAA", clientIp, country)[0].String(),
+							Protected: true,
 						}
+
+						var responseIps = getResponseIps(r, clientIp, country)
+						var rr dns.RR
+						for _, ip := range responseIps {
+							rr = &dns.AAAA{
+								Hdr:  dns.RR_Header{Name: questionName, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 3600},
+								AAAA: ip,
+							}
+						}
+
+						rrList = append(rrList, rr)
+						m.Answer = append(m.Answer, rr)
+						updateCache(cacheKey, rrList)
+						err = w.WriteMsg(&m)
+						if err != nil {
+							service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s",
+								cacheKey, err.Error()))
+						}
+
+						dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
+						dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
+						dnsLog.IsSuccessful = true
+						logDNSRequest(dnsLog)
+					}
+				}
+			}
+
+			rr := buildSoaRecord(lookupName) // default SOA record
+			m.Answer = append(m.Answer, rr)
+			rrList = append(rrList, rr)
+
+			if dns.TypeToString[question.Qtype] == "NS" {
+				records, _ := db.GetRecords("NS", lookupName)
+				if len(records) == 0 {
+					nsList := []string{"woof", "meow"}
+					for _, ns := range nsList {
+						rr := &dns.NS{
+							Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+							Ns:  ns + ".ns.wired.rip.",
+						}
+
+						rrList = append(rrList, rr)
+						m.Answer = append(m.Answer, rr)
 					}
 
-					rrList = append(rrList, rr)
-					m.Answer = append(m.Answer, rr)
 					updateCache(cacheKey, rrList)
 					err = w.WriteMsg(&m)
 					if err != nil {
@@ -150,52 +191,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
 					dnsLog.IsSuccessful = true
 					logDNSRequest(dnsLog)
-				}
-			}
-
-			// rr := buildSoaRecord(lookupName, false) // default SOA record
-			// m.Answer = append(m.Answer, rr)
-			// rrList = append(rrList, rr)
-
-			var nsed bool = false
-			ns_records, _ := db.GetRecords("NS", lookupName)
-			if len(ns_records) == 0 {
-				nsList := []string{"woof", "meow"}
-				for _, ns := range nsList {
-					rr := &dns.NS{
-						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
-						Ns:  ns + ".ns.wired.rip.",
-					}
-
-					rrList = append(rrList, rr)
-					m.Answer = append(m.Answer, rr)
-				}
-
-				updateCache(cacheKey, rrList)
-				err = w.WriteMsg(&m)
-				if err != nil {
-					service.ErrorLog(fmt.Sprintf("failed to write message (response, %s) to client: %s",
-						cacheKey, err.Error()))
-				}
-
-				dnsLog.ResponseCode = dns.RcodeToString[m.Rcode]
-				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
-				dnsLog.IsSuccessful = true
-				logDNSRequest(dnsLog)
-			} else {
-				m.Authoritative = false
-				nsed = true
-
-				for _, ns_record := range ns_records {
-					rr := &dns.NS{
-						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
-						Ns:  ns_record.(*db.NSRecord).NS + ".",
-					}
-
-					service.InfoLog(fmt.Sprintf("NS record: %s", ns_record.(*db.NSRecord).NS))
-
-					m.Answer = append(m.Answer, rr)
-					rrList = append(rrList, rr)
 				}
 			}
 
@@ -232,15 +227,18 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						}
 					}
 				case "SOA":
-					_rr := buildSoaRecord(lookupName, nsed)
-					if _rr != nil {
-						rr = _rr
-					}
+					rr = buildSoaRecord(lookupName)
 				case "CNAME":
 					r := record.(*db.CNAMERecord)
 					rr = &dns.CNAME{
 						Hdr:    dns.RR_Header{Name: questionName, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
 						Target: r.Target + ".",
+					}
+				case "NS":
+					r := record.(*db.NSRecord)
+					rr = &dns.NS{
+						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+						Ns:  r.NS + ".",
 					}
 				case "MX":
 					r := record.(*db.MXRecord)
