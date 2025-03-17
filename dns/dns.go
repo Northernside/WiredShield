@@ -176,6 +176,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 							Ns:  ns + ".ns.wired.rip.",
 						}
 
+						m.Authoritative = true
 						rrList = append(rrList, rr)
 						m.Answer = append(m.Answer, rr)
 					}
@@ -255,12 +256,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					rr = &dns.CNAME{
 						Hdr:    dns.RR_Header{Name: questionName, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 300},
 						Target: r.Target + ".",
-					}
-				case "NS":
-					r := record.(*db.NSRecord)
-					rr = &dns.NS{
-						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
-						Ns:  r.NS + ".",
 					}
 				case "MX":
 					r := record.(*db.MXRecord)
