@@ -162,9 +162,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 			}
 
-			rr := buildSoaRecord(lookupName) // default SOA record
-			m.Answer = append(m.Answer, rr)
-			rrList = append(rrList, rr)
+			// rr := buildSoaRecord(lookupName) // default SOA record
+			// m.Answer = append(m.Answer, rr)
+			// rrList = append(rrList, rr)
 
 			if dns.TypeToString[question.Qtype] == "NS" {
 				records, _ := db.GetRecords("NS", lookupName)
@@ -202,6 +202,20 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				dnsLog.ResponseTime = time.Since(startTime).Milliseconds()
 				logDNSRequest(dnsLog)
 				return
+			}
+
+			ns_records, _ := db.GetRecords("NS", lookupName)
+			if len(ns_records) != 0 {
+				for _, ns_record := range ns_records {
+					ns := ns_record.(*db.NSRecord)
+					rr := &dns.NS{
+						Hdr: dns.RR_Header{Name: questionName, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 300},
+						Ns:  ns.NS + ".",
+					}
+
+					rrList = append(rrList, rr)
+					m.Answer = append(m.Answer, rr)
+				}
 			}
 
 			// append records to response and cache
