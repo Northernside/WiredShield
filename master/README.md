@@ -1,2 +1,0 @@
-# wired
-📡 wired network system™
