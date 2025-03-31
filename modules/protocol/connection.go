@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	StateKeyExchange VarInt = 0x01 // payload is encrypted with RayConnect Publickey (default)
-	StateReady       VarInt = 0x02 // switched to AES cipherstream
-	StateMinecraft   VarInt = 0x03 // minecraft conn
+	StateInitial    VarInt = 0 // initial connection
+	StateAESReady   VarInt = 1 // aes ready
+	StateFullyReady VarInt = 2 // fully authenticated connection
 )
 
 type Conn struct {
@@ -41,20 +41,6 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
-func NewMinecraftConn(c net.Conn) *Conn {
-	addr, portStr, _ := net.SplitHostPort(c.RemoteAddr().String())
-	port, _ := strconv.Atoi(portStr)
-
-	return &Conn{
-		Address: net.ParseIP(addr),
-		Port:    uint16(port),
-		conn:    c,
-		State:   StateMinecraft,
-		r:       c,
-		w:       c,
-	}
-}
-
 func NewConn(c net.Conn) *Conn {
 	addr, portStr, _ := net.SplitHostPort(c.RemoteAddr().String())
 	port, _ := strconv.Atoi(portStr)
@@ -62,7 +48,7 @@ func NewConn(c net.Conn) *Conn {
 		Address: net.ParseIP(addr),
 		Port:    uint16(port),
 		conn:    c,
-		State:   StateKeyExchange,
+		State:   StateInitial,
 		r:       c,
 		w:       c,
 	}
@@ -73,8 +59,9 @@ func (c *Conn) EnableEncryption(sharedSecret []byte) error {
 	if err != nil {
 		return err
 	}
+
 	c.SetCipher(NewCFB8Encrypter(block, sharedSecret), NewCFB8Decrypter(block, sharedSecret))
-	c.State = StateReady
+	c.State = StateAESReady
 	return nil
 }
 
@@ -123,17 +110,20 @@ func (c *Conn) SendPacket(id VarInt, packet any) error {
 		data []byte
 		err  error
 	)
+
 	if packet != nil {
 		data, err = EncodePacket(packet)
 		if err != nil {
 			return err
 		}
 	}
+
 	//assemble and send packet
 	_, err = (&Packet{
 		ID:   id,
 		Data: data,
 	}).Write(c)
+
 	return err
 }
 
@@ -142,6 +132,7 @@ func (c *Conn) SendRawPacket(id VarInt, packet []byte) error {
 		ID:   id,
 		Data: packet,
 	}).Write(c)
+
 	return err
 }
 
@@ -152,6 +143,7 @@ func MarshalRawPacket(id VarInt, packet []byte) ([]byte, error) {
 		ID:   id,
 		Data: packet,
 	}).Write(&buf)
+
 	return buf.Bytes(), err
 }
 
@@ -164,10 +156,12 @@ func MarshalPacket(id VarInt, packet any) ([]byte, error) {
 			return nil, err
 		}
 	}
+
 	buf := bytes.Buffer{}
 	_, err = (&Packet{
 		ID:   id,
 		Data: data,
 	}).Write(&buf)
+
 	return buf.Bytes(), err
 }

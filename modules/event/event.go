@@ -25,8 +25,9 @@ func NewEventBus() *EventBus {
 	}
 }
 
-func (eventBus *EventBus) Sub(eventType uint8, subscriber chan<- Event) {
+func (eventBus *EventBus) Sub(eventType uint8, subscriber chan<- Event, handler func()) {
 	eventBus.Subscribers[eventType] = append(eventBus.Subscribers[eventType], subscriber)
+	go handler()
 }
 
 func (eventBus *EventBus) Pub(event Event) {

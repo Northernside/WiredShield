@@ -8,6 +8,10 @@ import (
 	tick_event "wired/modules/event/events"
 )
 
+func init() {
+	env.LoadEnvFile()
+}
+
 func main() {
 	eventBus := event.NewEventBus()
 
@@ -25,11 +29,13 @@ func main() {
 	}()
 
 	eventChan := make(chan event.Event)
-	eventBus.Sub(0, eventChan)
-	EventHandler(eventChan)
+	eventBus.Sub(0, eventChan, func() { eventHandler(eventChan) })
+
+	time.Sleep(10 * time.Second)
+	fmt.Println("Timeout reached, exiting...")
 }
 
-func EventHandler(eventChan <-chan event.Event) {
+func eventHandler(eventChan <-chan event.Event) {
 	for event := range eventChan {
 		_, ok := event.Data.(tick_event.TickData)
 		if !ok {
@@ -37,6 +43,6 @@ func EventHandler(eventChan <-chan event.Event) {
 			continue
 		}
 
-		fmt.Println("Tick fired at:", event.FiredAt)
+		fmt.Println("Tick fired at:", event.FiredAt, "by:", event.FiredBy, "- Event ID:", event.Type)
 	}
 }

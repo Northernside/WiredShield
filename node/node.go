@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"wired/modules/cache"
 	"wired/modules/env"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
@@ -14,6 +15,7 @@ import (
 	"wired/modules/protocol"
 	"wired/modules/types"
 	"wired/modules/utils"
+	protocol_handler "wired/node/protocol"
 )
 
 func init() {
@@ -21,6 +23,7 @@ func init() {
 }
 
 func main() {
+	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
 	initNode()
 }
@@ -33,6 +36,54 @@ func initNode() {
 	}
 	defer conn.Close()
 
+	handleEncryption(conn)
+
+	logger.Log("Connected to master")
+
+	err = conn.SendPacket(packet.ID_Login, packet.Login{
+		NodeInfo: types.NodeInfo{
+			Key:       env.GetEnv("NODE_KEY", "node-key"),
+			Arch:      runtime.GOARCH,
+			Version:   "",
+			Hash:      []byte{},
+			PID:       os.Getpid(),
+			Listeners: utils.GetListeners(),
+			Location:  types.Location{Lon: 0, Lat: 0},
+			Modules:   []types.Modules{},
+		},
+	})
+	if err != nil {
+		logger.Fatal("failed to send login packet:", err)
+		return
+	}
+
+	for {
+		p := new(protocol.Packet)
+		err := p.Read(conn)
+		if err != nil {
+			logger.Fatal("failed to read packet:", err)
+			return
+		}
+
+		handler := protocol_handler.GetHandler(p.ID)
+		if handler != nil {
+			handler.Handle(conn, p)
+		} else {
+			logger.Log("unknown packet ID:", p.ID)
+		}
+	}
+}
+
+func connectToMaster() (*protocol.Conn, error) {
+	conn, err := net.Dial("tcp", "127.0.0.1:2000")
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to master: %w", err)
+	}
+
+	return protocol.NewConn(conn), nil
+}
+
+func handleEncryption(conn *protocol.Conn) {
 	sharedSecret := utils.RandomBytes(16)
 	masterPubKey, err := pgp.LoadPublicKey("keys/master-public.pem")
 	if err != nil {
@@ -57,105 +108,4 @@ func initNode() {
 		logger.Fatal("failed to enable encryption:", err)
 		return
 	}
-
-	err = conn.SendPacket(packet.ID_Login, packet.Login{
-		NodeInfo: types.NodeInfo{
-			Key:       env.GetEnv("NODE_KEY", "node-key"),
-			Arch:      runtime.GOARCH,
-			Version:   "",
-			Hash:      []byte{},
-			PID:       os.Getpid(),
-			Listeners: getListeners(),
-			Location:  types.Location{Lon: 0, Lat: 0},
-			Modules:   []types.Modules{},
-		},
-	})
-	if err != nil {
-		logger.Fatal("failed to send login packet:", err)
-		return
-	}
-
-	for {
-		p := new(protocol.Packet)
-		err := p.Read(conn)
-		if err != nil {
-			logger.Fatal("failed to read packet:", err)
-			return
-		}
-
-		switch p.ID {
-		case packet.ID_ChallengeStart:
-			var challenge packet.Challenge
-			err := protocol.DecodePacket(p.Data, &challenge)
-			if err != nil {
-				logger.Fatal("failed to decode challenge packet:", err)
-				return
-			}
-
-			signature, err := pgp.SignMessage(challenge.Challenge, pgp.PrivateKey)
-			if err != nil {
-				logger.Fatal("failed to sign challenge:", err)
-				return
-			}
-
-			challengeResultPacket := packet.Challenge{
-				Challenge: challenge.Challenge,
-				Result:    signature,
-				Key:       env.GetEnv("NODE_KEY", "node-key"),
-			}
-
-			err = conn.SendPacket(packet.ID_ChallengeResult, challengeResultPacket)
-			if err != nil {
-				logger.Fatal("failed to send challenge result packet:", err)
-				return
-			}
-		case packet.ID_Config:
-			var config string
-			if err := protocol.DecodePacket(p.Data, &config); err != nil {
-				logger.Fatal("failed to decode config packet:", err)
-				return
-			}
-
-			logger.Log("received config:", config)
-		default:
-			return
-		}
-	}
-}
-
-func connectToMaster() (*protocol.Conn, error) {
-	conn, err := net.Dial("tcp", "127.0.0.1:2000")
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to master: %w", err)
-	}
-
-	return protocol.NewConn(conn), nil
-}
-
-func getListeners() []net.IP {
-	listeners := []net.IP{}
-
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		logger.Log("failed to get network interfaces:", err)
-		return listeners
-	}
-
-	for _, iface := range ifaces {
-		addrs, err := iface.Addrs()
-		if err != nil {
-			logger.Log("failed to get addresses for interface:", iface.Name, err)
-			continue
-		}
-
-		for _, addr := range addrs {
-			ipNet, ok := addr.(*net.IPNet)
-			if !ok || ipNet.IP.IsLoopback() {
-				continue
-			}
-			listeners = append(listeners, ipNet.IP)
-		}
-	}
-
-	return listeners
 }

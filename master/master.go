@@ -4,18 +4,20 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"errors"
 	"fmt"
 	"io"
 	"net"
-	"os"
-	"strings"
-	"wired/master/modules/node"
+	protocol_handler "wired/master/protocol"
+	"wired/modules/env"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
 )
+
+func init() {
+	env.LoadEnvFile()
+}
 
 func main() {
 	pgp.InitKeys()
@@ -60,6 +62,34 @@ func nodeHandler(conn *protocol.Conn) {
 		logger.Log("node connection closed")
 	}()
 
+	handleEncryption(conn)
+
+	p := new(protocol.Packet)
+	err := p.Read(conn)
+	if err != nil {
+		return
+	}
+
+	if p.ID != packet.ID_Login {
+		logger.Log("unexpected packet ID at login stage:", p.ID)
+		return
+	}
+
+	packetHandler(conn, p)
+
+	for {
+		p := new(protocol.Packet)
+		err := p.Read(conn)
+		if err != nil {
+			logger.Log("failed to read packet:", err)
+			return
+		}
+
+		packetHandler(conn, p)
+	}
+}
+
+func handleEncryption(conn *protocol.Conn) {
 	identifier := [4]byte{}
 	_, err := io.ReadFull(conn, identifier[:])
 	if err != nil {
@@ -83,100 +113,19 @@ func nodeHandler(conn *protocol.Conn) {
 		return
 	}
 
-	logger.Log("shared secret received")
 	err = conn.EnableEncryption(decryptedBytes)
 	if err != nil {
 		logger.Fatal("error enabling encryption:", err)
 		return
 	}
-
-	p := new(protocol.Packet)
-	err = p.Read(conn)
-	if err != nil {
-		return
-	}
-
-	switch p.ID {
-	case packet.ID_Login:
-		var login packet.Login
-		err = protocol.DecodePacket(p.Data, &login)
-		if err != nil {
-			logger.Log("error decoding login packet:", err)
-			return
-		}
-
-		if _, ok := checkNodeEntry(login.Key); !ok {
-			logger.Log("node key not found:", login.Key)
-			return
-		}
-
-		err = node.SendChallenge(conn, &login)
-		if err != nil {
-			logger.Log("failed to send challenge:", err)
-			return
-		}
-	default:
-		logger.Log("unexpected packet ID:", p.ID)
-		return
-	}
-
-	for {
-		p := new(protocol.Packet)
-		err := p.Read(conn)
-		if err != nil {
-			if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "connection reset by peer") || errors.Is(err, net.ErrClosed) {
-				logger.Log("connection closed by peer")
-				return
-			}
-
-			logger.Log("error reading packet:", err)
-			continue
-		}
-
-		switch p.ID {
-		case packet.ID_ChallengeResult:
-			var ch packet.Challenge
-			err := protocol.DecodePacket(p.Data, &ch)
-			if err != nil {
-				logger.Log("error decoding challenge result packet:", err)
-				return
-			}
-
-			if _, ok := packet.PendingChallenges[ch.Challenge]; !ok {
-				logger.Log("challenge not found:", ch.Challenge)
-				return
-			}
-
-			publicKey, ok := checkNodeEntry(ch.Key)
-			if !ok {
-				logger.Log("node key not found:", ch.Key)
-				return
-			}
-
-			if err := pgp.VerifySignature(ch.Challenge, ch.Result, publicKey); err != nil {
-				delete(packet.PendingChallenges, ch.Challenge)
-				return
-			}
-
-			conn.SendPacket(packet.ID_Config, "foo")
-			delete(packet.PendingChallenges, ch.Challenge)
-		default:
-			logger.Log("unexpected packet ID:", p.ID)
-			return
-		}
-	}
 }
 
-func checkNodeEntry(key string) (*rsa.PublicKey, bool) {
-	_, err := os.Stat("keys/" + key + "-public.pem")
-	if os.IsNotExist(err) {
-		return nil, false
+func packetHandler(conn *protocol.Conn, p *protocol.Packet) {
+	handler := protocol_handler.GetHandler(conn, p.ID)
+	if handler == nil {
+		logger.Log("no handler for packet ID:", p.ID)
+		return
 	}
 
-	publicKey, err := pgp.LoadPublicKey("keys/" + key + "-public.pem")
-	if err != nil {
-		return nil, false
-	}
-
-	return publicKey, true
+	handler.Handle(conn, p)
 }
