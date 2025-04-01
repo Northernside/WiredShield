@@ -5,6 +5,7 @@ import (
 	"time"
 	"wired/modules/env"
 	"wired/modules/event"
+	event_data "wired/modules/event/events"
 	tick_event "wired/modules/event/events"
 )
 
@@ -37,7 +38,7 @@ func main() {
 
 func eventHandler(eventChan <-chan event.Event) {
 	for event := range eventChan {
-		_, ok := event.Data.(tick_event.TickData)
+		_, ok := event.Data.(event_data.TickData)
 		if !ok {
 			fmt.Println("Invalid event data")
 			continue

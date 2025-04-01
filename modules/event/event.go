@@ -3,11 +3,15 @@ package event
 import (
 	"time"
 	"wired/modules/cache"
+	"wired/modules/env"
+	"wired/modules/protocol"
 	"wired/modules/types"
 )
 
 var (
-	Event_Tick uint8 = 0
+	Event_Tick         uint8 = 0
+	Event_AddRecord    uint8 = 1
+	Event_RemoveRecord uint8 = 2
 )
 
 type Event struct {
@@ -39,15 +43,29 @@ func (eventBus *EventBus) Pub(event Event) {
 		}
 	}
 
-	// send ID_EventTransmission packet to nodes
-	value, found := cache.Get[map[string]types.NodeInfo]("nodes")
-	if found {
+	if env.GetEnv("NODE_KEY", "node-key") == "master" {
+		// send ID_EventTransmission packet to nodes
+		value, found := cache.Get[map[string]types.NodeInfo]("nodes")
+		if !found {
+			return
+		}
+
 		nodesMap := value
 		for _, node := range nodesMap {
 			node.Conn.SendPacket(13, EventTransmission{
 				Event: event,
 			})
 		}
+	} else {
+		// send ID_EventTransmission packet to master
+		master, found := cache.Get[protocol.Conn]("master")
+		if !found {
+			return
+		}
+
+		master.SendPacket(13, EventTransmission{
+			Event: event,
+		})
 	}
 }
 

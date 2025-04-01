@@ -25,3 +25,7 @@ go.work.sum
 .env
 *.pem
 *.pem
+
+zonefile.txt
+
+.DS_Store

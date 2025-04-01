@@ -27,7 +27,7 @@ func init() {
 func main() {
 	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
-	go dns.Run()
+	go dns.Start()
 
 	for {
 		initNode()
@@ -65,6 +65,7 @@ func initNode() {
 		return
 	}
 
+	cache.Store("master_conn", conn, 0)
 	for {
 		p := new(protocol.Packet)
 		err := p.Read(conn)

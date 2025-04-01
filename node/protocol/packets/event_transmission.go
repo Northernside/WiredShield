@@ -1,6 +1,7 @@
 package packets
 
 import (
+	"wired/modules/env"
 	"wired/modules/event"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
@@ -16,6 +17,10 @@ func (h *EventTransmissionHandler) Handle(conn *protocol.Conn, p *protocol.Packe
 	err := protocol.DecodePacket(p.Data, &txEvent)
 	if err != nil {
 		logger.Fatal("Failed to decode challenge packet:", err)
+	}
+
+	if txEvent.Event.FiredBy == env.GetEnv("NODE_KEY", "node-key") {
+		return
 	}
 
 	PacketEventBus.Pub(txEvent.Event)

@@ -1,3 +1,3 @@
-package tick_event
+package event_data
 
 type TickData struct{}

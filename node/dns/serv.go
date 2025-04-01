@@ -1,7 +1,7 @@
 package dns
 
 import (
-	"net"
+	"os"
 	"strings"
 	"wired/modules/logger"
 
@@ -10,11 +10,23 @@ import (
 
 var zones = make(map[string][]dns.RR)
 
-func Run() {
-	initZones()
+func init() {
+	if _, err := os.Stat("zonefile.txt"); os.IsNotExist(err) {
+		file, err := os.Create("zonefile.txt")
+		if err != nil {
+			logger.Println("Error creating zone file:", err)
+			return
+		}
+		defer file.Close()
+	}
+}
+
+func Start() {
+	loadZonefile()
 
 	dns.HandleFunc(".", handleRequest)
 	go func() {
+		logger.Println("DNS server started on port 53 (UDP)")
 		server := &dns.Server{Addr: ":53", Net: "udp"}
 		err := server.ListenAndServe()
 		if err != nil {
@@ -22,114 +34,11 @@ func Run() {
 		}
 	}()
 
-	logger.Println("DNS server started on port 53 (UDP)")
 	logger.Println("DNS server started on port 53 (TCP)")
 	server := &dns.Server{Addr: ":53", Net: "tcp"}
 	err := server.ListenAndServe()
 	if err != nil {
 		panic(err)
-	}
-}
-
-func initZones() {
-	zones["example.com."] = []dns.RR{
-		// SOA Record (Required)
-		&dns.SOA{
-			Hdr: dns.RR_Header{
-				Name:   "example.com.",
-				Rrtype: dns.TypeSOA,
-				Class:  dns.ClassINET,
-				Ttl:    3600,
-			},
-			Ns:      "ns1.example.com.",
-			Mbox:    "admin.example.com.",
-			Serial:  2024010101,
-			Refresh: 86400,
-			Retry:   7200,
-			Expire:  3600000,
-			Minttl:  300,
-		},
-
-		// NS Records
-		&dns.NS{
-			Hdr: dns.RR_Header{
-				Name:   "example.com.",
-				Rrtype: dns.TypeNS,
-				Class:  dns.ClassINET,
-				Ttl:    3600,
-			},
-			Ns: "ns1.example.com.",
-		},
-
-		// A Records
-		&dns.A{
-			Hdr: dns.RR_Header{
-				Name:   "example.com.",
-				Rrtype: dns.TypeA,
-				Class:  dns.ClassINET,
-				Ttl:    300,
-			},
-			A: net.ParseIP("192.0.2.1"),
-		},
-
-		// AAAA Records
-		&dns.AAAA{
-			Hdr: dns.RR_Header{
-				Name:   "example.com.",
-				Rrtype: dns.TypeAAAA,
-				Class:  dns.ClassINET,
-				Ttl:    300,
-			},
-			AAAA: net.ParseIP("2001:db8::1"),
-		},
-
-		// MX Records
-		&dns.MX{
-			Hdr: dns.RR_Header{
-				Name:   "example.com.",
-				Rrtype: dns.TypeMX,
-				Class:  dns.ClassINET,
-				Ttl:    300,
-			},
-			Preference: 10,
-			Mx:         "mail.example.com.",
-		},
-
-		// TXT Records
-		&dns.TXT{
-			Hdr: dns.RR_Header{
-				Name:   "example.com.",
-				Rrtype: dns.TypeTXT,
-				Class:  dns.ClassINET,
-				Ttl:    300,
-			},
-			Txt: []string{"v=spf1 mx -all"},
-		},
-
-		// SRV Records
-		&dns.SRV{
-			Hdr: dns.RR_Header{
-				Name:   "_service._tcp.example.com.",
-				Rrtype: dns.TypeSRV,
-				Class:  dns.ClassINET,
-				Ttl:    300,
-			},
-			Priority: 10,
-			Weight:   50,
-			Port:     5060,
-			Target:   "sip.example.com.",
-		},
-
-		// CNAME Records
-		&dns.CNAME{
-			Hdr: dns.RR_Header{
-				Name:   "www.example.com.",
-				Rrtype: dns.TypeCNAME,
-				Class:  dns.ClassINET,
-				Ttl:    300,
-			},
-			Target: "example.com.",
-		},
 	}
 }
 
@@ -157,7 +66,6 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 		for _, rr := range zones[zone] {
 			rrName := strings.ToLower(rr.Header().Name)
-
 			if rrName == qname {
 				nameExists = true
 				if rr.Header().Rrtype == dns.TypeCNAME {
@@ -168,7 +76,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		}
 
-		// Handle CNAME responses
+		// CNAME
 		if len(cnameRecords) > 0 && qtype != dns.TypeCNAME {
 			m.Answer = append(m.Answer, cnameRecords...)
 		} else if len(cnameRecords) > 0 && qtype == dns.TypeCNAME {
@@ -177,7 +85,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			if len(answerRecords) > 0 {
 				m.Answer = append(m.Answer, answerRecords...)
 			} else {
-				// Handle NXDOMAIN or NOERROR
+				// NXDOMAIN, NOERROR
 				if nameExists {
 					authorityRRs = getSOA(zone, false)
 				} else {
