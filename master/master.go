@@ -8,11 +8,13 @@ import (
 	"io"
 	"net"
 	protocol_handler "wired/master/protocol"
+	"wired/modules/cache"
 	"wired/modules/env"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
+	"wired/modules/types"
 )
 
 func init() {
@@ -61,7 +63,16 @@ func nodeHandler(conn *protocol.Conn) {
 		}
 
 		conn.Close()
-		logger.Println("Node connection closed")
+
+		if conn.Key != "" {
+			logger.Println(fmt.Sprintf("Node %s%s%s disconnected", logger.ColorGray, conn.Key, logger.ColorReset))
+
+			value, found := cache.Get[map[string]types.NodeInfo]("nodes")
+			if found {
+				delete(value, conn.Key)
+				cache.Store("nodes", value, 0)
+			}
+		}
 	}()
 
 	handleEncryption(conn)
@@ -83,7 +94,10 @@ func nodeHandler(conn *protocol.Conn) {
 		p := new(protocol.Packet)
 		err := p.Read(conn)
 		if err != nil {
-			logger.Println("Failed to read packet: ", err)
+			if err != io.EOF {
+				logger.Println("Failed to read packet: ", err)
+			}
+
 			return
 		}
 

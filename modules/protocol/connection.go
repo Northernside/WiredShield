@@ -20,6 +20,7 @@ type Conn struct {
 	Address net.IP
 	Port    uint16
 	State   VarInt
+	Key     string
 	conn    net.Conn
 	r       io.Reader
 	w       io.Writer

@@ -1,6 +1,7 @@
 package packets
 
 import (
+	"fmt"
 	"wired/modules/env"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
@@ -53,4 +54,6 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 	conn.State = protocol.StateFullyReady
 	conn.SendPacket(packet.ID_ChallengeFinish, challengeFinishPacket)
 	delete(packet.PendingChallenges, ch.Challenge)
+
+	logger.Println(fmt.Sprintf("Node %s%s%s connected", logger.ColorGray, ch.Key, logger.ColorReset))
 }

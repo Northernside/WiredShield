@@ -3,10 +3,12 @@ package packets
 import (
 	"fmt"
 	"time"
+	"wired/modules/cache"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
+	"wired/modules/types"
 	"wired/modules/utils"
 )
 
@@ -47,4 +49,28 @@ func (h *LoginHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 		conn.Close()
 		return
 	}
+
+	nodeInfo := types.NodeInfo{
+		Key:       login.Key,
+		Arch:      login.Arch,
+		Version:   login.Version,
+		Hash:      login.Hash,
+		PID:       login.PID,
+		Listeners: login.Listeners,
+		Location:  login.Location,
+		Modules:   login.Modules,
+		Conn:      conn,
+	}
+
+	value, found := cache.Get[map[string]types.NodeInfo]("nodes")
+	if !found {
+		nodesMap := make(map[string]types.NodeInfo)
+		nodesMap[login.Key] = nodeInfo
+		cache.Store("nodes", nodesMap, 0)
+	} else {
+		value[login.Key] = nodeInfo
+		cache.Store("nodes", value, 0)
+	}
+
+	conn.Key = login.Key
 }

@@ -2,6 +2,8 @@ package event
 
 import (
 	"time"
+	"wired/modules/cache"
+	"wired/modules/types"
 )
 
 var (
@@ -36,4 +38,19 @@ func (eventBus *EventBus) Pub(event Event) {
 			subscriber <- event
 		}
 	}
+
+	// send ID_EventTransmission packet to nodes
+	value, found := cache.Get[map[string]types.NodeInfo]("nodes")
+	if found {
+		nodesMap := value
+		for _, node := range nodesMap {
+			node.Conn.SendPacket(13, EventTransmission{
+				Event: event,
+			})
+		}
+	}
+}
+
+type EventTransmission struct {
+	Event Event
 }

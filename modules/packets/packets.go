@@ -13,7 +13,7 @@ const (
 	ID_ChallengeResult protocol.VarInt = 3
 	ID_ChallengeFinish protocol.VarInt = 4
 	ID_Config          protocol.VarInt = 5 // master -> node // just json encoded config as string
-	ID_Ready           protocol.VarInt = 7 // node -> node, node is ready
+	ID_Ready           protocol.VarInt = 7 // node -> master, node is ready
 
 	ID_Ping  protocol.VarInt = 8  // master -> node
 	ID_Pong  protocol.VarInt = 9  // node -> master response to ping
