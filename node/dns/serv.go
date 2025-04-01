@@ -78,11 +78,23 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 		// CNAME
 		if len(cnameRecords) > 0 && qtype != dns.TypeCNAME {
+			for _, cname := range cnameRecords {
+				cname.Header().Name = q.Name
+			}
+
 			m.Answer = append(m.Answer, cnameRecords...)
 		} else if len(cnameRecords) > 0 && qtype == dns.TypeCNAME {
+			for _, cname := range cnameRecords {
+				cname.Header().Name = q.Name
+			}
+
 			m.Answer = append(m.Answer, cnameRecords...)
 		} else {
 			if len(answerRecords) > 0 {
+				for _, answer := range answerRecords {
+					answer.Header().Name = q.Name
+				}
+
 				m.Answer = append(m.Answer, answerRecords...)
 			} else {
 				// NXDOMAIN, NOERROR
@@ -93,6 +105,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					authorityRRs = getSOA(zone, true)
 				}
 			}
+		}
+
+		for _, authority := range authorityRRs {
+			authority.Header().Name = q.Name
 		}
 
 		m.Ns = append(m.Ns, authorityRRs...)
