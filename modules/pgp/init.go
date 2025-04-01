@@ -35,16 +35,16 @@ func InitKeys() {
 
 	_ = os.MkdirAll("keys", 0755)
 	if _, err := os.Stat(privateKeyFileName); os.IsNotExist(err) {
-		logger.Log("key files do not exist, generating new key pair")
+		logger.Println("Key files do not exist, generating new key pair")
 
 		priv, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
-			logger.Fatal("failed to generate private key:", err)
+			logger.Fatal("Failed to generate private key:", err)
 		}
 
 		privateKeyFile, err := os.Create(privateKeyFileName)
 		if err != nil {
-			logger.Fatal("failed to create private key file:", err)
+			logger.Fatal("Failed to create private key file:", err)
 		}
 		defer privateKeyFile.Close()
 
@@ -58,13 +58,13 @@ func InitKeys() {
 
 		publicKeyFile, err := os.Create(publicKeyFileName)
 		if err != nil {
-			logger.Fatal("failed to create public key file:", err)
+			logger.Fatal("Failed to create public key file:", err)
 		}
 		defer publicKeyFile.Close()
 
 		pubBytes, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 		if err != nil {
-			logger.Fatal("failed to marshal public key:", err)
+			logger.Fatal("Failed to marshal public key:", err)
 		}
 		if err := pem.Encode(publicKeyFile, &pem.Block{
 			Type:  "PUBLIC KEY",
@@ -80,14 +80,14 @@ func InitKeys() {
 
 	privateKeyFile, err := os.Open(privateKeyFileName)
 	if err != nil {
-		logger.Fatal("failed to open private key file:", err)
+		logger.Fatal("Failed to open private key file:", err)
 		os.Exit(1)
 	}
 	defer privateKeyFile.Close()
 
 	privateKeyBytes, err := io.ReadAll(privateKeyFile)
 	if err != nil {
-		logger.Fatal("failed to read private key file:", err)
+		logger.Fatal("Failed to read private key file:", err)
 		os.Exit(1)
 	}
 
@@ -100,14 +100,14 @@ func InitKeys() {
 
 	publicKeyFile, err := os.Open(publicKeyFileName)
 	if err != nil {
-		logger.Fatal("failed to open public key file:", err)
+		logger.Fatal("Failed to open public key file:", err)
 		os.Exit(1)
 	}
 	defer publicKeyFile.Close()
 
 	publicKeyBytes, err := io.ReadAll(publicKeyFile)
 	if err != nil {
-		logger.Fatal("failed to read public key file:", err)
+		logger.Fatal("Failed to read public key file:", err)
 		os.Exit(1)
 	}
 

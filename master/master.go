@@ -20,6 +20,8 @@ func init() {
 }
 
 func main() {
+	logger.Printf(logger.Banner)
+
 	pgp.InitKeys()
 	initNodeListener()
 }
@@ -27,23 +29,23 @@ func main() {
 func initNodeListener() {
 	listener, err := net.Listen("tcp", ":2000")
 	if err != nil {
-		logger.Fatal(err)
+		logger.Fatal("Failed to start node listener:", err)
 	}
 	defer func() {
 		err := listener.Close()
 		if err != nil {
-			logger.Fatal(err)
+			logger.Fatal("Failed to close node listener:", err)
 		}
 
-		logger.Log("node listener closed")
+		logger.Println("Node listener closed")
 	}()
 
-	logger.Log("Listening for nodes on port 2000")
+	logger.Println("Listening for nodes on port 2000")
 
 	for {
 		client, err := listener.Accept()
 		if err != nil {
-			fmt.Println("error accepting connection:", err)
+			fmt.Println("Error accepting connection:", err)
 			continue
 		}
 
@@ -55,11 +57,11 @@ func nodeHandler(conn *protocol.Conn) {
 	defer func() {
 		r := recover()
 		if r != nil {
-			logger.Log("recovered in nodeHandler: ", r)
+			logger.Println("Recovered in nodeHandler: ", r)
 		}
 
 		conn.Close()
-		logger.Log("node connection closed")
+		logger.Println("Node connection closed")
 	}()
 
 	handleEncryption(conn)
@@ -71,7 +73,7 @@ func nodeHandler(conn *protocol.Conn) {
 	}
 
 	if p.ID != packet.ID_Login {
-		logger.Log("unexpected packet ID at login stage:", p.ID)
+		logger.Println("Unexpected packet ID during login stage:", p.ID)
 		return
 	}
 
@@ -81,7 +83,7 @@ func nodeHandler(conn *protocol.Conn) {
 		p := new(protocol.Packet)
 		err := p.Read(conn)
 		if err != nil {
-			logger.Log("failed to read packet:", err)
+			logger.Println("Failed to read packet: ", err)
 			return
 		}
 
@@ -103,19 +105,19 @@ func handleEncryption(conn *protocol.Conn) {
 	}
 
 	if recvPacket.ID != packet.ID_SharedSecret {
-		logger.Log("unexpected packet ID:", recvPacket.ID)
+		logger.Println("Unexpected packet ID:", recvPacket.ID)
 		return
 	}
 
 	decryptedBytes, err := rsa.DecryptPKCS1v15(rand.Reader, pgp.PrivateKey, recvPacket.Data)
 	if err != nil {
-		logger.Log("error decrypting shared secret:", err)
+		logger.Println("Error decrypting shared secret:", err)
 		return
 	}
 
 	err = conn.EnableEncryption(decryptedBytes)
 	if err != nil {
-		logger.Fatal("error enabling encryption:", err)
+		logger.Fatal("Error enabling encryption:", err)
 		return
 	}
 }
@@ -123,7 +125,7 @@ func handleEncryption(conn *protocol.Conn) {
 func packetHandler(conn *protocol.Conn, p *protocol.Packet) {
 	handler := protocol_handler.GetHandler(conn, p.ID)
 	if handler == nil {
-		logger.Log("no handler for packet ID:", p.ID)
+		logger.Println("No handler for packet ID:", p.ID)
 		return
 	}
 

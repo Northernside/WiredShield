@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"fmt"
 	"net"
 	"os"
 	"runtime"
@@ -31,14 +30,14 @@ func main() {
 func initNode() {
 	conn, err := connectToMaster()
 	if err != nil {
-		logger.Fatal("failed to connect to master:", err)
+		logger.Fatal("Failed to connect to master:", err)
 		return
 	}
 	defer conn.Close()
 
 	handleEncryption(conn)
 
-	logger.Log("Connected to master")
+	logger.Println("Connected to master")
 
 	err = conn.SendPacket(packet.ID_Login, packet.Login{
 		NodeInfo: types.NodeInfo{
@@ -53,7 +52,7 @@ func initNode() {
 		},
 	})
 	if err != nil {
-		logger.Fatal("failed to send login packet:", err)
+		logger.Fatal("Failed to send login packet:", err)
 		return
 	}
 
@@ -61,7 +60,7 @@ func initNode() {
 		p := new(protocol.Packet)
 		err := p.Read(conn)
 		if err != nil {
-			logger.Fatal("failed to read packet:", err)
+			logger.Fatal("Failed to read packet:", err)
 			return
 		}
 
@@ -69,7 +68,7 @@ func initNode() {
 		if handler != nil {
 			handler.Handle(conn, p)
 		} else {
-			logger.Log("unknown packet ID:", p.ID)
+			logger.Println("Unknown packet ID:", p.ID)
 		}
 	}
 }
@@ -77,7 +76,7 @@ func initNode() {
 func connectToMaster() (*protocol.Conn, error) {
 	conn, err := net.Dial("tcp", "127.0.0.1:2000")
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to master: %w", err)
+		return nil, err
 	}
 
 	return protocol.NewConn(conn), nil
@@ -87,25 +86,25 @@ func handleEncryption(conn *protocol.Conn) {
 	sharedSecret := utils.RandomBytes(16)
 	masterPubKey, err := pgp.LoadPublicKey("keys/master-public.pem")
 	if err != nil {
-		logger.Fatal("failed to load master public key:", err)
+		logger.Fatal("Failed to load master public key:", err)
 		return
 	}
 
 	buf, err := rsa.EncryptPKCS1v15(rand.Reader, masterPubKey, sharedSecret)
 	if err != nil {
-		logger.Log("failed to encrypt shared secret:", err)
+		logger.Println("Failed to encrypt shared secret:", err)
 		return
 	}
 
 	err = conn.SendRawPacket(packet.ID_SharedSecret, buf)
 	if err != nil {
-		logger.Fatal("failed to send shared secret packet:", err)
+		logger.Fatal("Failed to send shared secret packet:", err)
 		return
 	}
 
 	err = conn.EnableEncryption(sharedSecret)
 	if err != nil {
-		logger.Fatal("failed to enable encryption:", err)
+		logger.Fatal("Failed to enable encryption:", err)
 		return
 	}
 }

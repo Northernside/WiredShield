@@ -58,7 +58,7 @@ func RandomUUID() string {
 	var uuid [16]byte
 	_, err := io.ReadFull(rand.Reader, uuid[:])
 	if err != nil {
-		logger.Log("error generating UUID: %v", err)
+		logger.Println("Error generating UUID: %v", err)
 		return ""
 	}
 

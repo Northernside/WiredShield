@@ -10,14 +10,14 @@ func GetListeners() []net.IP {
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		logger.Log("failed to get network interfaces:", err)
+		logger.Println("Failed to get network interfaces:", err)
 		return listeners
 	}
 
 	for _, iface := range ifaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			logger.Log("failed to get addresses for interface:", iface.Name, err)
+			logger.Println("Failed to get addresses for interface:", iface.Name, err)
 			continue
 		}
 

@@ -16,14 +16,14 @@ func (h *LoginHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 	var login packet.Login
 	err := protocol.DecodePacket(p.Data, &login)
 	if err != nil {
-		logger.Log("error decoding login packet:", err)
+		logger.Println("Error decoding login packet:", err)
 		conn.Close()
 		return
 	}
 
 	_, err = pgp.LoadPublicKey("keys/" + login.Key + "-public.pem")
 	if err != nil {
-		logger.Log("error loading public key:", err)
+		logger.Println("Error loading public key:", err)
 		conn.Close()
 		return
 	}
@@ -43,7 +43,7 @@ func (h *LoginHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 		Challenge: challenge,
 	})
 	if err != nil {
-		logger.Log("error sending challenge packet:", err)
+		logger.Println("Error sending challenge packet:", err)
 		conn.Close()
 		return
 	}

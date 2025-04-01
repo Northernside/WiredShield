@@ -14,24 +14,24 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 	var ch packet.Challenge
 	err := protocol.DecodePacket(p.Data, &ch)
 	if err != nil {
-		logger.Log("error decoding challenge result packet:", err)
+		logger.Println("Error decoding challenge result packet:", err)
 		return
 	}
 
 	if _, ok := packet.PendingChallenges[ch.Challenge]; !ok {
-		logger.Log("challenge not found:", ch.Challenge)
+		logger.Println("Challenge not found:", ch.Challenge)
 		return
 	}
 
 	publicKey, err := pgp.LoadPublicKey("keys/" + ch.Key + "-public.pem")
 	if err != nil {
-		logger.Log("error loading public key:", err)
+		logger.Println("Error loading public key:", err)
 		conn.Close()
 		return
 	}
 
 	if err := pgp.VerifySignature(ch.Challenge, ch.Result, publicKey); err != nil {
-		logger.Log("signature verification failed:", err)
+		logger.Println("Signature verification failed:", err)
 		delete(packet.PendingChallenges, ch.Challenge)
 		conn.Close()
 		return
@@ -39,7 +39,7 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 
 	mutualSignature, err := pgp.SignMessage(ch.MutualChallenge, pgp.PrivateKey)
 	if err != nil {
-		logger.Log("error signing mutual challenge:", err)
+		logger.Println("Error signing mutual challenge:", err)
 		conn.Close()
 		return
 	}

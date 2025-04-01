@@ -17,12 +17,12 @@ func (h *ChallengeStartHandler) Handle(conn *protocol.Conn, p *protocol.Packet) 
 	var ch packet.Challenge
 	err := protocol.DecodePacket(p.Data, &ch)
 	if err != nil {
-		logger.Fatal("failed to decode challenge packet:", err)
+		logger.Fatal("Failed to decode challenge packet:", err)
 	}
 
 	signature, err := pgp.SignMessage(ch.Challenge, pgp.PrivateKey)
 	if err != nil {
-		logger.Fatal("failed to sign challenge:", err)
+		logger.Fatal("Failed to sign challenge:", err)
 	}
 
 	mutualChallenge := fmt.Sprintf("%s-%d-%s",
@@ -40,6 +40,6 @@ func (h *ChallengeStartHandler) Handle(conn *protocol.Conn, p *protocol.Packet) 
 
 	err = conn.SendPacket(packet.ID_ChallengeResult, challengeResultPacket)
 	if err != nil {
-		logger.Fatal("failed to send challenge result packet:", err)
+		logger.Fatal("Failed to send challenge result packet:", err)
 	}
 }
