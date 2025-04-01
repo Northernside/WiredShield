@@ -1,3 +1,5 @@
+// Credits: https://github.com/mxha39
+
 package protocol
 
 import (
@@ -35,7 +37,7 @@ func (c *Conn) SetDeadline(t time.Time) error {
 }
 
 func (c *Conn) SetReadDeadline(t time.Time) error {
-	return c.SetReadDeadline(t)
+	return c.conn.SetReadDeadline(t)
 }
 
 func (c *Conn) SetWriteDeadline(t time.Time) error {

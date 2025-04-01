@@ -16,6 +16,7 @@ import (
 	"wired/modules/protocol"
 	"wired/modules/types"
 	"wired/modules/utils"
+	"wired/node/dns"
 	protocol_handler "wired/node/protocol"
 )
 
@@ -26,6 +27,7 @@ func init() {
 func main() {
 	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
+	go dns.Run()
 
 	for {
 		initNode()

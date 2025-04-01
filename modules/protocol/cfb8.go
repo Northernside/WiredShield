@@ -1,7 +1,7 @@
-package protocol
-
 // All credits go to Ilmari Karonen
 // Source: https://stackoverflow.com/questions/23897809/different-results-in-go-and-pycrypto-when-using-aes-cfb/37234233#37234233
+
+package protocol
 
 import (
 	"crypto/cipher"
