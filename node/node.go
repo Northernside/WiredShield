@@ -3,9 +3,11 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"io"
 	"net"
 	"os"
 	"runtime"
+	"time"
 	"wired/modules/cache"
 	"wired/modules/env"
 	"wired/modules/logger"
@@ -24,13 +26,18 @@ func init() {
 func main() {
 	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
-	initNode()
+
+	for {
+		initNode()
+		logger.Println("Reconnecting to master...")
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func initNode() {
 	conn, err := connectToMaster()
 	if err != nil {
-		logger.Fatal("Failed to connect to master:", err)
+		logger.Println("Failed to connect to master:", err)
 		return
 	}
 	defer conn.Close()
@@ -60,6 +67,11 @@ func initNode() {
 		p := new(protocol.Packet)
 		err := p.Read(conn)
 		if err != nil {
+			if err == io.EOF {
+				logger.Println("Lost connecton to master")
+				return
+			}
+
 			logger.Fatal("Failed to read packet:", err)
 			return
 		}
