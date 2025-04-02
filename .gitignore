@@ -28,4 +28,6 @@ go.work.sum
 
 zonefile.txt
 
+*.mmdb
+
 .DS_Store

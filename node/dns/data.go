@@ -50,12 +50,12 @@ func loadZonefile() {
 
 	logger.Println("Loaded zone file successfully")
 
-	for zone, records := range zones {
+	/*for zone, records := range zones {
 		logger.Println(fmt.Sprintf("Zone: %s, Records: %d", zone, len(records)))
 		for _, record := range records {
 			logger.Println("  ", recordToZoneFile(record))
 		}
-	}
+	}*/
 }
 
 func addRecord(zone string, record dns.RR) error {

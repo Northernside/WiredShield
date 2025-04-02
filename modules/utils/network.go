@@ -2,6 +2,7 @@ package utils
 
 import (
 	"net"
+	"strings"
 	"wired/modules/logger"
 )
 
@@ -27,9 +28,19 @@ func GetListeners() []net.IP {
 				continue
 			}
 
-			listeners = append(listeners, ipNet.IP)
+			if ipNet.IP.IsGlobalUnicast() {
+				listeners = append(listeners, ipNet.IP)
+			}
 		}
 	}
 
 	return listeners
+}
+
+func IsIPv4(ip net.IP) bool {
+	return strings.Count(ip.String(), ":") < 2
+}
+
+func IsIPv6(ip net.IP) bool {
+	return strings.Count(ip.String(), ":") >= 2
 }

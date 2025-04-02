@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	_ "embed"
 	"io"
 	"net"
 	"os"
@@ -19,6 +20,9 @@ import (
 	"wired/node/dns"
 	protocol_handler "wired/node/protocol"
 )
+
+//go:embed version.txt
+var version string
 
 func init() {
 	env.LoadEnvFile()
@@ -48,12 +52,18 @@ func initNode() {
 
 	logger.Println("Connected to master")
 
+	fileHash, err := utils.GetFileHash(os.Args[0])
+	if err != nil {
+		logger.Fatal("Failed to get binary hash:", err)
+		return
+	}
+
 	err = conn.SendPacket(packet.ID_Login, packet.Login{
 		NodeInfo: types.NodeInfo{
 			Key:       env.GetEnv("NODE_KEY", "node-key"),
 			Arch:      runtime.GOARCH,
-			Version:   "",
-			Hash:      []byte{},
+			Version:   version,
+			Hash:      fileHash,
 			PID:       os.Getpid(),
 			Listeners: utils.GetListeners(),
 			Location:  types.Location{Lon: 0, Lat: 0},
