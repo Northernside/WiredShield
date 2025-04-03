@@ -17,6 +17,13 @@ type MMLocation struct {
 	Lon         float64 `maxminddb:"longitude"`
 }
 
+type GeoInfo struct {
+	IP         net.IP
+	MMLocation *MMLocation
+}
+
+var NodeListeners = make(map[string][]GeoInfo)
+
 var (
 	v4DB *maxminddb.Reader
 	v6DB *maxminddb.Reader
@@ -82,6 +89,33 @@ func GetLocationDistance(loc1, loc2 *MMLocation) float64 {
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
 	return R * c
+}
+
+func FindNearestLocation(origin GeoInfo, ipVersion int) (GeoInfo, error) {
+	var nearest GeoInfo
+	minDistance := math.MaxFloat64
+
+	for _, listeners := range NodeListeners {
+		for _, geoInfo := range listeners {
+			if !utils.IsIPv4(geoInfo.IP) && ipVersion == 4 {
+				continue
+			} else if !utils.IsIPv6(geoInfo.IP) && ipVersion == 6 {
+				continue
+			}
+
+			distance := GetLocationDistance(origin.MMLocation, geoInfo.MMLocation)
+			if distance < minDistance {
+				minDistance = distance
+				nearest = geoInfo
+			}
+		}
+	}
+
+	if minDistance == math.MaxFloat64 {
+		return GeoInfo{}, fmt.Errorf("no nearby locations found")
+	}
+
+	return nearest, nil
 }
 
 func lookupV4(ip net.IP) (*MMLocation, error) {

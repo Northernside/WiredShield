@@ -1,7 +1,9 @@
 package event_data
 
-import "github.com/miekg/dns"
+import (
+	"wired/modules/types"
+)
 
 type AddRecordData struct {
-	Record dns.RR
+	Record types.DNSRecord
 }

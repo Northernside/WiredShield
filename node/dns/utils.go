@@ -3,6 +3,7 @@ package dns
 import (
 	"fmt"
 	"strings"
+	"wired/modules/types"
 
 	"github.com/miekg/dns"
 )
@@ -53,7 +54,7 @@ func recordToZoneFile(rr dns.RR) string {
 
 func zoneFileToRecord(zoneLine string) (dns.RR, error) {
 	if strings.HasPrefix(zoneLine, ";") || strings.TrimSpace(zoneLine) == "" {
-		return nil, fmt.Errorf("comment or empty line")
+		return nil, types.ErrUnusableLine
 	}
 
 	rr, err := dns.NewRR(zoneLine)

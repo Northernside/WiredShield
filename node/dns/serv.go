@@ -1,14 +1,17 @@
 package dns
 
 import (
+	"net"
 	"os"
 	"strings"
+	"wired/modules/geo"
 	"wired/modules/logger"
+	"wired/modules/types"
 
 	"github.com/miekg/dns"
 )
 
-var zones = make(map[string][]dns.RR)
+var zones = make(map[string][]types.DNSRecord)
 
 func init() {
 	if _, err := os.Stat("zonefile.txt"); os.IsNotExist(err) {
@@ -47,6 +50,19 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	m.Authoritative = true
 
+	var userIP net.IP
+	if udpConn, ok := w.LocalAddr().(*net.UDPAddr); ok {
+		userIP = udpConn.IP
+	} else if tcpConn, ok := w.LocalAddr().(*net.TCPAddr); ok {
+		userIP = tcpConn.IP
+	}
+
+	userLoc, err := geo.GetLocation(userIP)
+	if err != nil {
+		logger.Println("Error getting user location:", err)
+		return
+	}
+
 	for _, q := range r.Question {
 		qname := strings.ToLower(q.Name)
 		qtype := q.Qtype
@@ -65,13 +81,39 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		)
 
 		for _, rr := range zones[zone] {
-			rrName := strings.ToLower(rr.Header().Name)
+			rrName := strings.ToLower(rr.Record.Header().Name)
 			if rrName == qname {
 				nameExists = true
-				if rr.Header().Rrtype == dns.TypeCNAME {
-					cnameRecords = append(cnameRecords, rr)
-				} else if rr.Header().Rrtype == qtype {
-					answerRecords = append(answerRecords, rr)
+				if rr.Record.Header().Rrtype == dns.TypeCNAME {
+					cnameRecords = append(cnameRecords, rr.Record)
+				} else if rr.Record.Header().Rrtype == qtype {
+					if rr.Metadata.Protected {
+						if _, ok := rr.Record.(*dns.AAAA); ok {
+							loc, err := geo.FindNearestLocation(geo.GeoInfo{
+								IP:         userIP,
+								MMLocation: userLoc,
+							}, 6)
+							if err != nil {
+								logger.Println("Error finding nearest location:", err)
+								continue
+							}
+
+							rr.Record.(*dns.AAAA).AAAA = loc.IP
+						} else if _, ok := rr.Record.(*dns.A); ok {
+							loc, err := geo.FindNearestLocation(geo.GeoInfo{
+								IP:         userIP,
+								MMLocation: userLoc,
+							}, 6)
+							if err != nil {
+								logger.Println("Error finding nearest location:", err)
+								continue
+							}
+
+							rr.Record.(*dns.A).A = loc.IP
+						}
+					}
+
+					answerRecords = append(answerRecords, rr.Record)
 				}
 			}
 		}
@@ -134,7 +176,7 @@ func findZone(qname string) string {
 
 func getSOA(zone string, nxdomain bool) []dns.RR {
 	for _, rr := range zones[zone] {
-		if soa, ok := rr.(*dns.SOA); ok {
+		if soa, ok := rr.Record.(*dns.SOA); ok {
 			soaCopy := *soa
 			soaCopy.Hdr = dns.RR_Header{
 				Name:   soa.Hdr.Name,

@@ -30,7 +30,7 @@ func addRecordEventHandler(eventChan <-chan event.Event) {
 			continue
 		}
 
-		addRecord(data.Record.Header().Name, data.Record)
+		AddRecord(data.Record.Record.Header().Name, data.Record)
 	}
 }
 

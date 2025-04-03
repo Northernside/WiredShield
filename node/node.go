@@ -19,6 +19,8 @@ import (
 	"wired/modules/utils"
 	"wired/node/dns"
 	protocol_handler "wired/node/protocol"
+
+	mDns "github.com/miekg/dns"
 )
 
 //go:embed version.txt
@@ -32,6 +34,21 @@ func main() {
 	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
 	go dns.Start()
+	dns.AddRecord("test.northernsi.de", types.DNSRecord{
+		Record: &mDns.A{
+			Hdr: mDns.RR_Header{
+				Name:   "test.northernsi.de.",
+				Rrtype: mDns.TypeA,
+				Class:  mDns.ClassINET,
+				Ttl:    3600,
+			},
+			A: net.IPv4(127, 0, 0, 1),
+		},
+		Metadata: types.RecordMetadata{
+			Protected: true,
+			Geo:       true,
+		},
+	})
 
 	for {
 		initNode()

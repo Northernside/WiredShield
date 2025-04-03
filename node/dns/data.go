@@ -11,15 +11,11 @@ import (
 	"wired/modules/event"
 	event_data "wired/modules/event/events"
 	"wired/modules/logger"
+	"wired/modules/types"
 	"wired/node/protocol/packets"
 
 	"github.com/miekg/dns"
 )
-
-type RecordMetadata struct {
-	Protected bool `json:"protected"`
-	Geo       bool `json:"geo"`
-}
 
 func loadZonefile() {
 	file, err := os.Open("zonefile.txt")
@@ -33,7 +29,7 @@ func loadZonefile() {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		var comment = RecordMetadata{}
+		var comment = types.RecordMetadata{}
 		if strings.Contains(line, ";") {
 			err := json.Unmarshal([]byte(strings.Split(line, ";")[1]), &comment)
 			if err != nil {
@@ -44,6 +40,10 @@ func loadZonefile() {
 
 		rr, err := zoneFileToRecord(line)
 		if err != nil {
+			if err == types.ErrUnusableLine {
+				continue
+			}
+
 			logger.Println("Error parsing zone file line:", err)
 			continue
 		}
@@ -52,10 +52,13 @@ func loadZonefile() {
 		name := strings.ToLower(hdr.Name)
 		zone := dns.CanonicalName(name)
 		if _, ok := zones[zone]; !ok {
-			zones[zone] = []dns.RR{}
+			zones[zone] = []types.DNSRecord{}
 		}
 
-		zones[zone] = append(zones[zone], rr)
+		zones[zone] = append(zones[zone], types.DNSRecord{
+			Record:   rr,
+			Metadata: comment,
+		})
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -65,18 +68,18 @@ func loadZonefile() {
 
 	logger.Println("Loaded zone file successfully")
 
-	for zone, records := range zones {
+	/*for zone, records := range zones {
 		logger.Println(fmt.Sprintf("Zone: %s, Records: %d", zone, len(records)))
 		for _, record := range records {
-			logger.Println("  ", recordToZoneFile(record))
+			logger.Println("  ", recordToZoneFile(record.Record), " Protected:", record.Metadata.Protected, " Geo:", record.Metadata.Geo)
 		}
-	}
+	}*/
 }
 
-func addRecord(zone string, record dns.RR) error {
+func AddRecord(zone string, record types.DNSRecord) error {
 	zone = strings.ToLower(zone)
 	if _, ok := zones[zone]; !ok {
-		zones[zone] = []dns.RR{}
+		zones[zone] = []types.DNSRecord{}
 	}
 
 	zones[zone] = append(zones[zone], record)
@@ -90,8 +93,14 @@ func addRecord(zone string, record dns.RR) error {
 	}
 	defer file.Close()
 
+	marshalledMetadata, err := json.Marshal(record.Metadata)
+	if err != nil {
+		logger.Println("Error marshalling metadata:", err)
+		return err
+	}
+
 	writer := bufio.NewWriter(file)
-	_, err = writer.WriteString(recordToZoneFile(record) + "\n")
+	_, err = writer.WriteString(recordToZoneFile(record.Record) + ";" + string(marshalledMetadata) + "\n")
 	if err != nil {
 		logger.Println("Error writing to zone file:", err)
 		return err
@@ -175,7 +184,7 @@ func removeRecord(zone string, index int) error {
 	return nil
 }
 
-func listRecords(zone string) ([]dns.RR, error) {
+func listRecords(zone string) ([]types.DNSRecord, error) {
 	zone = strings.ToLower(zone)
 	if _, ok := zones[zone]; !ok {
 		return nil, fmt.Errorf("zone %s not found", zone)
