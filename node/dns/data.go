@@ -2,6 +2,7 @@ package dns
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +16,11 @@ import (
 	"github.com/miekg/dns"
 )
 
+type RecordMetadata struct {
+	Protected bool `json:"protected"`
+	Geo       bool `json:"geo"`
+}
+
 func loadZonefile() {
 	file, err := os.Open("zonefile.txt")
 	if err != nil {
@@ -26,6 +32,15 @@ func loadZonefile() {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		var comment = RecordMetadata{}
+		if strings.Contains(line, ";") {
+			err := json.Unmarshal([]byte(strings.Split(line, ";")[1]), &comment)
+			if err != nil {
+				logger.Println("Error unmarshalling comment metadata:", err)
+				continue
+			}
+		}
 
 		rr, err := zoneFileToRecord(line)
 		if err != nil {
@@ -50,12 +65,12 @@ func loadZonefile() {
 
 	logger.Println("Loaded zone file successfully")
 
-	/*for zone, records := range zones {
+	for zone, records := range zones {
 		logger.Println(fmt.Sprintf("Zone: %s, Records: %d", zone, len(records)))
 		for _, record := range records {
 			logger.Println("  ", recordToZoneFile(record))
 		}
-	}*/
+	}
 }
 
 func addRecord(zone string, record dns.RR) error {
