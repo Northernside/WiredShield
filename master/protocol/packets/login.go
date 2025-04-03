@@ -37,8 +37,8 @@ func (h *LoginHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 	)
 
 	packet.PendingChallenges[challenge] = packet.Challenge{
+		NodeInfo:  login.NodeInfo,
 		Challenge: challenge,
-		Key:       login.Key,
 	}
 
 	err = conn.SendPacket(packet.ID_ChallengeStart, packet.Challenge{

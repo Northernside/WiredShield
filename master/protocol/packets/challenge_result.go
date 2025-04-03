@@ -2,11 +2,12 @@ package packets
 
 import (
 	"fmt"
-	"wired/modules/env"
+	"wired/modules/cache"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
+	"wired/modules/types"
 )
 
 type ChallengeResultHandler struct{}
@@ -24,7 +25,8 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 		return
 	}
 
-	publicKey, err := pgp.LoadPublicKey("keys/" + ch.Key + "-public.pem")
+	newNode := packet.PendingChallenges[ch.Challenge].NodeInfo
+	publicKey, err := pgp.LoadPublicKey("keys/" + newNode.Key + "-public.pem")
 	if err != nil {
 		logger.Println("Error loading public key:", err)
 		conn.Close()
@@ -46,7 +48,6 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 	}
 
 	challengeFinishPacket := packet.Challenge{
-		Key:       env.GetEnv("NODE_KEY", "node-key"),
 		Challenge: ch.MutualChallenge,
 		Result:    mutualSignature,
 	}
@@ -55,5 +56,13 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 	conn.SendPacket(packet.ID_ChallengeFinish, challengeFinishPacket)
 	delete(packet.PendingChallenges, ch.Challenge)
 
-	logger.Println(fmt.Sprintf("Node %s%s%s connected", logger.ColorGray, ch.Key, logger.ColorReset))
+	logger.Println(fmt.Sprintf("Node %s%s%s connected", logger.ColorGray, newNode.Key, logger.ColorReset))
+	value, found := cache.Get[map[string]types.NodeInfo]("nodes")
+	if !found {
+		value = make(map[string]types.NodeInfo)
+	}
+
+	for _, node := range value {
+		node.Conn.SendPacket(packet.ID_NodeAttached, newNode)
+	}
 }

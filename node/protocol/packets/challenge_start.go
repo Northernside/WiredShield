@@ -3,7 +3,6 @@ package packets
 import (
 	"fmt"
 	"time"
-	"wired/modules/env"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
@@ -32,7 +31,6 @@ func (h *ChallengeStartHandler) Handle(conn *protocol.Conn, p *protocol.Packet) 
 	)
 
 	challengeResultPacket := packet.Challenge{
-		Key:             env.GetEnv("NODE_KEY", "node-key"),
 		Challenge:       ch.Challenge,
 		Result:          signature,
 		MutualChallenge: mutualChallenge,

@@ -23,6 +23,9 @@ const (
 	ID_BinaryDataEnd protocol.VarInt = 12
 
 	ID_EventTransmission protocol.VarInt = 13
+
+	ID_NodeAttached protocol.VarInt = 14 // master -> node
+	ID_NodeDetached protocol.VarInt = 15 // master -> node
 )
 
 var PendingChallenges = make(map[string]Challenge) // key -> Challenge
@@ -32,7 +35,7 @@ type Login struct {
 }
 
 type Challenge struct {
-	Key             string
+	NodeInfo        types.NodeInfo
 	Challenge       string
 	Result          []byte // signed challenge
 	MutualChallenge string // used to verify the masters identity

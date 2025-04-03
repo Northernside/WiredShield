@@ -109,5 +109,6 @@ func loadMaxMindDB(dbPath string) (*maxminddb.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open MaxMind DB: %w", err)
 	}
+
 	return db, nil
 }

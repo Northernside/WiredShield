@@ -72,6 +72,12 @@ func nodeHandler(conn *protocol.Conn) {
 				delete(value, conn.Key)
 				cache.Store("nodes", value, 0)
 			}
+
+			for _, node := range value {
+				node.Conn.SendPacket(15, types.NodeInfo{
+					Key: conn.Key,
+				})
+			}
 		}
 	}()
 
