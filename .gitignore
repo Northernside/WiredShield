@@ -31,3 +31,6 @@ zonefile.txt
 *.mmdb
 
 .DS_Store
+
+.vscode
+dump/

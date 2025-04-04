@@ -103,7 +103,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 							loc, err := geo.FindNearestLocation(geo.GeoInfo{
 								IP:         userIP,
 								MMLocation: userLoc,
-							}, 6)
+							}, 4)
 							if err != nil {
 								logger.Println("Error finding nearest location:", err)
 								continue

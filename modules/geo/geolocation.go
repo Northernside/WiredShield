@@ -97,9 +97,9 @@ func FindNearestLocation(origin GeoInfo, ipVersion int) (GeoInfo, error) {
 
 	for _, listeners := range NodeListeners {
 		for _, geoInfo := range listeners {
-			if !utils.IsIPv4(geoInfo.IP) && ipVersion == 4 {
+			if ipVersion == 4 && !utils.IsIPv4(geoInfo.IP) {
 				continue
-			} else if !utils.IsIPv6(geoInfo.IP) && ipVersion == 6 {
+			} else if ipVersion == 6 && !utils.IsIPv6(geoInfo.IP) {
 				continue
 			}
 
