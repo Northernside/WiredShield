@@ -4,6 +4,8 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
+	"wired/modules/env"
 	"wired/modules/geo"
 	"wired/modules/logger"
 	"wired/modules/types"
@@ -95,9 +97,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 							}, 6)
 							if err != nil {
 								logger.Println("Error finding nearest location:", err)
+								debugTxt := makeDebugTxt(qname, err.Error())
+								m.Extra = append(m.Extra, debugTxt)
 								continue
 							}
-
 							rr.Record.(*dns.AAAA).AAAA = loc.IP
 						} else if _, ok := rr.Record.(*dns.A); ok {
 							loc, err := geo.FindNearestLocation(geo.GeoInfo{
@@ -106,6 +109,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 							}, 4)
 							if err != nil {
 								logger.Println("Error finding nearest location:", err)
+								debugTxt := makeDebugTxt(qname, err.Error())
+								m.Extra = append(m.Extra, debugTxt)
 								continue
 							}
 
@@ -157,6 +162,23 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	w.WriteMsg(m)
+}
+
+func makeDebugTxt(qname string, text string) *dns.TXT {
+	return &dns.TXT{
+		Hdr: dns.RR_Header{
+			Name:   qname,
+			Rrtype: dns.TypeTXT,
+			Class:  dns.ClassINET,
+			Ttl:    0,
+		},
+		Txt: []string{
+			"Debug info due to error",
+			"Error: " + text,
+			"Time: " + time.Now().Format(time.RFC3339),
+			"Node: " + env.GetEnv("NODE_KEY", "node-key"),
+		},
+	}
 }
 
 func findZone(qname string) string {
