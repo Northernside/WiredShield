@@ -25,5 +25,5 @@ func (h *NodeDetachedHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 	delete(value, detcPacket.Key)
 	delete(geo.NodeListeners, detcPacket.Key)
 
-	logger.Println("Node detached:", detcPacket.Key)
+	logger.Println("Node detached: ", detcPacket.Key)
 }
