@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	_ "embed"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -99,7 +100,7 @@ func initNode() {
 }
 
 func connectToMaster() (*protocol.Conn, error) {
-	conn, err := net.Dial("tcp", "127.0.0.1:2000")
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:2000", env.GetEnv("GATEWAY", "shepherd.wired.rip")))
 	if err != nil {
 		return nil, err
 	}

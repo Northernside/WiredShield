@@ -97,7 +97,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 							}, 6)
 							if err != nil {
 								logger.Println("Error finding nearest location:", err)
-								debugTxt := makeDebugTxt(qname, err.Error())
+								debugTxt := makeErrorTxt(qname, err.Error())
 								m.Extra = append(m.Extra, debugTxt)
 								continue
 							}
@@ -109,7 +109,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 							}, 4)
 							if err != nil {
 								logger.Println("Error finding nearest location:", err)
-								debugTxt := makeDebugTxt(qname, err.Error())
+								debugTxt := makeErrorTxt(qname, err.Error())
 								m.Extra = append(m.Extra, debugTxt)
 								continue
 							}
@@ -218,7 +218,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	w.WriteMsg(m)
 }
 
-func makeDebugTxt(qname string, text string) *dns.TXT {
+func makeErrorTxt(qname string, text string) *dns.TXT {
 	return &dns.TXT{
 		Hdr: dns.RR_Header{
 			Name:   qname,

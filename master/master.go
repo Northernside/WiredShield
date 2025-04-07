@@ -29,7 +29,7 @@ func main() {
 }
 
 func initNodeListener() {
-	listener, err := net.Listen("tcp", ":2000")
+	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", env.GetEnv("MASTER_PORT", "2000")))
 	if err != nil {
 		logger.Fatal("Failed to start node listener:", err)
 	}
