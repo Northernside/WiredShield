@@ -123,13 +123,67 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		}
 
-		// CNAME
+		// CNAME handling
 		if len(cnameRecords) > 0 && qtype != dns.TypeCNAME {
 			for _, cname := range cnameRecords {
 				cname.Header().Name = q.Name
 			}
 
 			m.Answer = append(m.Answer, cnameRecords...)
+
+			// Resolve CNAME targets
+			for _, cname := range cnameRecords {
+				cnameRecord, ok := cname.(*dns.CNAME)
+				if !ok {
+					continue
+				}
+
+				target := dns.CanonicalName(cnameRecord.Target)
+				targetZone := findZone(target)
+				if targetZone == "" {
+					continue
+				}
+
+				var targetAnswers []dns.RR
+				for _, rr := range zones[targetZone] {
+					rrName := strings.ToLower(rr.Record.Header().Name)
+					if rrName == target && (rr.Record.Header().Rrtype == qtype) {
+						clonedRR := dns.Copy(rr.Record)
+						if rr.Metadata.Protected {
+							switch cloned := clonedRR.(type) {
+							case *dns.A:
+								loc, err := geo.FindNearestLocation(geo.GeoInfo{
+									IP:         userIP,
+									MMLocation: userLoc,
+								}, 4)
+								if err != nil {
+									logger.Println("Error finding nearest location for target A record:", err)
+									continue
+								}
+
+								cloned.A = loc.IP
+							case *dns.AAAA:
+								loc, err := geo.FindNearestLocation(geo.GeoInfo{
+									IP:         userIP,
+									MMLocation: userLoc,
+								}, 6)
+								if err != nil {
+									logger.Println("Error finding nearest location for target AAAA record:", err)
+									continue
+								}
+
+								cloned.AAAA = loc.IP
+							}
+						}
+
+						targetAnswers = append(targetAnswers, clonedRR)
+					}
+				}
+
+				if len(targetAnswers) > 0 {
+					m.Answer = append(m.Answer, targetAnswers...)
+				}
+			}
 		} else if len(cnameRecords) > 0 && qtype == dns.TypeCNAME {
 			for _, cname := range cnameRecords {
 				cname.Header().Name = q.Name
