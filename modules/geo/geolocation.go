@@ -25,8 +25,10 @@ type GeoInfo struct {
 var NodeListeners = make(map[string][]GeoInfo)
 
 var (
-	v4DB *maxminddb.Reader
-	v6DB *maxminddb.Reader
+	v4DB  *maxminddb.Reader
+	v6DB  *maxminddb.Reader
+	v4URL string = "https://github.com/sapics/ip-location-db/raw/refs/heads/main/geolite2-city-mmdb/geolite2-city-ipv4.mmdb"
+	v6URL string = "https://github.com/sapics/ip-location-db/raw/refs/heads/main/geolite2-city-mmdb/geolite2-city-ipv6.mmdb"
 )
 
 const R = 6371              // earth radius in km
@@ -36,17 +38,17 @@ func init() {
 	var err error
 	v4DB, err = loadMaxMindDB("geolite2-city-ipv4.mmdb")
 	if err != nil {
-		fmt.Println("Error loading IPv4 database: ", err)
-		return
+		logger.Println("Error loading IPv4 database: ", err)
+		downloadDB(v4URL, "geolite2-city-ipv4.mmdb")
 	}
 
 	v6DB, err = loadMaxMindDB("geolite2-city-ipv6.mmdb")
 	if err != nil {
-		fmt.Println("Error loading IPv6 database: ", err)
-		return
+		logger.Println("Error loading IPv6 database: ", err)
+		downloadDB(v6URL, "geolite2-city-ipv6.mmdb")
 	}
 
-	logger.Println("loaded geo loc dbs")
+	logger.Println("Loaded GeoLocation databases successfully")
 }
 
 func GetLocation(ip net.IP) (*MMLocation, error) {
@@ -145,4 +147,20 @@ func loadMaxMindDB(dbPath string) (*maxminddb.Reader, error) {
 	}
 
 	return db, nil
+}
+
+func downloadDB(url, filename string) {
+	logger.Println("Starting download of geolite2-city-ipv4.mmdb")
+	err := utils.DownloadFile(url, filename)
+	if err != nil {
+		logger.Fatal("Error downloading geolite2-city-ipv4.mmdb: ", err)
+	}
+
+	logger.Println("Download complete, loading geolite2-city-ipv4.mmdb")
+	v4DB, err = loadMaxMindDB(filename)
+	if err != nil {
+		logger.Fatal("Error loading geolite2-city-ipv4.mmdb: ", err)
+	}
+
+	logger.Println("Loaded geolite2-city-ipv4.mmdb")
 }
