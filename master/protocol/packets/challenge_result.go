@@ -47,15 +47,6 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 		return
 	}
 
-	challengeFinishPacket := packet.Challenge{
-		Challenge: ch.MutualChallenge,
-		Result:    mutualSignature,
-	}
-
-	conn.State = protocol.StateFullyReady
-	conn.SendPacket(packet.ID_ChallengeFinish, challengeFinishPacket)
-	delete(packet.PendingChallenges, ch.Challenge)
-
 	logger.Println(fmt.Sprintf("Node %s%s%s connected", logger.ColorGray, newNode.Key, logger.ColorReset))
 	value, found := cache.Get[map[string]types.NodeInfo]("nodes")
 	if !found {
@@ -63,6 +54,20 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 	}
 
 	for _, node := range value {
+		if node.Key == newNode.Key {
+			continue
+		}
+
 		node.Conn.SendPacket(packet.ID_NodeAttached, newNode)
 	}
+
+	challengeFinishPacket := packet.Challenge{
+		Challenge: ch.MutualChallenge,
+		Result:    mutualSignature,
+		Nodes:     value,
+	}
+
+	conn.State = protocol.StateFullyReady
+	conn.SendPacket(packet.ID_ChallengeFinish, challengeFinishPacket)
+	delete(packet.PendingChallenges, ch.Challenge)
 }

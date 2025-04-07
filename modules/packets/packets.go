@@ -39,6 +39,7 @@ type Challenge struct {
 	Challenge       string
 	Result          []byte // signed challenge
 	MutualChallenge string // used to verify the masters identity
+	Nodes           map[string]types.NodeInfo
 }
 
 type EventTransmission struct {

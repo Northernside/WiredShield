@@ -2,6 +2,7 @@ package packets
 
 import (
 	"wired/modules/cache"
+	"wired/modules/geo"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
@@ -27,5 +28,27 @@ func (h *ChallengeFinishHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 		logger.Fatal("Failed to verify mutual challenge signature (sent by master):", err)
 	}
 
+	for _, node := range ch.Nodes {
+		if _, found := geo.NodeListeners[node.Key]; !found {
+			geo.NodeListeners[node.Key] = make([]geo.GeoInfo, 0)
+		}
+
+		for _, listener := range node.Listeners {
+			loc, err := geo.GetLocation(listener)
+			if err != nil {
+				logger.Println("Failed to get location for listener:", err)
+				continue
+			}
+
+			geoInfo := geo.GeoInfo{
+				IP:         listener,
+				MMLocation: loc,
+			}
+
+			geo.NodeListeners[node.Key] = append(geo.NodeListeners[node.Key], geoInfo)
+		}
+	}
+
+	cache.Store("nodes", ch.Nodes, 0)
 	cache.Store("authentication_finished", true, 0)
 }
