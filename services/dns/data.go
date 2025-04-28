@@ -5,17 +5,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"wired/modules/env"
 	"wired/modules/event"
 	event_data "wired/modules/event/events"
 	"wired/modules/logger"
+	"wired/modules/snowflake"
 	"wired/modules/types"
 	"wired/node/protocol/packets"
 
 	"github.com/miekg/dns"
 )
+
+var (
+	sf *snowflake.Snowflake
+)
+
+func init() {
+	machineIDStr := env.GetEnv("SNOWFLAKE_MACHINE_ID", "0")
+	machineID, err := strconv.ParseInt(machineIDStr, 10, 64)
+	if err != nil {
+		logger.Println("Invalid SNOWFLAKE_MACHINE_ID:", err)
+		panic(err)
+	}
+
+	sf, err = snowflake.NewSnowflake(machineID)
+	if err != nil {
+		logger.Println("Error creating Snowflake instance:", err)
+		panic(err)
+	}
+}
 
 func loadZonefile() {
 	file, err := os.Open("zonefile.txt")
@@ -67,47 +88,44 @@ func loadZonefile() {
 	}
 
 	logger.Println("Loaded zone file successfully")
-
-	/*for zone, records := range zones {
-		logger.Println(fmt.Sprintf("Zone: %s, Records: %d", zone, len(records)))
-		for _, record := range records {
-			logger.Println("  ", recordToZoneFile(record.Record), " Protected:", record.Metadata.Protected, " Geo:", record.Metadata.Geo)
-		}
-	}*/
 }
 
-func AddRecord(zone string, record types.DNSRecord) error {
+func AddRecord(zone string, record types.DNSRecord) (string, error) {
 	zone = strings.ToLower(zone)
 	if _, ok := zones[zone]; !ok {
 		zones[zone] = []types.DNSRecord{}
 	}
 
+	id := sf.GenerateID()
+	record.Metadata.ID = fmt.Sprintf("%d", id)
+
 	zones[zone] = append(zones[zone], record)
 
-	logger.Println("Adding record to zone:", zone)
-	// append new line to zone file with func recordToZoneFile <- one string (the line)
+	logger.Println("Adding record to zone: ", zone)
 	file, err := os.OpenFile("zonefile.txt", os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		logger.Println("Error opening zone file for appending:", err)
-		return err
+		return "", err
 	}
 	defer file.Close()
 
 	marshalledMetadata, err := json.Marshal(record.Metadata)
 	if err != nil {
 		logger.Println("Error marshalling metadata:", err)
-		return err
+		return "", err
 	}
 
 	writer := bufio.NewWriter(file)
 	_, err = writer.WriteString(recordToZoneFile(record.Record) + ";" + string(marshalledMetadata) + "\n")
 	if err != nil {
 		logger.Println("Error writing to zone file:", err)
-		return err
+		return "", err
 	}
+
 	err = writer.Flush()
 	if err != nil {
 		logger.Println("Error flushing writer:", err)
+		return "", err
 	}
 
 	packets.PacketEventBus.Pub(event.Event{
@@ -119,22 +137,33 @@ func AddRecord(zone string, record types.DNSRecord) error {
 		},
 	})
 
-	return nil
+	return record.Metadata.ID, nil
 }
 
-func RemoveRecord(zone string, index int) error {
-	zone = strings.ToLower(zone)
-	if _, ok := zones[zone]; !ok {
-		return fmt.Errorf("zone %s not found", zone)
+func RemoveRecord(id string) error {
+	var foundZone string
+	var foundIndex int = -1
+
+	for zone, records := range zones {
+		for i, record := range records {
+			if record.Metadata.ID == id {
+				foundZone = zone
+				foundIndex = i
+				break
+			}
+		}
+
+		if foundIndex != -1 {
+			break
+		}
 	}
 
-	if index < 0 || index >= len(zones[zone]) {
-		return fmt.Errorf("index %d out of range for zone %s", index, zone)
+	if foundIndex == -1 {
+		return fmt.Errorf("record with ID %s not found", id)
 	}
 
-	zones[zone] = append(zones[zone][:index], zones[zone][index+1:]...)
+	zones[foundZone] = append(zones[foundZone][:foundIndex], zones[foundZone][foundIndex+1:]...)
 
-	// remove lines[index] from zone file
 	file, err := os.Open("zonefile.txt")
 	if err != nil {
 		logger.Println("Error opening zone file for reading:", err)
@@ -144,8 +173,22 @@ func RemoveRecord(zone string, index int) error {
 
 	lines := []string{}
 	scanner := bufio.NewScanner(file)
+	targetLine := -1
+	lineNumber := 0
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+		line := scanner.Text()
+		parts := strings.SplitN(line, ";", 2)
+		if len(parts) > 1 {
+			var metadata types.RecordMetadata
+			if err := json.Unmarshal([]byte(parts[1]), &metadata); err != nil {
+				logger.Println("Error parsing metadata for line", lineNumber, ":", err)
+			} else if metadata.ID == id {
+				targetLine = lineNumber
+			}
+		}
+
+		lines = append(lines, line)
+		lineNumber++
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -153,11 +196,11 @@ func RemoveRecord(zone string, index int) error {
 		return err
 	}
 
-	if index < 0 || index >= len(lines) {
-		return fmt.Errorf("index %d out of range for zone file", index)
+	if targetLine == -1 {
+		return fmt.Errorf("record with ID %s not found in zone file", id)
 	}
 
-	lines = append(lines[:index], lines[index+1:]...)
+	lines = append(lines[:targetLine], lines[targetLine+1:]...)
 
 	file, err = os.OpenFile("zonefile.txt", os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
@@ -175,11 +218,19 @@ func RemoveRecord(zone string, index int) error {
 		}
 	}
 
-	err = writer.Flush()
-	if err != nil {
+	if err := writer.Flush(); err != nil {
 		logger.Println("Error flushing writer:", err)
 		return err
 	}
+
+	packets.PacketEventBus.Pub(event.Event{
+		Type:    event.Event_RemoveRecord,
+		FiredAt: time.Now(),
+		FiredBy: env.GetEnv("NODE_KEY", "node-key"),
+		Data: event_data.RemoveRecordData{
+			ID: id,
+		},
+	})
 
 	return nil
 }

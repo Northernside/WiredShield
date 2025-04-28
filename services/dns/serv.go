@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -71,9 +72,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.Authoritative = true
 
 	var userIP net.IP
-	if udpConn, ok := w.LocalAddr().(*net.UDPAddr); ok {
+	if udpConn, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 		userIP = udpConn.IP
-	} else if tcpConn, ok := w.LocalAddr().(*net.TCPAddr); ok {
+	} else if tcpConn, ok := w.RemoteAddr().(*net.TCPAddr); ok {
 		userIP = tcpConn.IP
 	}
 
@@ -114,7 +115,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 								MMLocation: userLoc,
 							}, 6)
 							if err != nil {
-								logger.Println("Error finding nearest location:", err)
+								logger.Println(fmt.Sprintf("Error finding nearest location for IPv6 %s: %v", userIP, err))
+								logger.Println("userLoc:", userLoc)
 								debugTxt := makeErrorTxt(qname, err.Error())
 								m.Extra = append(m.Extra, debugTxt)
 								continue
@@ -126,7 +128,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 								MMLocation: userLoc,
 							}, 4)
 							if err != nil {
-								logger.Println("Error finding nearest location:", err)
+								logger.Println(fmt.Sprintf("Error finding nearest location for IPv4 %s: %v", userIP, err))
+								logger.Println("userLoc:", userLoc)
 								debugTxt := makeErrorTxt(qname, err.Error())
 								m.Extra = append(m.Extra, debugTxt)
 								continue

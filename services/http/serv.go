@@ -75,8 +75,9 @@ func Start() {
 
 func initBackends() {
 	for host, addr := range hosts {
-		certFile := fmt.Sprintf("certs/%s-cert.pem", host)
-		keyFile := fmt.Sprintf("certs/%s-key.pem", host)
+		host = strings.TrimSuffix(host, ".")
+		certFile := fmt.Sprintf("certs/%s.crt", host)
+		keyFile := fmt.Sprintf("certs/%s.key", host)
 		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to load certificate for %s: %v", host, err))

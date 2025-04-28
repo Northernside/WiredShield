@@ -63,11 +63,11 @@ func GetLocation(ip net.IP) (*MMLocation, error) {
 
 // haversine https://en.wikipedia.org/wiki/Haversine_formula
 func GetLocationDistance(loc1, loc2 *MMLocation) float64 {
-	lat1 := loc1.Lat
-	lat2 := loc2.Lat
+	lat1 := loc1.Lat * D2R
+	lon1 := loc1.Lon * D2R
 
-	lon1 := loc1.Lon
-	lon2 := loc2.Lon
+	lat2 := loc2.Lat * D2R
+	lon2 := loc2.Lon * D2R
 
 	// Δ = delta
 	// φ = breitengrad
@@ -84,8 +84,8 @@ func GetLocationDistance(loc1, loc2 *MMLocation) float64 {
 	// c = 2 * atan2(sqrt(a), sqrt(1-a))
 	// d = R * c
 
-	dLon := (lon2 - lon1) * D2R
-	dLat := (lat2 - lat1) * D2R
+	dLon := lon2 - lon1
+	dLat := lat2 - lat1
 
 	a := math.Pow(math.Sin(dLat/2), 2) + math.Cos(lat1)*math.Cos(lat2)*math.Pow(math.Sin(dLon/2), 2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))

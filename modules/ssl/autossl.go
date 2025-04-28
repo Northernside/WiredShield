@@ -34,6 +34,14 @@ func GenerateCertificate(domain string) {
 		certFile := fmt.Sprintf("certs/%s.crt", domain)
 		keyFile := fmt.Sprintf("certs/%s.key", domain)
 
+		if _, err := os.Stat("certs"); os.IsNotExist(err) {
+			err := os.Mkdir("certs", 0755)
+			if err != nil {
+				logger.Println("Failed to create certs directory: ", err)
+				return
+			}
+		}
+
 		writer, err := os.Create(certFile)
 		if err != nil {
 			logger.Println("Failed to create cert file: ", err)
@@ -66,7 +74,7 @@ func prepareCertificate(domain string) ([]byte, []byte, error) {
 	}
 
 	if order.Status != acme.StatusPending {
-		return nil, nil, errors.New(fmt.Sprintf("order status '%s' not pending", order.Status))
+		return nil, nil, fmt.Errorf("order status '%s' not pending", order.Status)
 	}
 
 	authzURLs := order.AuthzURLs
@@ -83,7 +91,7 @@ func prepareCertificate(domain string) ([]byte, []byte, error) {
 	}
 
 	if order.Status != acme.StatusReady {
-		return nil, nil, errors.New(fmt.Sprintf("order status '%s' not ready", order.Status))
+		return nil, nil, fmt.Errorf("order status '%s' not ready", order.Status)
 	}
 
 	certKey, err := rsa.GenerateKey(rand.Reader, 2048)
