@@ -50,6 +50,6 @@ func removeRecordEventHandler(eventChan <-chan event.Event) {
 			continue
 		}
 
-		removeRecord(data.Zone, data.Index)
+		RemoveRecord(data.Zone, data.Index)
 	}
 }

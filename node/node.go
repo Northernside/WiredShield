@@ -12,14 +12,17 @@ import (
 	"time"
 	"wired/modules/cache"
 	"wired/modules/env"
+	"wired/modules/event"
+	event_data "wired/modules/event/events"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
 	"wired/modules/types"
 	"wired/modules/utils"
-	"wired/node/dns"
 	protocol_handler "wired/node/protocol"
+	"wired/services/dns"
+	"wired/services/http"
 )
 
 //go:embed version.txt
@@ -32,7 +35,9 @@ func init() {
 func main() {
 	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
+
 	go dns.Start()
+	dns.DnsEventBus.Sub(event.Event_DNSServiceInitialized, dns.DnsEventChan, func() { dnsInitHandler(dns.DnsEventChan) })
 
 	for {
 		initNode()
@@ -44,7 +49,7 @@ func main() {
 func initNode() {
 	conn, err := connectToMaster()
 	if err != nil {
-		logger.Println("Failed to connect to master:", err)
+		logger.Println("Failed to connect to master: ", err)
 		return
 	}
 	defer conn.Close()
@@ -132,5 +137,17 @@ func handleEncryption(conn *protocol.Conn) {
 	if err != nil {
 		logger.Fatal("Failed to enable encryption:", err)
 		return
+	}
+}
+
+func dnsInitHandler(eventChan <-chan event.Event) {
+	for event := range eventChan {
+		_, ok := event.Data.(event_data.DNSServiceInitializedData)
+		if !ok {
+			fmt.Println("Invalid event data")
+			continue
+		}
+
+		go http.Start()
 	}
 }

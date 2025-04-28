@@ -122,7 +122,7 @@ func AddRecord(zone string, record types.DNSRecord) error {
 	return nil
 }
 
-func removeRecord(zone string, index int) error {
+func RemoveRecord(zone string, index int) error {
 	zone = strings.ToLower(zone)
 	if _, ok := zones[zone]; !ok {
 		return fmt.Errorf("zone %s not found", zone)
@@ -184,11 +184,15 @@ func removeRecord(zone string, index int) error {
 	return nil
 }
 
-func listRecords(zone string) ([]types.DNSRecord, error) {
+func ListRecordsByZone(zone string) ([]types.DNSRecord, error) {
 	zone = strings.ToLower(zone)
 	if _, ok := zones[zone]; !ok {
 		return nil, fmt.Errorf("zone %s not found", zone)
 	}
 
 	return zones[zone], nil
+}
+
+func ListRecords() map[string][]types.DNSRecord {
+	return zones
 }

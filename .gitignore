@@ -37,3 +37,10 @@ dump/
 
 node/node
 master/master
+
+*.js
+Mails
+bun.lockb
+*mails.csv
+package.json
+node_modules

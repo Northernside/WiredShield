@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	Event_Tick         uint8 = 0
-	Event_AddRecord    uint8 = 1
-	Event_RemoveRecord uint8 = 2
+	Event_Tick                  uint8 = 0
+	Event_AddRecord             uint8 = 1
+	Event_RemoveRecord          uint8 = 2
+	Event_DNSServiceInitialized uint8 = 128
 )
 
 type Event struct {

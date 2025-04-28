@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 	"wired/modules/env"
+	"wired/modules/event"
+	event_data "wired/modules/event/events"
 	"wired/modules/geo"
 	"wired/modules/logger"
 	"wired/modules/types"
@@ -13,7 +15,11 @@ import (
 	"github.com/miekg/dns"
 )
 
-var zones = make(map[string][]types.DNSRecord)
+var (
+	zones        = make(map[string][]types.DNSRecord)
+	DnsEventChan = make(chan event.Event)
+	DnsEventBus  = event.NewEventBus()
+)
 
 func init() {
 	if _, err := os.Stat("zonefile.txt"); os.IsNotExist(err) {
@@ -30,21 +36,33 @@ func Start() {
 	loadZonefile()
 
 	dns.HandleFunc(".", handleRequest)
+
 	go func() {
-		logger.Println("DNS server started on port 53 (UDP)")
 		server := &dns.Server{Addr: ":53", Net: "udp"}
 		err := server.ListenAndServe()
 		if err != nil {
 			panic(err)
 		}
 	}()
+	logger.Println("DNS server started on port 53 (UDP)")
 
+	go func() {
+		server := &dns.Server{Addr: ":53", Net: "tcp"}
+		err := server.ListenAndServe()
+		if err != nil {
+			panic(err)
+		}
+	}()
 	logger.Println("DNS server started on port 53 (TCP)")
-	server := &dns.Server{Addr: ":53", Net: "tcp"}
-	err := server.ListenAndServe()
-	if err != nil {
-		panic(err)
-	}
+
+	DnsEventBus.Pub(event.Event{
+		Type:    event.Event_DNSServiceInitialized,
+		FiredAt: time.Now(),
+		FiredBy: env.GetEnv("NODE_KEY", "node-key"),
+		Data:    event_data.DNSServiceInitializedData{},
+	})
+
+	select {}
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
