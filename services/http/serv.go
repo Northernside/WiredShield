@@ -37,6 +37,11 @@ func Start() {
 	initBackends()
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/.wired/") {
+			handleWiredRequest(w, r)
+			return
+		}
+
 		host := strings.ToLower(r.Host)
 		if h, _, err := net.SplitHostPort(host); err == nil {
 			host = h
@@ -71,6 +76,12 @@ func Start() {
 	logger.Println("HTTPS reverse proxy started on port 443")
 
 	select {}
+}
+
+func handleWiredRequest(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Handling Wired path: %s", r.URL.Path)
 }
 
 func initBackends() {
