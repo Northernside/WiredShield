@@ -37,6 +37,30 @@ func main() {
 	pgp.InitKeys()
 
 	go dns.Start()
+
+	/*
+		_, err := wired_dns.AddRecord("wired.rip", types.DNSRecord{
+			Record: &dns.A{
+				Hdr: dns.RR_Header{
+					Name:   "wired.rip.",
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    3600,
+				},
+				A: net.ParseIP("85.202.163.62"),
+			},
+			Metadata: types.RecordMetadata{
+				Protected: true,
+				Geo:       true,
+			},
+		})
+		if err != nil {
+			logger.Println("Failed to add DNS record:", err)
+			return
+		}
+		ssl.GenerateCertificate("wired.rip")
+	*/
+
 	dns.DnsEventBus.Sub(event.Event_DNSServiceInitialized, dns.DnsEventChan, func() { dnsInitHandler(dns.DnsEventChan) })
 
 	for {

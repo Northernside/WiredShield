@@ -1,6 +1,6 @@
 # 📡 wired network system™
 
-<!-- ![Wired Banner](data:image/png;base64,...) -->
+![Wired Banner](public/website/wired-banner.png)
 
 Wired is a distributed network services platform designed for scalable DNS hosting, HTTP reverse proxying, automatic SSL configurations and much more. It features geolocation-aware DNS routing, live master-node communication and synchronization and an event-driven architecture.
 

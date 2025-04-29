@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="title" content="WiredShield Network System">
+    <meta name="description"
+        content="WiredShield is a distributed network services platform for DNS, HTTP reverse proxying, and automated SSL management.">
+
+    <meta name="keywords" content="WiredShield, DNS, HTTP reverse proxy, SSL management, distributed network services">
+    <meta name="author" content="Northernside">
+    <meta name="theme-color" content="#00000">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://as214428.net/">
+    <meta property="og:title" content="WiredShield Network System">
+    <meta property="og:description"
+        content="WiredShield is a distributed network services platform for DNS, HTTP reverse proxying, and automated SSL management.">
+    <meta property="og:image" content="https://as214428.net/wired-banner.png">
+
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://as214428.net/">
+    <meta property="twitter:title" content="WiredShield Network System">
+    <meta property="twitter:description"
+        content="WiredShield is a distributed network services platform for DNS, HTTP reverse proxying, and automated SSL management.">
+    <meta property="twitter:image" content="https://as214428.net/wired-banner.png">
+
+    <title>WiredShield Network System</title>
+    <style>
+        :root {
+            --bg: #000;
+            --text: #f5f5f7;
+            --accent: #86868b;
+            --blue: #2997ff;
+            --card-bg: rgba(255, 255, 255, 0.03);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        html {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        img {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            user-drag: none;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 2rem 1.25rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #2997ff, #9b59b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .bio {
+            color: var(--accent);
+            font-size: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .feature-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .feature-card {
+            padding: 1.5rem;
+            line-height: 1.4;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn {
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .repo-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s;
+        }
+
+        .repo-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 18px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card.feature-card {
+            border: none;
+            position: relative;
+            overflow: hidden;
+            background: var(--card-bg);
+            z-index: 0;
+        }
+
+        .card.feature-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .card.feature-card::before {
+            content: "";
+            position: absolute;
+            inset: -2px;
+            background: radial-gradient(400px circle at var(--x, -100px) var(--y, -100px),
+                    rgba(255, 255, 255, 0.1),
+                    transparent 50%);
+            opacity: 0;
+            transition: opacity 0.4s;
+            pointer-events: none;
+            border-radius: 14px;
+            z-index: 1;
+        }
+
+        .card.feature-card:hover::before {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>WiredShield</h1>
+        <p class="bio">
+            Distributed network services platform for DNS, HTTP reverse proxying, and automated SSL management
+        </p>
+    </header>
+
+    <div class="grid">
+        <div class="feature-grid">
+            <!-- Distributed Architecture -->
+            <div class="card feature-card">
+                <div class="feature-icon">🌐 Distributed Architecture</div>
+                <ul style="list-style: none; color: var(--accent); margin-top: 0.5rem;">
+                    <li>• Master-node system for scalable service deployment</li>
+                </ul>
+            </div>
+
+            <!-- DNS Service -->
+            <div class="card feature-card">
+                <div class="feature-icon">📡 DNS Service</div>
+                <ul style="list-style: none; color: var(--accent); margin-top: 0.5rem;">
+                    <li>• Geolocation-based Routing</li>
+                    <li>• Dynamic DNS Updates</li>
+                    <li>• Smart DNS Caching</li>
+                </ul>
+            </div>
+
+            <!-- HTTP Reverse Proxy -->
+            <div class="card feature-card">
+                <div class="feature-icon">🛡️ HTTP Reverse Proxy</div>
+                <ul style="list-style: none; color: var(--accent); margin-top: 0.5rem;">
+                    <li>• Web Application Firewall</li>
+                    <li>• Rate Limiting & Caching</li>
+                    <li>• Custom Error Pages</li>
+                    <li>• HTTP/2 & Auto SSL</li>
+                </ul>
+            </div>
+
+            <!-- Modular Design -->
+            <div class="card feature-card">
+                <div class="feature-icon">🧩 Modular Design</div>
+                <ul style="list-style: none; color: var(--accent); margin-top: 0.5rem;">
+                    <li>• Plugin System</li>
+                    <li>• Event-Driven Architecture</li>
+                </ul>
+            </div>
+
+            <!-- Management Interface -->
+            <div class="card feature-card">
+                <div class="feature-icon">📊 Web Interface</div>
+                <ul style="list-style: none; color: var(--accent); margin-top: 0.5rem;">
+                    <li>• DNS/Proxy Management</li>
+                    <li>• Real-time Monitoring</li>
+                    <li>• Logging & Analytics</li>
+                    <li>• Role-based Access</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Repo Modal -->
+        <a href="https://github.com/Northernside/WiredShield" class="card repo-card" target="_blank">
+            <div>
+                <h3>WiredShield</h3>
+                <p>distributed network services platform</p>
+            </div>
+            <div class="repo-meta">
+                <span>
+                    <span
+                        style="display: inline-block; width: 10px; height: 10px; background-color: #00ADD8; border-radius: 50%; margin-right: 5px;"></span>
+                    Go
+                </span>
+                <span>★ <span id="stars">...</span></span>
+                <span>🖇 <span id="forks">...</span></span>
+            </div>
+        </a>
+    </div>
+
+    <script>
+        fetch("https://api.github.com/repos/Northernside/WiredShield")
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById("stars").textContent = data.stargazers_count;
+                document.getElementById("forks").textContent = data.forks_count;
+            });
+
+        document.querySelectorAll(".card.feature-card").forEach(card => {
+            card.addEventListener("mousemove", function (e) {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty("--x", `${x}px`);
+                card.style.setProperty("--y", `${y}px`);
+            });
+        });
+    </script>
+</body>
+
+</html>
