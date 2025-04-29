@@ -5,13 +5,12 @@ import (
 	"wired/modules/event"
 	event_data "wired/modules/event/events"
 	"wired/modules/logger"
-	"wired/node/protocol/packets"
 )
 
 func init() {
 	eventChan := make(chan event.Event)
-	packets.PacketEventBus.Sub(1, eventChan, func() { addRecordEventHandler(eventChan) })
-	packets.PacketEventBus.Sub(2, eventChan, func() { removeRecordEventHandler(eventChan) })
+	DNSEventBus.Sub(1, eventChan, func() { addRecordEventHandler(eventChan) })
+	DNSEventBus.Sub(2, eventChan, func() { removeRecordEventHandler(eventChan) })
 }
 
 func addRecordEventHandler(eventChan <-chan event.Event) {

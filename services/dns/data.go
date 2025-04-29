@@ -14,13 +14,14 @@ import (
 	"wired/modules/logger"
 	"wired/modules/snowflake"
 	"wired/modules/types"
-	"wired/node/protocol/packets"
 
 	"github.com/miekg/dns"
 )
 
 var (
-	sf *snowflake.Snowflake
+	sf              *snowflake.Snowflake
+	DNSEventChannel = make(chan event.Event)
+	DNSEventBus     = event.NewEventBus("dns")
 )
 
 func init() {
@@ -128,7 +129,7 @@ func AddRecord(zone string, record types.DNSRecord) (string, error) {
 		return "", err
 	}
 
-	packets.PacketEventBus.Pub(event.Event{
+	DNSEventBus.Pub(event.Event{
 		Type:    event.Event_AddRecord,
 		FiredAt: time.Now(),
 		FiredBy: env.GetEnv("NODE_KEY", "node-key"),
@@ -223,7 +224,7 @@ func RemoveRecord(id string) error {
 		return err
 	}
 
-	packets.PacketEventBus.Pub(event.Event{
+	DNSEventBus.Pub(event.Event{
 		Type:    event.Event_RemoveRecord,
 		FiredAt: time.Now(),
 		FiredBy: env.GetEnv("NODE_KEY", "node-key"),

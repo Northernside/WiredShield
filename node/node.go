@@ -61,7 +61,7 @@ func main() {
 		ssl.GenerateCertificate("wired.rip")
 	*/
 
-	dns.DnsEventBus.Sub(event.Event_DNSServiceInitialized, dns.DnsEventChan, func() { dnsInitHandler(dns.DnsEventChan) })
+	dns.DNSEventBus.Sub(event.Event_DNSServiceInitialized, dns.DNSEventChannel, func() { dnsInitHandler(dns.DNSEventChannel) })
 
 	for {
 		initNode()

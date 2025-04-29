@@ -23,13 +23,26 @@ type Event struct {
 }
 
 type EventBus struct {
+	Name        string
 	Subscribers map[uint8][]chan<- Event
 }
 
-func NewEventBus() *EventBus {
-	return &EventBus{
+var (
+	EventBuses = make(map[string]*EventBus)
+)
+
+func NewEventBus(name string) *EventBus {
+	if eventBus, ok := EventBuses[name]; ok {
+		return eventBus
+	}
+
+	eventBus := &EventBus{
+		Name:        name,
 		Subscribers: make(map[uint8][]chan<- Event),
 	}
+
+	EventBuses[name] = eventBus
+	return eventBus
 }
 
 func (eventBus *EventBus) Sub(eventType uint8, subscriber chan<- Event, handler func()) {
@@ -54,7 +67,8 @@ func (eventBus *EventBus) Pub(event Event) {
 		nodesMap := value
 		for _, node := range nodesMap {
 			node.Conn.SendPacket(13, EventTransmission{
-				Event: event,
+				EventBusName: eventBus.Name,
+				Event:        event,
 			})
 		}
 	} else {
@@ -65,11 +79,13 @@ func (eventBus *EventBus) Pub(event Event) {
 		}
 
 		master.SendPacket(13, EventTransmission{
-			Event: event,
+			EventBusName: eventBus.Name,
+			Event:        event,
 		})
 	}
 }
 
 type EventTransmission struct {
-	Event Event
+	EventBusName string
+	Event        Event
 }

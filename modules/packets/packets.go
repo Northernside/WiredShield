@@ -43,5 +43,6 @@ type Challenge struct {
 }
 
 type EventTransmission struct {
-	Event event.Event
+	EventBusName string
+	Event        event.Event
 }

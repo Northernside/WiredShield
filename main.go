@@ -14,7 +14,7 @@ func init() {
 }
 
 func main() {
-	eventBus := event.NewEventBus()
+	eventBus := event.NewEventBus("test_event_bus")
 
 	go func() {
 		for {

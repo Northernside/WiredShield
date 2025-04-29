@@ -8,7 +8,7 @@ import (
 	"wired/modules/protocol"
 )
 
-var PacketEventBus = event.NewEventBus()
+var PacketEventBus = event.NewEventBus("event_transmission_packet")
 
 type EventTransmissionHandler struct{}
 
@@ -23,5 +23,12 @@ func (h *EventTransmissionHandler) Handle(conn *protocol.Conn, p *protocol.Packe
 		return
 	}
 
+	eventBus := event.NewEventBus(txEvent.EventBusName)
+	if eventBus == nil {
+		logger.Println("Failed to get event bus during event transmission:", txEvent.EventBusName)
+		return
+	}
+
+	eventBus.Pub(txEvent.Event)
 	PacketEventBus.Pub(txEvent.Event)
 }

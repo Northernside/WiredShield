@@ -17,9 +17,7 @@ import (
 )
 
 var (
-	zones        = make(map[string][]types.DNSRecord)
-	DnsEventChan = make(chan event.Event)
-	DnsEventBus  = event.NewEventBus()
+	zones = make(map[string][]types.DNSRecord)
 )
 
 func init() {
@@ -56,7 +54,7 @@ func Start() {
 	}()
 	logger.Println("DNS server started on port 53 (TCP)")
 
-	DnsEventBus.Pub(event.Event{
+	DNSEventBus.Pub(event.Event{
 		Type:    event.Event_DNSServiceInitialized,
 		FiredAt: time.Now(),
 		FiredBy: env.GetEnv("NODE_KEY", "node-key"),
