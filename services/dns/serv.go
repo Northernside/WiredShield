@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 	"wired/modules/env"
 	"wired/modules/event"
@@ -17,7 +18,8 @@ import (
 )
 
 var (
-	zones = make(map[string][]types.DNSRecord)
+	Zones    = make(map[string][]types.DNSRecord)
+	ZonesMux = &sync.RWMutex{}
 )
 
 func init() {
@@ -82,6 +84,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
+	ZonesMux.RLock()
+	defer ZonesMux.RUnlock()
+
 	for _, q := range r.Question {
 		qname := strings.ToLower(q.Name)
 		qtype := q.Qtype
@@ -99,7 +104,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			authorityRRs  []dns.RR
 		)
 
-		for _, rr := range zones[zone] {
+		for _, rr := range Zones[zone] {
 			rrName := strings.ToLower(rr.Record.Header().Name)
 			if rrName == qname {
 				nameExists = true
@@ -164,7 +169,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 
 				var targetAnswers []dns.RR
-				for _, rr := range zones[targetZone] {
+				for _, rr := range Zones[targetZone] {
 					rrName := strings.ToLower(rr.Record.Header().Name)
 					if rrName == target && (rr.Record.Header().Rrtype == qtype) {
 						clonedRR := dns.Copy(rr.Record)
@@ -259,7 +264,7 @@ func findZone(qname string) string {
 	var maxZone string
 	maxLen := 0
 
-	for zone := range zones {
+	for zone := range Zones {
 		if dns.IsSubDomain(zone, qname) && len(zone) > maxLen {
 			maxLen = len(zone)
 			maxZone = zone
@@ -270,7 +275,7 @@ func findZone(qname string) string {
 }
 
 func getSOA(zone string, nxdomain bool) []dns.RR {
-	for _, rr := range zones[zone] {
+	for _, rr := range Zones[zone] {
 		if soa, ok := rr.Record.(*dns.SOA); ok {
 			soaCopy := *soa
 			soaCopy.Hdr = dns.RR_Header{

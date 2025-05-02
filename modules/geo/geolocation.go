@@ -34,24 +34,31 @@ var (
 const R = 6371              // earth radius in km
 const D2R = math.Pi / 180.0 // degrees to radians
 
+var dbLoaded = make(chan struct{})
+
 func init() {
-	var err error
-	v4DB, err = loadMaxMindDB("geolite2-city-ipv4.mmdb")
-	if err != nil {
-		logger.Println("Error loading IPv4 database: ", err)
-		downloadDB(v4URL, "geolite2-city-ipv4.mmdb")
-	}
+	go func() {
+		var err error
+		v4DB, err = loadMaxMindDB("geolite2-city-ipv4.mmdb")
+		if err != nil {
+			logger.Println("Error loading IPv4 database: ", err)
+			downloadDB(v4URL, "geolite2-city-ipv4.mmdb")
+		}
 
-	v6DB, err = loadMaxMindDB("geolite2-city-ipv6.mmdb")
-	if err != nil {
-		logger.Println("Error loading IPv6 database: ", err)
-		downloadDB(v6URL, "geolite2-city-ipv6.mmdb")
-	}
+		v6DB, err = loadMaxMindDB("geolite2-city-ipv6.mmdb")
+		if err != nil {
+			logger.Println("Error loading IPv6 database: ", err)
+			downloadDB(v6URL, "geolite2-city-ipv6.mmdb")
+		}
 
-	logger.Println("Loaded GeoLocation databases successfully")
+		logger.Println("Loaded GeoLocation databases successfully")
+		close(dbLoaded)
+	}()
 }
 
 func GetLocation(ip net.IP) (*MMLocation, error) {
+	<-dbLoaded
+
 	if utils.IsIPv4(ip) {
 		return lookupV4(ip)
 	} else if utils.IsIPv6(ip) {

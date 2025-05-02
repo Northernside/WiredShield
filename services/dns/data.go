@@ -40,6 +40,9 @@ func init() {
 }
 
 func loadZonefile() {
+	ZonesMux.Lock()
+	defer ZonesMux.Unlock()
+
 	file, err := os.Open("zonefile.txt")
 	if err != nil {
 		logger.Println("Error opening zone file:", err)
@@ -73,11 +76,11 @@ func loadZonefile() {
 		hdr := rr.Header()
 		name := strings.ToLower(hdr.Name)
 		zone := dns.CanonicalName(name)
-		if _, ok := zones[zone]; !ok {
-			zones[zone] = []types.DNSRecord{}
+		if _, ok := Zones[zone]; !ok {
+			Zones[zone] = []types.DNSRecord{}
 		}
 
-		zones[zone] = append(zones[zone], types.DNSRecord{
+		Zones[zone] = append(Zones[zone], types.DNSRecord{
 			Record:   rr,
 			Metadata: comment,
 		})
@@ -91,16 +94,47 @@ func loadZonefile() {
 	logger.Println("Loaded zone file successfully")
 }
 
+func GetRecord(id string) (types.DNSRecord, error) {
+	ZonesMux.RLock()
+	defer ZonesMux.RUnlock()
+
+	var foundZone string
+	var foundIndex int = -1
+
+	for zone, records := range Zones {
+		for i, record := range records {
+			if record.Metadata.ID == id {
+				foundZone = zone
+				foundIndex = i
+				break
+			}
+		}
+
+		if foundIndex != -1 {
+			break
+		}
+	}
+
+	if foundIndex == -1 {
+		return types.DNSRecord{}, fmt.Errorf("record with ID %s not found", id)
+	}
+
+	return Zones[foundZone][foundIndex], nil
+}
+
 func AddRecord(zone string, record types.DNSRecord) (string, error) {
+	ZonesMux.RLock()
+	defer ZonesMux.RUnlock()
+
 	zone = strings.ToLower(zone)
-	if _, ok := zones[zone]; !ok {
-		zones[zone] = []types.DNSRecord{}
+	if _, ok := Zones[zone]; !ok {
+		Zones[zone] = []types.DNSRecord{}
 	}
 
 	id := sf.GenerateID()
 	record.Metadata.ID = fmt.Sprintf("%d", id)
 
-	zones[zone] = append(zones[zone], record)
+	Zones[zone] = append(Zones[zone], record)
 
 	logger.Println("Adding record to zone: ", zone)
 	file, err := os.OpenFile("zonefile.txt", os.O_APPEND|os.O_WRONLY, 0644)
@@ -142,10 +176,13 @@ func AddRecord(zone string, record types.DNSRecord) (string, error) {
 }
 
 func RemoveRecord(id string) error {
+	ZonesMux.RLock()
+	defer ZonesMux.RUnlock()
+
 	var foundZone string
 	var foundIndex int = -1
 
-	for zone, records := range zones {
+	for zone, records := range Zones {
 		for i, record := range records {
 			if record.Metadata.ID == id {
 				foundZone = zone
@@ -163,7 +200,7 @@ func RemoveRecord(id string) error {
 		return fmt.Errorf("record with ID %s not found", id)
 	}
 
-	zones[foundZone] = append(zones[foundZone][:foundIndex], zones[foundZone][foundIndex+1:]...)
+	Zones[foundZone] = append(Zones[foundZone][:foundIndex], Zones[foundZone][foundIndex+1:]...)
 
 	file, err := os.Open("zonefile.txt")
 	if err != nil {
@@ -237,14 +274,18 @@ func RemoveRecord(id string) error {
 }
 
 func ListRecordsByZone(zone string) ([]types.DNSRecord, error) {
+	ZonesMux.RLock()
+	defer ZonesMux.RUnlock()
+
 	zone = strings.ToLower(zone)
-	if _, ok := zones[zone]; !ok {
+	if _, ok := Zones[zone]; !ok {
 		return nil, fmt.Errorf("zone %s not found", zone)
 	}
 
-	return zones[zone], nil
+	return Zones[zone], nil
 }
 
+// -> only used to read the list for now during non-concurrent access
 func ListRecords() map[string][]types.DNSRecord {
-	return zones
+	return Zones
 }

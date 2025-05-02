@@ -18,10 +18,11 @@ import (
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
+	"wired/modules/ssl"
 	"wired/modules/types"
 	"wired/modules/utils"
 	protocol_handler "wired/node/protocol"
-	"wired/services/dns"
+	wired_dns "wired/services/dns"
 	"wired/services/http"
 )
 
@@ -36,32 +37,8 @@ func main() {
 	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
 
-	go dns.Start()
-
-	/*
-		_, err := wired_dns.AddRecord("wired.rip", types.DNSRecord{
-			Record: &dns.A{
-				Hdr: dns.RR_Header{
-					Name:   "wired.rip.",
-					Rrtype: dns.TypeA,
-					Class:  dns.ClassINET,
-					Ttl:    3600,
-				},
-				A: net.ParseIP("85.202.163.62"),
-			},
-			Metadata: types.RecordMetadata{
-				Protected: true,
-				Geo:       true,
-			},
-		})
-		if err != nil {
-			logger.Println("Failed to add DNS record:", err)
-			return
-		}
-		ssl.GenerateCertificate("wired.rip")
-	*/
-
-	dns.DNSEventBus.Sub(event.Event_DNSServiceInitialized, dns.DNSEventChannel, func() { dnsInitHandler(dns.DNSEventChannel) })
+	go wired_dns.Start()
+	wired_dns.DNSEventBus.Sub(event.Event_DNSServiceInitialized, wired_dns.DNSEventChannel, func() { dnsInitHandler(wired_dns.DNSEventChannel) })
 
 	for {
 		initNode()
@@ -172,6 +149,8 @@ func dnsInitHandler(eventChan <-chan event.Event) {
 			continue
 		}
 
+		// convertSingleCertToSAN()
 		go http.Start()
+		go ssl.StartRenewalChecker()
 	}
 }

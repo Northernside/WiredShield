@@ -46,3 +46,4 @@ package.json
 node_modules
 *.crt
 *.key
+ssl_client_key.json

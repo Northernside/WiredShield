@@ -3,6 +3,7 @@ package ssl
 import (
 	"errors"
 	"fmt"
+	"wired/modules/logger"
 	"wired/modules/types"
 	wired_dns "wired/services/dns"
 
@@ -15,6 +16,11 @@ func dns01Handling(domain, authzURL string) error {
 	authz, err := client.GetAuthorization(ctx, authzURL)
 	if err != nil {
 		return err
+	}
+
+	if authz.Status == acme.StatusValid {
+		logger.Println(fmt.Sprintf("Authorization for %s is already valid", domain))
+		return nil
 	}
 
 	if authz.Status != acme.StatusPending {

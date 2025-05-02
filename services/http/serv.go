@@ -2,19 +2,26 @@ package http
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	"wired/modules/logger"
+	"wired/modules/types"
+	"wired/services/dns"
 )
 
 var (
-	certMap  = make(map[string]tls.Certificate)
-	proxyMap = make(map[string]*httputil.ReverseProxy)
+	CertMap     = make(map[string]tls.Certificate)
+	CertMapLock = &sync.RWMutex{}
+	proxyMap    = make(map[string]*httputil.ReverseProxy)
 
 	tlsConfig = &tls.Config{
 		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -23,7 +30,7 @@ var (
 				host = h
 			}
 
-			if cert, ok := certMap[host]; ok {
+			if cert, ok := CertMap[host]; ok {
 				return &cert, nil
 			}
 
@@ -65,6 +72,7 @@ func Start() {
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       90 * time.Second,
 		MaxHeaderBytes:    1 << 13, // 8KB
+		ErrorLog:          log.New(&errorFilter{}, "", 0),
 	}
 
 	go func() {
@@ -85,20 +93,59 @@ func handleWiredRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func initBackends() {
-	for host, addr := range hosts {
-		host = strings.TrimSuffix(host, ".")
-		certFile := fmt.Sprintf("certs/%s.crt", host)
-		keyFile := fmt.Sprintf("certs/%s.key", host)
+	sanCerts := make(map[string]tls.Certificate)
+	sanFiles, _ := filepath.Glob("certs/san_*.crt")
+	for _, certFile := range sanFiles {
+		base := strings.TrimSuffix(filepath.Base(certFile), ".crt")
+		keyFile := filepath.Join("certs", base+".key")
+
 		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {
-			panic(fmt.Sprintf("Failed to load certificate for %s: %v", host, err))
+			log.Printf("Error loading SAN certificate %s: %v", base, err)
+			continue
 		}
 
-		certMap[host] = cert
+		if cert.Leaf == nil && len(cert.Certificate) > 0 {
+			cert.Leaf, _ = x509.ParseCertificate(cert.Certificate[0])
+		}
+
+		if cert.Leaf != nil {
+			for _, dnsName := range cert.Leaf.DNSNames {
+				sanCerts[strings.ToLower(dnsName)] = cert
+			}
+		}
+	}
+
+	for host, addr := range hosts {
+		normalizedHost := strings.ToLower(strings.TrimSuffix(host, "."))
+		var cert tls.Certificate
+		var err error
+
+		if sanCert, exists := sanCerts[normalizedHost]; exists {
+			cert = sanCert
+		} else {
+			certFile := fmt.Sprintf("certs/%s.crt", normalizedHost)
+			keyFile := fmt.Sprintf("certs/%s.key", normalizedHost)
+			cert, err = tls.LoadX509KeyPair(certFile, keyFile)
+			if err != nil {
+				panic(fmt.Sprintf("Failed to load certificate for %s: %v", host, err))
+			}
+		}
+
+		if cert.Leaf == nil && len(cert.Certificate) > 0 {
+			cert.Leaf, _ = x509.ParseCertificate(cert.Certificate[0])
+		}
+
+		CertMap[normalizedHost] = cert
 
 		backendAddr := addr.String()
 		target, _ := url.Parse(fmt.Sprintf("http://%s", backendAddr))
 		proxy := httputil.NewSingleHostReverseProxy(target)
+		proxy.ErrorLog = log.New(&errorFilter{}, "", 0)
+		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+			logger.Println("Error in reverse proxy:", err)
+			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		}
 		proxy.Transport = &http.Transport{
 			MaxIdleConns:          0,
 			IdleConnTimeout:       90 * time.Second,
@@ -114,6 +161,18 @@ func initBackends() {
 			}).DialContext,
 		}
 
-		proxyMap[host] = proxy
+		proxyMap[normalizedHost] = proxy
+
+		// overwrite .Metadata.SSLInfo
+		dns.ZonesMux.Lock()
+		for i, record := range dns.Zones[normalizedHost+"."] {
+			record.Metadata.SSLInfo = types.SSLInfo{
+				IssuedAt:  cert.Leaf.NotBefore,
+				ExpiresAt: cert.Leaf.NotAfter,
+			}
+
+			dns.Zones[normalizedHost+"."][i] = record
+		}
+		dns.ZonesMux.Unlock()
 	}
 }

@@ -58,11 +58,11 @@ func Color(input interface{}, color ...string) string {
 }
 
 func Print(a ...any) {
-	fmt.Print(a...)
+	fmt.Print(LogPrefix + fmt.Sprint(a...))
 }
 
 func Printf(format string, a ...any) {
-	fmt.Printf(format, a...)
+	fmt.Printf(LogPrefix+format, a...)
 }
 
 func Println(a ...any) {
@@ -70,7 +70,7 @@ func Println(a ...any) {
 }
 
 func Sprintf(format string, a ...any) string {
-	return fmt.Sprintf(format, a...)
+	return fmt.Sprintf(LogPrefix+format, a...)
 }
 
 func Fatal(generalMsg string, a ...any) {
@@ -98,7 +98,7 @@ func ColorGradient(rgb1, rgb2 string, steps int) []string {
 	deltaG := float64(g2-g1) / float64(steps-1)
 	deltaB := float64(b2-b1) / float64(steps-1)
 
-	for i := 0; i < steps; i++ {
+	for i := range steps {
 		r := int(float64(r1) + deltaR*float64(i))
 		g := int(float64(g1) + deltaG*float64(i))
 		b := int(float64(b1) + deltaB*float64(i))

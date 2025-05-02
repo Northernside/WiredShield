@@ -1,11 +1,21 @@
 package types
 
-import "github.com/miekg/dns"
+import (
+	"time"
+
+	"github.com/miekg/dns"
+)
+
+type SSLInfo struct {
+	IssuedAt  time.Time
+	ExpiresAt time.Time
+}
 
 type RecordMetadata struct {
 	ID        string `json:"id"`
 	Protected bool   `json:"protected"`
 	Geo       bool   `json:"geo"`
+	SSLInfo   SSLInfo
 }
 
 type DNSRecord struct {

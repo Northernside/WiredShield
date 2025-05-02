@@ -13,7 +13,6 @@ Wired is a distributed network services platform designed for scalable DNS hosti
 
 - **Distributed Architecture**: Master-node system for scalable service deployment
 - **DNS Service**:
-    - **Geolocation-based DNS Routing**: Direct users to the nearest node for optimal performance
     - **Dynamic DNS**: Automatic updates for changing IP addresses
     - **DNS Caching**: Reduce latency and improve response times
 - **HTTP Reverse Proxy**:
@@ -23,6 +22,7 @@ Wired is a distributed network services platform designed for scalable DNS hosti
     - **Custom Error Pages**: User-friendly error handling
     - **HTTP/2 Support**: Multiplexing
     - **Automatic SSL Management**: Simplified certificate generation and renewal
+    - **Geolocation-based Routing**: Direct users to the nearest node for optimal performance by using geo-based DNS routing
 - **Modular Design**:
     - **Plugin System**: Extend functionality with custom plugins
     - **Event-Driven Architecture**: Respond to system events and changes
