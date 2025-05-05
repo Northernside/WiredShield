@@ -1,11 +1,11 @@
 package packets
 
 import (
-	"wired/modules/cache"
 	"wired/modules/geo"
 	"wired/modules/logger"
 	"wired/modules/protocol"
 	"wired/modules/types"
+	"wired/modules/utils"
 )
 
 type NodeAttachedHandler struct{}
@@ -17,12 +17,9 @@ func (h *NodeAttachedHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 		logger.Fatal("Failed to decode challenge packet:", err)
 	}
 
-	value, found := cache.Get[map[string]types.NodeInfo]("nodes")
-	if !found {
-		value = make(map[string]types.NodeInfo)
-	}
-
-	value[attcPacket.Key] = attcPacket
+	utils.NodesMux.Lock()
+	utils.Nodes[attcPacket.Key] = attcPacket
+	utils.NodesMux.Unlock()
 
 	if _, found := geo.NodeListeners[attcPacket.Key]; !found {
 		geo.NodeListeners[attcPacket.Key] = make([]geo.GeoInfo, 0)
@@ -43,6 +40,5 @@ func (h *NodeAttachedHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 		geo.NodeListeners[attcPacket.Key] = append(geo.NodeListeners[attcPacket.Key], geoInfo)
 	}
 
-	cache.Store("nodes", value, 0)
 	logger.Println("Node attached: ", attcPacket.Key)
 }

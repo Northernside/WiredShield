@@ -19,7 +19,7 @@ func dns01Handling(domain, authzURL string) error {
 	}
 
 	if authz.Status == acme.StatusValid {
-		logger.Println(fmt.Sprintf("Authorization for %s is already valid", domain))
+		logger.Printf("Authorization for %s is already valid\n", domain)
 		return nil
 	}
 

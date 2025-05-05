@@ -8,13 +8,13 @@ import (
 	"io"
 	"net"
 	protocol_handler "wired/master/protocol"
-	"wired/modules/cache"
 	"wired/modules/env"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
 	"wired/modules/types"
+	"wired/modules/utils"
 )
 
 func init() {
@@ -47,7 +47,7 @@ func initNodeListener() {
 	for {
 		client, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
+			fmt.Println("Error accepting connection: ", err)
 			continue
 		}
 
@@ -65,19 +65,15 @@ func nodeHandler(conn *protocol.Conn) {
 		conn.Close()
 
 		if conn.Key != "" {
-			logger.Println(fmt.Sprintf("Node %s%s%s disconnected", logger.ColorGray, conn.Key, logger.ColorReset))
+			logger.Printf("Node %s%s%s disconnected\n", logger.ColorGray, conn.Key, logger.ColorReset)
 
-			value, found := cache.Get[map[string]types.NodeInfo]("nodes")
-			if found {
-				delete(value, conn.Key)
-				cache.Store("nodes", value, 0)
-			}
-
-			for _, node := range value {
+			utils.NodesMux.Lock()
+			for _, node := range utils.Nodes {
 				node.Conn.SendPacket(15, types.NodeInfo{
 					Key: conn.Key,
 				})
 			}
+			utils.NodesMux.Unlock()
 		}
 	}()
 
@@ -90,7 +86,7 @@ func nodeHandler(conn *protocol.Conn) {
 	}
 
 	if p.ID != packet.ID_Login {
-		logger.Println("Unexpected packet ID during login stage:", p.ID)
+		logger.Println("Unexpected packet ID during login stage: ", p.ID)
 		return
 	}
 
@@ -125,13 +121,13 @@ func handleEncryption(conn *protocol.Conn) {
 	}
 
 	if recvPacket.ID != packet.ID_SharedSecret {
-		logger.Println("Unexpected packet ID:", recvPacket.ID)
+		logger.Println("Unexpected packet ID: ", recvPacket.ID)
 		return
 	}
 
 	decryptedBytes, err := rsa.DecryptPKCS1v15(rand.Reader, pgp.PrivateKey, recvPacket.Data)
 	if err != nil {
-		logger.Println("Error decrypting shared secret:", err)
+		logger.Println("Error decrypting shared secret: ", err)
 		return
 	}
 

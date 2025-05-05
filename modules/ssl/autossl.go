@@ -31,7 +31,7 @@ func init() {
 }
 
 func GenerateSANCertificate(domains []string) (time.Time, time.Time, error) {
-	logger.Println(fmt.Sprintf("Generating SAN certificate for %v", domains))
+	logger.Printf("Generating SAN certificate for %v\n", domains)
 
 	certPEM, keyPEM, err := prepareCertificate(domains)
 	if err != nil {
@@ -125,11 +125,11 @@ func GenerateCertificate(domain string) (time.Time, time.Time, error) {
 	issuedAt := cert.NotBefore
 	renewalTime := expirationTime.Add(-7 * 24 * time.Hour)
 
-	logger.Println(fmt.Sprintf("Certificate for %s expires on %s. Renewal scheduled in %v.\n",
+	logger.Printf("Certificate for %s expires on %s. Renewal scheduled in %v.\n",
 		domain,
 		expirationTime.Format("2006-01-02 15:04:05"),
 		time.Until(renewalTime).Round(time.Minute),
-	))
+	)
 
 	logger.Println("Generated a SSL certificate for ", domain)
 	return issuedAt, expirationTime, nil

@@ -21,13 +21,13 @@ func StartRenewalChecker() {
 		for domain, cert := range http.CertMap {
 			if cert.Leaf == nil {
 				if len(cert.Certificate) == 0 {
-					logger.Println(fmt.Sprintf("No certificate data for %s", domain))
+					logger.Printf("No certificate data for %s\n", domain)
 					continue
 				}
 
 				leaf, err := x509.ParseCertificate(cert.Certificate[0])
 				if err != nil {
-					logger.Println(fmt.Sprintf("Error parsing leaf cert for %s: %v", domain, err))
+					logger.Printf("Error parsing leaf cert for %s: %v\n", domain, err)
 					continue
 				}
 
@@ -44,7 +44,7 @@ func StartRenewalChecker() {
 			logger.Println("No certificates to renew")
 			return
 		} else {
-			logger.Println(fmt.Sprintf("Renewing %d certificates: %s", len(domains), domains))
+			logger.Printf("Renewing %d certificates: %s\n", len(domains), domains)
 		}
 
 		batchSize := 100
@@ -54,7 +54,7 @@ func StartRenewalChecker() {
 
 			certPEM, keyPEM, err := prepareCertificate(batch)
 			if err != nil {
-				logger.Println(fmt.Sprintf("Failed to renew batch %d-%d: %v", i, end, err))
+				logger.Printf("Failed to renew batch %d-%d: %v\n", i, end, err)
 				continue
 			}
 
@@ -66,13 +66,13 @@ func StartRenewalChecker() {
 
 			newCert, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
-				logger.Println(fmt.Sprintf("Failed to parse new certificate: %v", err))
+				logger.Printf("Failed to parse new certificate: %v\n", err)
 				continue
 			}
 
 			tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
 			if err != nil {
-				logger.Println(fmt.Sprintf("Failed to create TLS cert: %v", err))
+				logger.Printf("Failed to create TLS cert: %v\n", err)
 				continue
 			}
 
@@ -92,8 +92,8 @@ func StartRenewalChecker() {
 			os.WriteFile(certFile, certPEM, 0644)
 			os.WriteFile(keyFile, keyPEM, 0600)
 
-			logger.Println(fmt.Sprintf("Renewed batch of %d domains (expires %s)",
-				len(batch), newCert.NotAfter.Format("2006-01-02")))
+			logger.Printf("Renewed batch of %d domains (expires %s)\n",
+				len(batch), newCert.NotAfter.Format("2006-01-02"))
 
 			// (300 orders / 3h = 1 order / 36s)
 			time.Sleep(36 * time.Second)

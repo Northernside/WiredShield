@@ -7,6 +7,7 @@ import (
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
+	"wired/modules/utils"
 )
 
 type ChallengeFinishHandler struct{}
@@ -48,7 +49,10 @@ func (h *ChallengeFinishHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 			geo.NodeListeners[node.Key] = append(geo.NodeListeners[node.Key], geoInfo)
 		}
 	}
+	
+	utils.NodesMux.Lock()
+	utils.Nodes = ch.Nodes
+	utils.NodesMux.Unlock()
 
-	cache.Store("nodes", ch.Nodes, 0)
 	cache.Store("authentication_finished", true, 0)
 }

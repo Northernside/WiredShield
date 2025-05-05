@@ -1,7 +1,6 @@
 package dns
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -118,7 +117,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 								MMLocation: userLoc,
 							}, 6)
 							if err != nil {
-								logger.Println(fmt.Sprintf("Error finding nearest location for IPv6 %s: %v", userIP, err))
+								logger.Printf("Error finding nearest location for IPv6 %s: %v\n", userIP, err)
 								logger.Println("userLoc:", userLoc)
 								debugTxt := makeErrorTxt(qname, err.Error())
 								m.Extra = append(m.Extra, debugTxt)
@@ -131,7 +130,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 								MMLocation: userLoc,
 							}, 4)
 							if err != nil {
-								logger.Println(fmt.Sprintf("Error finding nearest location for IPv4 %s: %v", userIP, err))
+								logger.Printf("Error finding nearest location for IPv4 %s: %v\n", userIP, err)
 								logger.Println("userLoc:", userLoc)
 								debugTxt := makeErrorTxt(qname, err.Error())
 								m.Extra = append(m.Extra, debugTxt)
