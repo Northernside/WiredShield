@@ -4,44 +4,84 @@ import (
 	"bytes"
 	"os"
 	"strconv"
+	"strings"
+	"wired/modules/env"
 )
 
-var (
-	Error403 = []string{
-		"You are blocked from accessing this website.",
-		"This is a part of Wired's security measures to protect the website from malicious users and bots.",
-	}
-	Error500 = []string{
-		"An internal server error has occurred. Please try again later.",
-	}
-	Error601 = []string{
-		"An internal DNS issue has occurred. Please try again later.",
-	}
-	Error602 = []string{
-		"The website you're trying to reach is currently not able to handle your request.",
-	}
-	Error603 = []string{
-		"The website you're trying to reach is currently not able to accept any connections.",
-		"This could occur due to a few different reasons, very likely due to the server being offline.",
-	}
-	Error604 = []string{ // error occurs when requesting internal pages not available
-		"The website you're trying to reach does not exist.",
-	}
-	Error605 = []string{
-		"The website you're trying to reach is currently not responding (Timeout exceeded).",
-		"This could occur due to a few different reasons, very likely due to the server being offline.",
-	}
-)
-
-var ErrorBase []byte
-
-type ErrorPage struct {
-	Code    int
-	Message []string
+type ErrorPageTemplate struct {
+	Code     int
+	Messages []string
+	Html     []byte
 }
 
-func init() {
-	file, err := os.Open("../modules/pages/templates/error.html")
+var ErrorPages = map[int]ErrorPageTemplate{
+	403: {
+		Code: 403,
+		Messages: []string{
+			"You are blocked from accessing this website.",
+			"This is a part of Wired's security measures to protect the website from malicious users and bots.",
+		},
+		Html: nil,
+	},
+	500: {
+		Code: 500,
+		Messages: []string{
+			"An internal server error has occurred. Please try again later.",
+		},
+		Html: nil,
+	},
+	502: {
+		Code: 502,
+		Messages: []string{
+			"The website you're trying to reach is currently not able to handle your request.",
+			"This could occur due to a few different reasons, very likely due to the server being offline.",
+		},
+		Html: nil,
+	},
+	601: {
+		Code: 601,
+		Messages: []string{
+			"An internal DNS issue has occurred. Please try again later.",
+		},
+		Html: nil,
+	},
+	602: {
+		Code: 602,
+		Messages: []string{
+			"The website you're trying to reach is currently not able to handle your request.",
+		},
+		Html: nil,
+	},
+	603: {
+		Code: 603,
+		Messages: []string{
+			"The website you're trying to reach is currently not able to accept any connections.",
+			"This could occur due to a few different reasons, very likely due to the server being offline.",
+		},
+		Html: nil,
+	},
+	604: {
+		Code: 604,
+		Messages: []string{
+			"The website you're trying to reach does not exist.",
+		},
+		Html: nil,
+	},
+	605: {
+		Code: 605,
+		Messages: []string{
+			"The website you're trying to reach is currently not responding (Timeout exceeded).",
+			"This could occur due to a few different reasons, very likely due to the server being offline.",
+		},
+		Html: nil,
+	},
+}
+
+var errorBase []byte
+var errorBaseLength int
+
+func BuildErrorPages() {
+	file, err := os.Open(env.GetEnv("PUBLIC_DIR", "") + "/templates/error.html")
 	if err != nil {
 		panic(err)
 	}
@@ -52,22 +92,21 @@ func init() {
 		panic(err)
 	}
 
-	ErrorBase = make([]byte, stat.Size())
-	_, err = file.Read(ErrorBase)
+	errorBase = make([]byte, stat.Size())
+	errorBaseLength = int(stat.Size())
+	_, err = file.Read(errorBase)
 	if err != nil {
 		panic(err)
 	}
-}
 
-func (e *ErrorPage) ToHTML() string {
-	// replace {{code}} globally with e.Code
-	// replace {{info-lines}} globally with e.Message -> <p>{{.}}</p><p>{{.}}</p>...
+	for _, page := range ErrorPages {
+		copiedBase := make([]byte, errorBaseLength)
+		copy(copiedBase, errorBase)
 
-	copiedBase := make([]byte, len(ErrorBase))
-	copy(copiedBase, ErrorBase)
+		copiedBase = bytes.Replace(copiedBase, []byte("{{code}}"), []byte(strconv.Itoa(page.Code)), -1)
+		copiedBase = bytes.Replace(copiedBase, []byte("{{info-lines}}"), []byte("<p>"+strings.Join(page.Messages, "<br>")+"</p>"), -1)
 
-	copiedBase = bytes.Replace(copiedBase, []byte("{{code}}"), []byte(strconv.Itoa(e.Code)), -1)
-	copiedBase = bytes.Replace(copiedBase, []byte("{{info-lines}}"), []byte("<p>"+e.Message[0]+"</p>"), -1)
-
-	return string(copiedBase)
+		page.Html = copiedBase
+		ErrorPages[page.Code] = page
+	}
 }

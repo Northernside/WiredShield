@@ -73,7 +73,7 @@ func (eventBus *EventBus) Pub(event Event) {
 		}
 	} else {
 		// send ID_EventTransmission packet to master
-		master, found := cache.Get[protocol.Conn]("master")
+		master, found := cache.Get[*protocol.Conn]("master_conn")
 		if !found {
 			return
 		}

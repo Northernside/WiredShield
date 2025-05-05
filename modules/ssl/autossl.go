@@ -136,7 +136,6 @@ func GenerateCertificate(domain string) (time.Time, time.Time, error) {
 }
 
 func prepareCertificate(domains []string) ([]byte, []byte, error) {
-	client := getClient()
 	if client == nil {
 		return nil, nil, errors.New("failed to get ACME client")
 	}

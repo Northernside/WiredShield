@@ -1,0 +1,16 @@
+[Unit]
+Description=Wired node service
+After=network-online.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory={WORKINGDIR}
+ExecStart={BINPATH}
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile={PIDFILE}
+LimitNOFILE=500000
+LimitNPROC=500000
+
+[Install]
+WantedBy=multi-user.target

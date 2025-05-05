@@ -10,10 +10,13 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
+	"wired/modules/env"
 	"wired/modules/logger"
+	"wired/modules/pages"
 	"wired/modules/types"
 	"wired/services/dns"
 )
@@ -43,7 +46,13 @@ func Start() {
 	loadTargets()
 	initBackends()
 
+	rootHosts := strings.Split(env.GetEnv("ROOT_HOSTS", ""), ",")
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if slices.Contains(rootHosts, strings.ToLower(r.Host)) {
+			http.ServeFile(w, r, env.GetEnv("PUBLIC_DIR", "")+"/website/index.html")
+			return
+		}
+
 		if strings.HasPrefix(r.URL.Path, "/.wired/") {
 			handleWiredRequest(w, r)
 			return
@@ -74,6 +83,27 @@ func Start() {
 		MaxHeaderBytes:    1 << 13, // 8KB
 		ErrorLog:          log.New(&errorFilter{}, "", 0),
 	}
+
+	httpRedirectServer := &http.Server{
+		Addr: "[::]:80",
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "https://"+r.Host+r.URL.String(), http.StatusMovedPermanently)
+		}),
+		ReadTimeout:       5 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       90 * time.Second,
+		MaxHeaderBytes:    1 << 13, // 8KB
+		ErrorLog:          log.New(&errorFilter{}, "", 0),
+	}
+
+	go func() {
+		if err := httpRedirectServer.ListenAndServe(); err != nil {
+			panic(fmt.Sprintf("Failed to start HTTP redirect server: %v", err))
+		}
+	}()
+
+	logger.Println("HTTP redirect server started on port 80")
 
 	go func() {
 		if err := httpsServer.ListenAndServeTLS("", ""); err != nil {
@@ -143,8 +173,10 @@ func initBackends() {
 		proxy := httputil.NewSingleHostReverseProxy(target)
 		proxy.ErrorLog = log.New(&errorFilter{}, "", 0)
 		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-			logger.Println("Error in reverse proxy:", err)
-			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			logger.Println("Error in reverse proxy: ", err)
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(502)
+			w.Write(pages.ErrorPages[502].Html)
 		}
 		proxy.Transport = &http.Transport{
 			MaxIdleConns:          0,

@@ -8,7 +8,9 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 	"wired/modules/cache"
 	"wired/modules/env"
@@ -16,6 +18,7 @@ import (
 	event_data "wired/modules/event/events"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
+	"wired/modules/pages"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
 	"wired/modules/ssl"
@@ -29,11 +32,20 @@ import (
 //go:embed version.txt
 var version string
 
+//go:embed wirednode.service
+var wiredService string
+
 func init() {
 	env.LoadEnvFile()
+	pages.BuildErrorPages()
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "install" {
+		systemdInstall()
+		return
+	}
+
 	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
 
@@ -153,4 +165,57 @@ func dnsInitHandler(eventChan <-chan event.Event) {
 		go http.Start()
 		go ssl.StartRenewalChecker()
 	}
+}
+
+func systemdInstall() {
+	if runtime.GOOS != "linux" {
+		logger.Fatal("Systemd installation is only available on Linux systems")
+	}
+
+	cmd := exec.Command("systemctl", "--version")
+	err := cmd.Run()
+	if err != nil {
+		logger.Fatal("Systemd is not available on this system")
+	}
+
+	if os.Geteuid() != 0 {
+		logger.Fatal("You must be root to install the service")
+	}
+
+	err = os.WriteFile("/etc/systemd/system/wirednode.service", formatServiceFile(), 0644)
+	if err != nil {
+		logger.Fatal("Error writing service file:", err)
+	}
+
+	cmd = exec.Command("systemctl", "enable", "--now", "/etc/systemd/system/wirednode.service")
+	err = cmd.Run()
+	if err != nil {
+		logger.Fatal("Error enabling service:", err)
+	}
+
+	cmd = exec.Command("systemctl", "start", "wirednode")
+	err = cmd.Run()
+	if err != nil {
+		logger.Fatal("Error starting service:", err)
+	}
+
+	logger.Println("Service installed and started")
+}
+
+func formatServiceFile() []byte {
+	dir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
+	bin, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+
+	wiredService = strings.ReplaceAll(wiredService, "{WORKINGDIR}", dir)
+	wiredService = strings.ReplaceAll(wiredService, "{BINPATH}", bin)
+	wiredService = strings.ReplaceAll(wiredService, "{PIDFILE}", dir+"/node.pid")
+
+	return []byte(wiredService)
 }
