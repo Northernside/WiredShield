@@ -3,6 +3,7 @@ package packets
 import (
 	"fmt"
 	"time"
+	"wired/modules/globals"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
@@ -36,7 +37,7 @@ func (h *ChallengeStartHandler) Handle(conn *protocol.Conn, p *protocol.Packet) 
 		MutualChallenge: mutualChallenge,
 	}
 
-	err = conn.SendPacket(packet.ID_ChallengeResult, challengeResultPacket)
+	err = conn.SendPacket(globals.Packet.ID_ChallengeResult, challengeResultPacket)
 	if err != nil {
 		logger.Fatal("Failed to send challenge result packet:", err)
 	}

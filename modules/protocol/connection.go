@@ -10,23 +10,26 @@ import (
 	"net"
 	"strconv"
 	"time"
+	"wired/modules/globals"
 )
 
 const (
-	StateInitial    VarInt = 0 // initial connection
-	StateAESReady   VarInt = 1 // aes ready
-	StateFullyReady VarInt = 2 // fully authenticated connection
+	StateInitial    globals.VarInt = 0 // initial connection
+	StateAESReady   globals.VarInt = 1 // aes ready
+	StateFullyReady globals.VarInt = 2 // fully authenticated connection
 )
 
 type Conn struct {
 	Address net.IP
 	Port    uint16
-	State   VarInt
+	State   globals.VarInt
 	Key     string
 	conn    net.Conn
 	r       io.Reader
 	w       io.Writer
 }
+
+var MasterConn *Conn
 
 func (c *Conn) LocalAddr() net.Addr {
 	return c.conn.LocalAddr()
@@ -107,7 +110,7 @@ func (c *Conn) GetSocket() net.Conn {
 	return c.conn
 }
 
-func (c *Conn) SendPacket(id VarInt, packet any) error {
+func (c *Conn) SendPacket(id globals.VarInt, packet any) error {
 	//marshal packet
 	var (
 		data []byte
@@ -130,7 +133,7 @@ func (c *Conn) SendPacket(id VarInt, packet any) error {
 	return err
 }
 
-func (c *Conn) SendRawPacket(id VarInt, packet []byte) error {
+func (c *Conn) SendRawPacket(id globals.VarInt, packet []byte) error {
 	_, err := (&Packet{
 		ID:   id,
 		Data: packet,
@@ -139,7 +142,7 @@ func (c *Conn) SendRawPacket(id VarInt, packet []byte) error {
 	return err
 }
 
-func MarshalRawPacket(id VarInt, packet []byte) ([]byte, error) {
+func MarshalRawPacket(id globals.VarInt, packet []byte) ([]byte, error) {
 	var err error
 	buf := bytes.Buffer{}
 	_, err = (&Packet{
@@ -150,7 +153,7 @@ func MarshalRawPacket(id VarInt, packet []byte) ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-func MarshalPacket(id VarInt, packet any) ([]byte, error) {
+func MarshalPacket(id globals.VarInt, packet any) ([]byte, error) {
 	var data []byte
 	var err error
 	if packet != nil {

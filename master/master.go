@@ -9,8 +9,8 @@ import (
 	"net"
 	protocol_handler "wired/master/protocol"
 	"wired/modules/env"
+	"wired/modules/globals"
 	"wired/modules/logger"
-	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
 	"wired/modules/types"
@@ -69,7 +69,7 @@ func nodeHandler(conn *protocol.Conn) {
 
 			utils.NodesMux.Lock()
 			for _, node := range utils.Nodes {
-				node.Conn.SendPacket(15, types.NodeInfo{
+				node.Conn.SendPacket(globals.Packet.ID_NodeDetached, types.NodeInfo{
 					Key: conn.Key,
 				})
 			}
@@ -85,7 +85,7 @@ func nodeHandler(conn *protocol.Conn) {
 		return
 	}
 
-	if p.ID != packet.ID_Login {
+	if p.ID != globals.Packet.ID_Login {
 		logger.Println("Unexpected packet ID during login stage: ", p.ID)
 		return
 	}
@@ -120,7 +120,7 @@ func handleEncryption(conn *protocol.Conn) {
 		return
 	}
 
-	if recvPacket.ID != packet.ID_SharedSecret {
+	if recvPacket.ID != globals.Packet.ID_SharedSecret {
 		logger.Println("Unexpected packet ID: ", recvPacket.ID)
 		return
 	}

@@ -2,6 +2,9 @@ package logger
 
 import (
 	"fmt"
+	"os"
+	"strings"
+	"wired/modules/globals"
 )
 
 var (
@@ -74,17 +77,19 @@ func Sprintf(format string, a ...any) string {
 }
 
 func Fatal(generalMsg string, a ...any) {
-	fmt.Print("\n\n")
-	fmt.Println(PanicPrefix + generalMsg)
-	fmt.Printf("%s==============================================%s\n", ColorDarkGray, ColorReset)
-	fmt.Println(a...)
-	fmt.Printf("%s==============================================%s\n", ColorDarkGray, ColorReset)
-	panic(a)
-}
-
-func Fatalf(format string, a ...any) {
-	fmt.Printf(format, a...)
-	panic(fmt.Sprintf(format, a...))
+	var sb strings.Builder
+	sb.WriteString("\n\n")
+	sb.WriteString(fmt.Sprintf("%s==============================================%s\n", ColorDarkGray, ColorReset))
+	sb.WriteString(PanicPrefix)
+	sb.WriteString(generalMsg)
+	sb.WriteString("\n")
+	sb.WriteString(PanicPrefix)
+	sb.WriteString(fmt.Sprint(a...))
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf("%s==============================================%s\n", ColorDarkGray, ColorReset))
+	sb.WriteString("\n")
+	fmt.Print(sb.String())
+	globals.ShutdownChannel <- os.Interrupt
 }
 
 func ColorGradient(rgb1, rgb2 string, steps int) []string {

@@ -101,6 +101,8 @@ func GetLocationDistance(loc1, loc2 *MMLocation) float64 {
 }
 
 func FindNearestLocation(origin GeoInfo, ipVersion int) (GeoInfo, error) {
+	<-dbLoaded
+
 	var nearest GeoInfo
 	minDistance := math.MaxFloat64
 

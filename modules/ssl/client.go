@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"log"
 	"os"
+	"wired/modules/logger"
 
 	"golang.org/x/crypto/acme"
 )
@@ -18,7 +18,7 @@ func getClient() *acme.Client {
 	} else {
 		accountKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
-			log.Fatalf("Failed to generate account key: %v", err)
+			logger.Fatal("Failed to generate account key: ", err)
 		}
 
 		sslClient.Key = accountKey
@@ -37,7 +37,7 @@ func getClient() *acme.Client {
 		return true
 	})
 	if err != nil && err != acme.ErrAccountAlreadyExists {
-		log.Fatalf("Failed to register account: %v", err)
+		logger.Fatal("Failed to register account: ", err)
 	}
 
 	return client

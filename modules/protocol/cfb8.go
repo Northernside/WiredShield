@@ -5,6 +5,7 @@ package protocol
 
 import (
 	"crypto/cipher"
+	"wired/modules/logger"
 )
 
 // CFB stream with 8 bit segment size
@@ -51,7 +52,7 @@ func newCFB8(block cipher.Block, iv []byte, decrypt bool) cipher.Stream {
 	blockSize := block.BlockSize()
 	if len(iv) != blockSize {
 		// stack trace will indicate whether it was de or encryption
-		panic("cipher.newCFB: IV length must equal block size")
+		logger.Fatal("cipher.newCFB: IV length must equal block size")
 	}
 
 	x := &cfb8{

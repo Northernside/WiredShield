@@ -7,12 +7,13 @@ import (
 	"io"
 	"net"
 	"strings"
+	"wired/modules/globals"
 	"wired/modules/logger"
 )
 
 func SerializeString(str string) []byte {
 	buf := bytes.Buffer{}
-	l := VarInt(len(str))
+	l := globals.VarInt(len(str))
 	l.WriteTo(&buf)
 	buf.Write([]byte(str))
 
@@ -20,7 +21,7 @@ func SerializeString(str string) []byte {
 }
 
 func DeserializeString(conn io.Reader) (string, error) {
-	var l VarInt
+	var l globals.VarInt
 	_, err := l.ReadFrom(conn)
 	if err != nil {
 		return "", err
@@ -38,7 +39,7 @@ func DeserializeString(conn io.Reader) (string, error) {
 func RemovePort(addr string) string {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		panic(err)
+		logger.Fatal("Error removing port from address: ", err)
 	}
 
 	return host
@@ -58,7 +59,7 @@ func RandomUUID() string {
 	var uuid [16]byte
 	_, err := io.ReadFull(rand.Reader, uuid[:])
 	if err != nil {
-		logger.Println("Error generating UUID: %v", err)
+		logger.Printf("Error generating UUID: %v\n", err)
 		return ""
 	}
 

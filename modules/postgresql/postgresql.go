@@ -25,7 +25,7 @@ func Init() {
 
 	PsqlConn, err = pgxpool.Connect(context.Background(), connString)
 	if err != nil {
-		logger.Fatalf("Unable to connect to database: %v\n", err)
+		logger.Fatal("Unable to connect to database: ", err)
 		return
 	}
 

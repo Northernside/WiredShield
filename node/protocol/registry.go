@@ -1,25 +1,22 @@
 package protocol
 
 import (
-	"wired/modules/cache"
-	packet "wired/modules/packets"
-	"wired/modules/protocol"
+	"wired/modules/globals"
+	"wired/modules/utils"
 	"wired/node/protocol/packets"
 )
 
-var handlers = map[protocol.VarInt]PacketHandler{
-	packet.ID_ChallengeStart:    &packets.ChallengeStartHandler{},
-	packet.ID_ChallengeFinish:   &packets.ChallengeFinishHandler{},
-	packet.ID_EventTransmission: &packets.EventTransmissionHandler{},
-	packet.ID_NodeAttached:      &packets.NodeAttachedHandler{},
-	packet.ID_NodeDetached:      &packets.NodeDetachedHandler{},
+var handlers = map[globals.VarInt]PacketHandler{
+	globals.Packet.ID_ChallengeStart:    &packets.ChallengeStartHandler{},
+	globals.Packet.ID_ChallengeFinish:   &packets.ChallengeFinishHandler{},
+	globals.Packet.ID_EventTransmission: &packets.EventTransmissionHandler{},
+	globals.Packet.ID_NodeAttached:      &packets.NodeAttachedHandler{},
+	globals.Packet.ID_NodeDetached:      &packets.NodeDetachedHandler{},
 }
 
-func GetHandler(id protocol.VarInt) PacketHandler {
-	if id != packet.ID_ChallengeStart && id != packet.ID_ChallengeFinish {
-		if value, found := cache.Get[bool]("authentication_finished"); !found || !value {
-			return nil
-		}
+func GetHandler(id globals.VarInt) PacketHandler {
+	if id != globals.Packet.ID_ChallengeStart && id != globals.Packet.ID_ChallengeFinish && !utils.AuthenticationFinished {
+		return nil
 	}
 
 	return handlers[id]

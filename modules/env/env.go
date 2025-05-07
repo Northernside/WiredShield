@@ -3,7 +3,6 @@ package env
 import (
 	"bytes"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"wired/modules/logger"
@@ -41,6 +40,6 @@ func GetEnv(key, defaultValue string) string {
 		return value
 	}
 
-	log.Printf("Warning: Environment variable %s not found\n", key)
+	logger.Printf("Warning: Environment variable %s not found\n", key)
 	return defaultValue
 }

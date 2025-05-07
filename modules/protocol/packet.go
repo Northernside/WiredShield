@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"io"
+	"wired/modules/globals"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -31,7 +32,7 @@ func (p *Packet) Write(conn io.Writer) (int64, error) {
 	}
 
 	//write buffer length to connection
-	length := VarInt(buf.Len())
+	length := globals.VarInt(buf.Len())
 	n, err := length.WriteTo(conn)
 	if err != nil {
 		return n, err
@@ -42,17 +43,18 @@ func (p *Packet) Write(conn io.Writer) (int64, error) {
 
 func (p *Packet) Read(conn io.Reader) error {
 	// Read packet length
-	var length VarInt
+	var length globals.VarInt
 	_, err := length.ReadFrom(conn)
 	if err != nil {
 		return err
 	}
 
-	var id VarInt
+	var id globals.VarInt
 	_, err = id.ReadFrom(conn)
 	if err != nil {
 		return err
 	}
+
 	p.ID = id
 	if int(length)-id.Len() > 0 {
 		buf := make([]byte, int(length)-id.Len())
@@ -63,8 +65,8 @@ func (p *Packet) Read(conn io.Reader) error {
 		}
 		p.Data = buf
 	}
-	return nil
 
+	return nil
 }
 
 func EncodePacket(s any) ([]byte, error) {

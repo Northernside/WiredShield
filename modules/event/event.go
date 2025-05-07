@@ -2,10 +2,10 @@ package event
 
 import (
 	"time"
-	"wired/modules/cache"
 	"wired/modules/env"
+	"wired/modules/globals"
 	"wired/modules/protocol"
-	"wired/modules/types"
+	"wired/modules/utils"
 )
 
 var (
@@ -59,29 +59,20 @@ func (eventBus *EventBus) Pub(event Event) {
 
 	if env.GetEnv("NODE_KEY", "node-key") == "master" {
 		// send ID_EventTransmission packet to nodes
-		value, found := cache.Get[map[string]types.NodeInfo]("nodes")
-		if !found {
-			return
-		}
-
-		nodesMap := value
-		for _, node := range nodesMap {
-			node.Conn.SendPacket(13, EventTransmission{
+		for _, node := range utils.Nodes {
+			node.Conn.SendPacket(globals.Packet.ID_EventTransmission, EventTransmission{
 				EventBusName: eventBus.Name,
 				Event:        event,
 			})
 		}
 	} else {
 		// send ID_EventTransmission packet to master
-		master, found := cache.Get[*protocol.Conn]("master_conn")
-		if !found {
-			return
+		if protocol.MasterConn != nil {
+			protocol.MasterConn.SendPacket(globals.Packet.ID_EventTransmission, EventTransmission{
+				EventBusName: eventBus.Name,
+				Event:        event,
+			})
 		}
-
-		master.SendPacket(13, EventTransmission{
-			EventBusName: eventBus.Name,
-			Event:        event,
-		})
 	}
 }
 

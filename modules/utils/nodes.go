@@ -7,3 +7,5 @@ import (
 
 var Nodes = make(map[string]types.NodeInfo)
 var NodesMux = &sync.RWMutex{}
+
+var AuthenticationFinished = false

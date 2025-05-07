@@ -1,7 +1,6 @@
 package packets
 
 import (
-	"wired/modules/cache"
 	"wired/modules/geo"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
@@ -49,10 +48,10 @@ func (h *ChallengeFinishHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 			geo.NodeListeners[node.Key] = append(geo.NodeListeners[node.Key], geoInfo)
 		}
 	}
-	
+
 	utils.NodesMux.Lock()
 	utils.Nodes = ch.Nodes
 	utils.NodesMux.Unlock()
 
-	cache.Store("authentication_finished", true, 0)
+	utils.AuthenticationFinished = true
 }

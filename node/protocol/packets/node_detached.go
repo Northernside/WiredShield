@@ -1,11 +1,11 @@
 package packets
 
 import (
-	"wired/modules/cache"
 	"wired/modules/geo"
 	"wired/modules/logger"
 	"wired/modules/protocol"
 	"wired/modules/types"
+	"wired/modules/utils"
 )
 
 type NodeDetachedHandler struct{}
@@ -17,12 +17,9 @@ func (h *NodeDetachedHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 		logger.Fatal("Failed to decode challenge packet:", err)
 	}
 
-	value, found := cache.Get[map[string]types.NodeInfo]("nodes")
-	if !found {
-		value = make(map[string]types.NodeInfo)
-	}
-
-	delete(value, detcPacket.Key)
+	utils.NodesMux.Lock()
+	delete(utils.Nodes, detcPacket.Key)
+	utils.NodesMux.Unlock()
 	delete(geo.NodeListeners, detcPacket.Key)
 
 	logger.Println("Node detached: ", detcPacket.Key)

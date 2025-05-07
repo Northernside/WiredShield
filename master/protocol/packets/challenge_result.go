@@ -1,12 +1,12 @@
 package packets
 
 import (
-	"wired/modules/cache"
+	"wired/modules/globals"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
 	"wired/modules/protocol"
-	"wired/modules/types"
+	"wired/modules/utils"
 )
 
 type ChallengeResultHandler struct{}
@@ -47,26 +47,22 @@ func (h *ChallengeResultHandler) Handle(conn *protocol.Conn, p *protocol.Packet)
 	}
 
 	logger.Printf("Node %s%s%s connected\n", logger.ColorGray, newNode.Key, logger.ColorReset)
-	value, found := cache.Get[map[string]types.NodeInfo]("nodes")
-	if !found {
-		value = make(map[string]types.NodeInfo)
-	}
 
-	for _, node := range value {
+	for _, node := range utils.Nodes {
 		if node.Key == newNode.Key {
 			continue
 		}
 
-		node.Conn.SendPacket(packet.ID_NodeAttached, newNode)
+		node.Conn.SendPacket(globals.Packet.ID_NodeAttached, newNode)
 	}
 
 	challengeFinishPacket := packet.Challenge{
 		Challenge: ch.MutualChallenge,
 		Result:    mutualSignature,
-		Nodes:     value,
+		Nodes:     utils.Nodes,
 	}
 
 	conn.State = protocol.StateFullyReady
-	conn.SendPacket(packet.ID_ChallengeFinish, challengeFinishPacket)
+	conn.SendPacket(globals.Packet.ID_ChallengeFinish, challengeFinishPacket)
 	delete(packet.PendingChallenges, ch.Challenge)
 }

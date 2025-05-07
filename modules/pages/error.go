@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"wired/modules/env"
+	"wired/modules/logger"
 )
 
 type ErrorPageTemplate struct {
@@ -83,20 +84,20 @@ var errorBaseLength int
 func BuildErrorPages() {
 	file, err := os.Open(env.GetEnv("PUBLIC_DIR", "") + "/templates/error.html")
 	if err != nil {
-		panic(err)
+		logger.Fatal("Failed to open error.html template file: ", err)
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
-		panic(err)
+		logger.Fatal("Failed to get file stat: ", err)
 	}
 
 	errorBase = make([]byte, stat.Size())
 	errorBaseLength = int(stat.Size())
 	_, err = file.Read(errorBase)
 	if err != nil {
-		panic(err)
+		logger.Fatal("Failed to read error.html template file: ", err)
 	}
 
 	for _, page := range ErrorPages {

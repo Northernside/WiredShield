@@ -5,10 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"log"
 	"os"
 	"sort"
 	"strings"
+	"wired/modules/logger"
 )
 
 type SSLClient struct {
@@ -19,24 +19,24 @@ type SSLClient struct {
 func (s *SSLClient) saveKey() {
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
-		log.Fatalf("Failed to marshal key: %v", err)
+		logger.Fatal("Failed to marshal key: ", err)
 	}
 
 	err = os.WriteFile("ssl_client_key.json", data, 0600)
 	if err != nil {
-		log.Fatalf("Failed to save key to file: %v", err)
+		logger.Fatal("Failed to save key to file: ", err)
 	}
 }
 
 func (s *SSLClient) loadKey() {
 	data, err := os.ReadFile("ssl_client_key.json")
 	if err != nil {
-		log.Fatalf("Failed to read key from file: %v", err)
+		logger.Fatal("Failed to read key from file: ", err)
 	}
 
 	err = json.Unmarshal(data, s)
 	if err != nil {
-		log.Fatalf("Failed to unmarshal key: %v", err)
+		logger.Fatal("Failed to unmarshal key: ", err)
 	}
 }
 

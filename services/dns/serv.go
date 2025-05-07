@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"context"
 	"net"
 	"os"
 	"strings"
@@ -19,6 +20,9 @@ import (
 var (
 	Zones    = make(map[string][]types.DNSRecord)
 	ZonesMux = &sync.RWMutex{}
+
+	udpServer *dns.Server
+	tcpServer *dns.Server
 )
 
 func init() {
@@ -32,25 +36,25 @@ func init() {
 	}
 }
 
-func Start() {
+func Start(ctx context.Context) {
 	loadZonefile()
 
 	dns.HandleFunc(".", handleRequest)
 
 	go func() {
-		server := &dns.Server{Addr: ":53", Net: "udp"}
-		err := server.ListenAndServe()
+		udpServer = &dns.Server{Addr: ":53", Net: "udp"}
+		err := udpServer.ListenAndServe()
 		if err != nil {
-			panic(err)
+			logger.Fatal("Failed to start DNS (UDP) server: ", err)
 		}
 	}()
 	logger.Println("DNS server started on port 53 (UDP)")
 
 	go func() {
-		server := &dns.Server{Addr: ":53", Net: "tcp"}
-		err := server.ListenAndServe()
+		tcpServer = &dns.Server{Addr: ":53", Net: "tcp"}
+		err := tcpServer.ListenAndServe()
 		if err != nil {
-			panic(err)
+			logger.Fatal("Failed to start DNS (TCP) server: ", err)
 		}
 	}()
 	logger.Println("DNS server started on port 53 (TCP)")
@@ -62,7 +66,34 @@ func Start() {
 		Data:    event_data.DNSServiceInitializedData{},
 	})
 
-	select {}
+	<-ctx.Done()
+	logger.Println("Shutting down DNS servers...")
+
+	if udpServer != nil {
+		if err := udpServer.Shutdown(); err != nil {
+			logger.Println("Error shutting down DNS (UDP) server:", err)
+		}
+	}
+
+	if tcpServer != nil {
+		if err := tcpServer.Shutdown(); err != nil {
+			logger.Println("Error shutting down DNS (TCP) server:", err)
+		}
+	}
+}
+
+func getECS(r *dns.Msg) *dns.EDNS0_SUBNET {
+	for _, extra := range r.Extra {
+		if opt, ok := extra.(*dns.OPT); ok {
+			for _, option := range opt.Option {
+				if subnet, ok := option.(*dns.EDNS0_SUBNET); ok {
+					return subnet
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -71,10 +102,15 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m.Authoritative = true
 
 	var userIP net.IP
-	if udpConn, ok := w.RemoteAddr().(*net.UDPAddr); ok {
-		userIP = udpConn.IP
-	} else if tcpConn, ok := w.RemoteAddr().(*net.TCPAddr); ok {
-		userIP = tcpConn.IP
+	ecsSubnet := getECS(r)
+	if ecsSubnet != nil {
+		userIP = ecsSubnet.Address
+	} else {
+		if udpConn, ok := w.RemoteAddr().(*net.UDPAddr); ok {
+			userIP = udpConn.IP
+		} else if tcpConn, ok := w.RemoteAddr().(*net.TCPAddr); ok {
+			userIP = tcpConn.IP
+		}
 	}
 
 	userLoc, err := geo.GetLocation(userIP)
@@ -105,44 +141,33 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 		for _, rr := range Zones[zone] {
 			rrName := strings.ToLower(rr.Record.Header().Name)
-			if rrName == qname {
+			if rrName == qname && rr.Record.Header().Rrtype == qtype {
 				nameExists = true
-				if rr.Record.Header().Rrtype == dns.TypeCNAME {
-					cnameRecords = append(cnameRecords, rr.Record)
-				} else if rr.Record.Header().Rrtype == qtype {
-					if rr.Metadata.Protected {
-						if _, ok := rr.Record.(*dns.AAAA); ok {
-							loc, err := geo.FindNearestLocation(geo.GeoInfo{
-								IP:         userIP,
-								MMLocation: userLoc,
-							}, 6)
-							if err != nil {
-								logger.Printf("Error finding nearest location for IPv6 %s: %v\n", userIP, err)
-								logger.Println("userLoc:", userLoc)
-								debugTxt := makeErrorTxt(qname, err.Error())
-								m.Extra = append(m.Extra, debugTxt)
-								continue
-							}
-							rr.Record.(*dns.AAAA).AAAA = loc.IP
-						} else if _, ok := rr.Record.(*dns.A); ok {
-							loc, err := geo.FindNearestLocation(geo.GeoInfo{
-								IP:         userIP,
-								MMLocation: userLoc,
-							}, 4)
-							if err != nil {
-								logger.Printf("Error finding nearest location for IPv4 %s: %v\n", userIP, err)
-								logger.Println("userLoc:", userLoc)
-								debugTxt := makeErrorTxt(qname, err.Error())
-								m.Extra = append(m.Extra, debugTxt)
-								continue
-							}
+				if rr.Metadata.Protected {
+					ipVersion := map[bool]int{true: 6, false: 4}[rr.Record.Header().Rrtype == dns.TypeAAAA]
+					loc, err := geo.FindNearestLocation(geo.GeoInfo{
+						IP:         userIP,
+						MMLocation: userLoc,
+					}, ipVersion)
 
-							rr.Record.(*dns.A).A = loc.IP
-						}
+					if err != nil {
+						logger.Printf("Error finding nearest location for IPv%s %s: %v\n", ipVersion, userIP, err)
+						logger.Println("userLoc: ", userLoc)
+						m.Extra = append(m.Extra, makeErrorTxt(qname, err.Error()))
+						continue
 					}
 
-					answerRecords = append(answerRecords, rr.Record)
+					switch record := rr.Record.(type) {
+					case *dns.AAAA:
+						record.AAAA = loc.IP
+					case *dns.A:
+						record.A = loc.IP
+					}
 				}
+
+				answerRecords = append(answerRecords, rr.Record)
+			} else if rr.Record.Header().Rrtype == dns.TypeCNAME {
+				cnameRecords = append(cnameRecords, rr.Record)
 			}
 		}
 
@@ -236,6 +261,37 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		m.Ns = append(m.Ns, authorityRRs...)
+	}
+
+	if ecsSubnet != nil {
+		var opt *dns.OPT
+		for _, ex := range m.Extra {
+			if o, ok := ex.(*dns.OPT); ok {
+				opt = o
+				break
+			}
+		}
+
+		if opt == nil {
+			opt = &dns.OPT{
+				Hdr: dns.RR_Header{
+					Name:   ".",
+					Rrtype: dns.TypeOPT,
+				},
+			}
+
+			m.Extra = append(m.Extra, opt)
+		}
+
+		responseSubnet := &dns.EDNS0_SUBNET{
+			Code:          dns.EDNS0SUBNET,
+			Family:        ecsSubnet.Family,
+			SourceNetmask: ecsSubnet.SourceNetmask,
+			SourceScope:   ecsSubnet.SourceNetmask,
+			Address:       ecsSubnet.Address,
+		}
+
+		opt.Option = append(opt.Option, responseSubnet)
 	}
 
 	w.WriteMsg(m)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"wired/modules/logger"
 )
 
 const (
@@ -45,7 +46,7 @@ func (s *Snowflake) GenerateID() uint64 {
 	now := time.Now().UnixMilli()
 
 	if now < s.lastTime {
-		panic("Clock moved backwards, unable to generate ID")
+		logger.Fatal("Clock moved backwards. Cannot generate snowflake ID")
 	}
 
 	if now == s.lastTime {

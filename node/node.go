@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	_ "embed"
@@ -9,13 +10,15 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
-	"wired/modules/cache"
 	"wired/modules/env"
 	"wired/modules/event"
 	event_data "wired/modules/event/events"
+	"wired/modules/globals"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pages"
@@ -46,26 +49,53 @@ func main() {
 		return
 	}
 
-	cache.Store("authentication_finished", false, 0)
 	pgp.InitKeys()
 
-	go wired_dns.Start()
-	wired_dns.DNSEventBus.Sub(event.Event_DNSServiceInitialized, wired_dns.DNSEventChannel, func() { dnsInitHandler(wired_dns.DNSEventChannel) })
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	signal.Notify(globals.ShutdownChannel, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-globals.ShutdownChannel
+		logger.Println("Received shutdown signal, shutting down...")
+		cancel()
+	}()
+
+	go wired_dns.Start(ctx)
+	wired_dns.DNSEventBus.Sub(event.Event_DNSServiceInitialized, wired_dns.DNSEventChannel, func() { dnsInitHandler(ctx, wired_dns.DNSEventChannel) })
+
+connectionLoop:
 	for {
-		initNode()
-		logger.Println("Reconnecting to master...")
-		time.Sleep(5 * time.Second)
+		select {
+		case <-ctx.Done():
+			break connectionLoop
+		default:
+			initNode(ctx)
+
+			select {
+			case <-ctx.Done():
+				break connectionLoop
+			case <-time.After(5 * time.Second):
+				logger.Println("Reconnecting to master...")
+			}
+		}
 	}
 }
 
-func initNode() {
+func initNode(ctx context.Context) {
 	conn, err := connectToMaster()
 	if err != nil {
 		logger.Println("Failed to connect to master: ", err)
 		return
 	}
-	defer conn.Close()
+
+	protocol.MasterConn = conn
+
+	go func() {
+		<-ctx.Done()
+		conn.Close()
+	}()
 
 	handleEncryption(conn)
 
@@ -77,7 +107,7 @@ func initNode() {
 		return
 	}
 
-	err = conn.SendPacket(packet.ID_Login, packet.Login{
+	err = conn.SendPacket(globals.Packet.ID_Login, packet.Login{
 		NodeInfo: types.NodeInfo{
 			Key:       env.GetEnv("NODE_KEY", "node-key"),
 			Arch:      runtime.GOARCH,
@@ -94,13 +124,17 @@ func initNode() {
 		return
 	}
 
-	cache.Store("master_conn", conn, 0)
 	for {
 		p := new(protocol.Packet)
 		err := p.Read(conn)
 		if err != nil {
 			if err == io.EOF {
-				logger.Println("Lost connecton to master")
+				logger.Println("Lost connection to master")
+				return
+			}
+
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				logger.Println("Connection closed")
 				return
 			}
 
@@ -140,7 +174,7 @@ func handleEncryption(conn *protocol.Conn) {
 		return
 	}
 
-	err = conn.SendRawPacket(packet.ID_SharedSecret, buf)
+	err = conn.SendRawPacket(globals.Packet.ID_SharedSecret, buf)
 	if err != nil {
 		logger.Fatal("Failed to send shared secret packet:", err)
 		return
@@ -153,7 +187,7 @@ func handleEncryption(conn *protocol.Conn) {
 	}
 }
 
-func dnsInitHandler(eventChan <-chan event.Event) {
+func dnsInitHandler(ctx context.Context, eventChan <-chan event.Event) {
 	for event := range eventChan {
 		_, ok := event.Data.(event_data.DNSServiceInitializedData)
 		if !ok {
@@ -162,8 +196,8 @@ func dnsInitHandler(eventChan <-chan event.Event) {
 		}
 
 		// convertSingleCertToSAN()
-		go http.Start()
-		go ssl.StartRenewalChecker()
+		go http.Start(ctx)
+		go ssl.StartRenewalChecker(ctx)
 	}
 }
 
@@ -205,12 +239,12 @@ func systemdInstall() {
 func formatServiceFile() []byte {
 	dir, err := os.Getwd()
 	if err != nil {
-		panic(err)
+		logger.Fatal("Error getting working directory: ", err)
 	}
 
 	bin, err := os.Executable()
 	if err != nil {
-		panic(err)
+		logger.Fatal("Error getting executable path: ", err)
 	}
 
 	wiredService = strings.ReplaceAll(wiredService, "{WORKINGDIR}", dir)

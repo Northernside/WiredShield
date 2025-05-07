@@ -28,14 +28,12 @@ func init() {
 	machineIDStr := env.GetEnv("SNOWFLAKE_MACHINE_ID", "0")
 	machineID, err := strconv.ParseInt(machineIDStr, 10, 64)
 	if err != nil {
-		logger.Println("Invalid SNOWFLAKE_MACHINE_ID:", err)
-		panic(err)
+		logger.Fatal("Invalid SNOWFLAKE_MACHINE_ID: ", err)
 	}
 
 	sf, err = snowflake.NewSnowflake(machineID)
 	if err != nil {
-		logger.Println("Error creating Snowflake instance:", err)
-		panic(err)
+		logger.Fatal("Error creating Snowflake instance: ", err)
 	}
 }
 
@@ -91,7 +89,82 @@ func loadZonefile() {
 		return
 	}
 
+	createIPCompatibility()
+
 	logger.Println("Loaded zone file successfully")
+}
+
+func createIPCompatibility() {
+	/*
+		go through all zones and check if there are any A records with protected = true,
+		if so check if theres an AAAA record for the same zone too. if not, create one on the fly
+	*/
+
+	for zone, records := range Zones {
+		for _, record := range records {
+			if record.Metadata.Protected {
+				if record.Record.Header().Rrtype == dns.TypeA {
+					// check if there is an AAAA record for the same zone
+					found := false
+					for _, record2 := range records {
+						if record2.Record.Header().Rrtype == dns.TypeAAAA {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						// create an AAAA record for the same zone
+						rr := &dns.AAAA{
+							Hdr: dns.RR_Header{
+								Name:   zone,
+								Rrtype: dns.TypeAAAA,
+								Class:  dns.ClassINET,
+								Ttl:    0,
+							},
+							AAAA: record.Record.(*dns.A).A,
+						}
+
+						Zones[zone] = append(Zones[zone], types.DNSRecord{
+							Record:   rr,
+							Metadata: record.Metadata,
+						})
+
+						// logger.Printf("Created AAAA record for zone %s\n", zone)
+					}
+				} else if record.Record.Header().Rrtype == dns.TypeAAAA {
+					// check if there is an A record for the same zone
+					found := false
+					for _, record2 := range records {
+						if record2.Record.Header().Rrtype == dns.TypeA {
+							found = true
+							break
+						}
+					}
+
+					if !found {
+						// create an A record for the same zone
+						rr := &dns.A{
+							Hdr: dns.RR_Header{
+								Name:   zone,
+								Rrtype: dns.TypeA,
+								Class:  dns.ClassINET,
+								Ttl:    0,
+							},
+							A: record.Record.(*dns.AAAA).AAAA,
+						}
+
+						Zones[zone] = append(Zones[zone], types.DNSRecord{
+							Record:   rr,
+							Metadata: record.Metadata,
+						})
+
+						// logger.Printf("Created A record for zone %s\n", zone)
+					}
+				}
+			}
+		}
+	}
 }
 
 func GetRecord(id string) (types.DNSRecord, error) {

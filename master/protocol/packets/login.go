@@ -3,6 +3,7 @@ package packets
 import (
 	"fmt"
 	"time"
+	"wired/modules/globals"
 	"wired/modules/logger"
 	packet "wired/modules/packets"
 	"wired/modules/pgp"
@@ -40,7 +41,7 @@ func (h *LoginHandler) Handle(conn *protocol.Conn, p *protocol.Packet) {
 		Challenge: challenge,
 	}
 
-	err = conn.SendPacket(packet.ID_ChallengeStart, packet.Challenge{
+	err = conn.SendPacket(globals.Packet.ID_ChallengeStart, packet.Challenge{
 		Challenge: challenge,
 	})
 	if err != nil {
