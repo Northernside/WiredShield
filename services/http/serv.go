@@ -21,9 +21,10 @@ import (
 	"wired/modules/logger"
 	"wired/modules/pages"
 	"wired/modules/types"
-	"wired/services/dns"
+	wired_dns "wired/services/dns"
 	http_internal "wired/services/http/internal"
 
+	"github.com/miekg/dns"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -297,7 +298,7 @@ func initBackends() {
 		proxyMap[normalizedHost] = proxy
 
 		// overwrite .Metadata.SSLInfo
-		dns.Zones.UpdateRecords(normalizedHost+".", func(record *types.DNSRecord) {
+		wired_dns.Zones.UpdateRecords(dns.Fqdn(normalizedHost), func(record *types.DNSRecord) {
 			record.Metadata.SSLInfo = types.SSLInfo{
 				IssuedAt:  cert.Leaf.NotBefore,
 				ExpiresAt: cert.Leaf.NotAfter,

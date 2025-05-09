@@ -45,10 +45,10 @@ func dns01Handling(domain, authzURL string) error {
 	}
 
 	var id string
-	if id, err, _ = wired_dns.AddRecord(domain, types.DNSRecord{
+	if id, err, _ = wired_dns.AddRecord(dns.Fqdn(domain), types.DNSRecord{
 		Record: &dns.TXT{
 			Hdr: dns.RR_Header{
-				Name:   "_acme-challenge." + domain + ".",
+				Name:   dns.Fqdn("_acme-challenge." + domain),
 				Rrtype: dns.TypeTXT,
 				Class:  dns.ClassINET,
 				Ttl:    3600,
