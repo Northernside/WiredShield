@@ -41,15 +41,6 @@ func init() {
 	}
 }
 
-func GetRecord(id string) (types.DNSRecord, error) {
-	record, ok := Zones.getByID(id)
-	if !ok {
-		return types.DNSRecord{}, fmt.Errorf("record with ID %s not found", id)
-	}
-
-	return record, nil
-}
-
 func AddRecord(zone string, record types.DNSRecord) (string, error, bool) {
 	zonefileMu.Lock()
 	defer zonefileMu.Unlock()
