@@ -62,7 +62,8 @@ func main() {
 		cancel()
 	}()
 
-	go wired_dns.Start(ctx)
+	wired_dns.LoadZonefile()
+	wired_dns.DNSEventBus.Sub(event.Event_DNSDataBuilt, wired_dns.DNSEventChannel, func() { wired_dns.Start(ctx) })
 	wired_dns.DNSEventBus.Sub(event.Event_DNSServiceInitialized, wired_dns.DNSEventChannel, func() { dnsInitHandler(ctx, wired_dns.DNSEventChannel) })
 
 connectionLoop:

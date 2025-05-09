@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiredShield - Domain Management</title>
+    <link rel="stylesheet" href="/dash/css/global.css">
+</head>
+
+<body>
+    <div class="header">
+        <img src="/dash/assets/logo.svg" alt="WiredShield Logo">
+        <h1>WiredShield</h1>
+    </div>
+
+    <div class="content">
+        <button class="add-btn" onclick="openAddRecordModal()">Add Record</button>
+        <div class="records-table">
+            <div class="table-header">
+                <span>Type</span>
+                <span>Name</span>
+                <span>Content</span>
+                <span>Protected</span>
+                <span>TTL</span>
+                <span>Actions</span>
+            </div>
+            <div id="record-list"></div>
+        </div>
+    </div>
+
+    <div id="addRecordModal">
+        <div class="modal-content">
+            <h2>Add DNS Record</h2>
+            <select id="recordType" onchange="generateRecordFields()">
+                <option value="A">A</option>
+                <option value="AAAA">AAAA</option>
+                <option value="CNAME">CNAME</option>
+                <option value="TXT">TXT</option>
+                <option value="MX">MX</option>
+                <option value="NS">NS</option>
+                <option value="SOA">SOA</option>
+                <option value="CAA">CAA</option>
+                <option value="SRV">SRV</option>
+            </select>
+            <div id="recordFields"></div>
+            <div class="modal-actions">
+                <button onclick="saveRecord()">Save</button>
+                <button onclick="closeAddRecordModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div id="overlay" onclick="closeAddRecordModal()"></div>
+
+    <script>
+        const RR_TYPE_MAP = {
+            1: "A",
+            2: "NS",
+            5: "CNAME",
+            6: "SOA",
+            12: "PTR",
+            15: "MX",
+            16: "TXT",
+            28: "AAAA",
+            33: "SRV",
+            257: "CAA"
+        };
+
+        const domain = window.location.pathname.split("/").pop();
+
+        function fetchRecords() {
+            fetch(`https://as214428.net/dash/api/domains/records?domain=${domain}`)
+                .then((response) => response.json())
+                .then((data) => displayRecords(data))
+                .catch((error) => console.error("Error fetching records:", error));
+        }
+
+        function groupRecordsByType(records) {
+            return records.reduce((groups, record) => {
+                const { type } = record;
+                if (!groups[type]) groups[type] = [];
+                groups[type].push(record);
+                return groups;
+            }, {});
+        }
+
+        function displayRecords(records) {
+            const container = document.getElementById("record-list");
+            container.innerHTML = "";
+
+            records.sort((a, b) => { // sort by .protected first, then by type, then alphabetically
+                if (a.Metadata.protected && !b.Metadata.protected) return -1;
+                if (!a.Metadata.protected && b.Metadata.protected) return 1;
+                if (a.Record.Hdr.Rrtype < b.Record.Hdr.Rrtype) return -1;
+                if (a.Record.Hdr.Rrtype > b.Record.Hdr.Rrtype) return 1;
+                return a.Record.Hdr.Name.localeCompare(b.Record.Hdr.Name);
+            });
+
+            records.forEach(record => {
+                const meta = record.Metadata;
+                if (meta.artificial) return;
+                record = record.Record;
+                const row = document.createElement("div");
+                row.className = "table-row";
+
+                row.innerHTML = `
+                    <span data-label="Type">${RR_TYPE_MAP[record.Hdr?.Rrtype] || record.Hdr?.Rrtype}</span>
+                    <span data-label="Name">${record.Hdr?.Name || ""}</span>
+                    <span data-label="Content">${getRecordContent(record)}</span>
+                    <span data-label="Protected">
+                        <div class="protected-status">
+                            ${meta.protected ?
+                        `<img src="/dash/assets/logo.svg" class="cloud-icon green-filter"> Enabled` :
+                        `<img src="/dash/assets/logo.svg" class="cloud-icon"> Disabled`}
+                        </div>
+                    </span>
+                    <span data-label="TTL">${record.Hdr?.Ttl}</span>
+                    <div class="actions-menu">
+                        <button onclick="deleteRecord("${record.Hdr?.id}")" style="color:var(--danger)">Delete</button>
+                    </div>
+                `;
+
+                const details = document.createElement("div");
+                details.className = "expanded-details";
+                details.style.display = "none";
+                details.innerHTML = `
+                    <div class="detail-row">
+                        <div class="detail-label">Record ID:</div>
+                        <div style="cursor: pointer;" onclick="copyToClipboard('${meta.id}')">
+                            ${meta.id}
+                        </div>
+                    </div>
+                    ${getAdditionalDetails(record)}
+                `;
+
+                row.appendChild(details);
+                row.onclick = (event) => {
+                    toggleDetails(null, row);
+                };
+
+                container.appendChild(row);
+            });
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Text copied to clipboard!");
+            }).catch((error) => {
+                console.error("Error copying text: ", error);
+            });
+        }
+
+        function getAdditionalDetails(record) {
+            for (const [key, value] of Object.entries(record)) {
+                if (key !== "Hdr") {
+                    return `<div class="detail-row">
+                        <div class="detail-label">${key}:</div>
+                        <div style="cursor: pointer;" onclick="copyToClipboard('${value}')">
+                            ${value}
+                        </div>
+                    </div>`;
+                }
+            }
+        }
+
+        function getRecordContent(record) {
+            switch (RR_TYPE_MAP[record.Hdr?.Rrtype] || record.Hdr?.Rrtype) {
+                case "A": return record.A || "";
+                case "AAAA": return record.AAAA || "";
+                case "CNAME": return record.Target || "";
+                case "TXT": return record.Txt || "";
+                case "MX": return `${record.Mx || ""} ${record.Preference || ""}`;
+                case "NS": return record.Ns || "";
+                case "SOA": return `${record.Soa?.Ns || ""} ${record.Soa?.Mbox || ""}`;
+                case "CAA": return `${record.Caa?.Flag || ""} ${record.Caa?.Tag || ""} ${record.Caa?.Value || ""}`;
+                case "SRV": return `${record.Srv?.Priority || ""} ${record.Srv?.Weight || ""} ${record.Srv?.Port || ""} ${record.Srv?.Target || ""}`;
+                default: return "";
+            }
+        }
+
+        function toggleDetails(button, row) {
+            if (button) {
+                button.innerText = button.innerText === "Expand" ? "Collapse" : "Expand";
+                row = button.closest(".table-row");
+                if (!row) return;
+                row = row.querySelector(".expanded-details");
+                if (!row) return;
+                row.style.display = row.style.display === "none" ? "block" : "none";
+                return;
+            }
+
+            if (row) {
+                const details = row.querySelector(".expanded-details");
+                details.style.display = details.style.display === "none" ? "block" : "none";
+            }
+        }
+
+        function openAddRecordModal() {
+            document.getElementById("addRecordModal").style.display = "block";
+            document.getElementById("overlay").style.display = "block";
+            generateRecordFields();
+
+            document.getElementById("field-Name").focus();
+            document.getElementById("field-Name").setSelectionRange(0, 0);
+        }
+
+        function closeAddRecordModal() {
+            document.getElementById("addRecordModal").style.display = "none";
+            document.getElementById("overlay").style.display = "none";
+        }
+
+        function generateRecordFields() {
+            const recordType = document.getElementById("recordType").value;
+            const recordFieldsContainer = document.getElementById("recordFields");
+            recordFieldsContainer.innerHTML = "";
+
+            const fieldConfig = {
+                A: ["Name", "Address", "TTL", "Protected"],
+                AAAA: ["Name", "Address", "TTL", "Protected"],
+                CNAME: ["Name", "Target", "TTL"],
+                TXT: ["Name", "Value", "TTL"],
+                MX: ["Name", "Priority", "Target", "TTL"],
+                NS: ["Name", "Nameserver", "TTL"],
+                SOA: ["Nameserver", "Email", "Serial", "Refresh", "Retry", "Expire", "TTL"],
+                CAA: ["Name", "Flag", "Tag", "Value", "TTL"],
+                SRV: ["Name", "Priority", "Weight", "Port", "Target", "TTL"]
+            };
+
+            (fieldConfig[recordType] || []).forEach((field) => {
+                const fieldDiv = document.createElement("div");
+                const label = document.createElement("label");
+                label.textContent = `${field}:`;
+                fieldDiv.appendChild(label);
+
+                let input;
+                if (field !== "Protected") {
+                    input = document.createElement("input");
+                    input.type = "text";
+                    input.id = `field-${field}`;
+                    fieldDiv.appendChild(input);
+                } else {
+                    input = document.createElement("input");
+                    input.type = "checkbox";
+                    input.id = `field-${field}`;
+                    fieldDiv.appendChild(input);
+                }
+
+                if (field === "Name") {
+                    input.value = domain;
+                } else if (field === "Refresh") {
+                    input.value = "3600";
+                } else if (field === "Retry") {
+                    input.value = "600";
+                } else if (field === "Expire") {
+                    input.value = "604800";
+                } else if (field === "TTL") {
+                    input.value = "3600";
+                }
+
+                recordFieldsContainer.appendChild(fieldDiv);
+            });
+        }
+
+        function saveRecord() {
+            const recordType = document.getElementById("recordType").value;
+            const fields = Array.from(document.querySelectorAll("#recordFields input"))
+                .reduce((data, input) => {
+                    if (input.type == "text") {
+                        data[input.id.replace("field-", "")] = input.value;
+                    } else if (input.type == "checkbox") {
+                        data[input.id.replace("field-", "")] = input.checked;
+                    }
+                    return data;
+                }, {});
+
+            const record = {
+                type: recordType,
+                ...fields
+            };
+
+            fetch(`https://as214428.net/dash/api/domains/records?domain=${domain}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(record)
+            })
+                .then((response) => response.text())
+                .then(async (data) => {
+                    closeAddRecordModal();
+                    await new Promise((resolve) => setTimeout(resolve, 150));
+                    fetchRecords();
+                })
+                .catch((error) => {
+                    alert(`Error saving record: ${error}`);
+                });
+        }
+
+        function deleteRecord(id) {
+            fetch(`https://as214428.net/dash/api/domains/records/${id}?domain=${domain}`, {
+                method: "DELETE"
+            })
+                .then((response) => response.text())
+                .then((data) => fetchRecords())
+                .catch((error) => alert("Error deleting record:", error));
+        }
+
+        fetchRecords();
+    </script>
+</body>
+
+</html>

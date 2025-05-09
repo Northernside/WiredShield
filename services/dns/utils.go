@@ -64,3 +64,69 @@ func zoneFileToRecord(zoneLine string) (dns.RR, error) {
 
 	return rr, nil
 }
+
+func createIPCompatibility() {
+	Zones.mu.Lock()
+	defer Zones.mu.Unlock()
+
+	var walk func(node *trieNode, path []string)
+	walk = func(node *trieNode, path []string) {
+		if len(node.records) > 0 {
+			reversedPath := reverse(path)
+			domain := dns.Fqdn(strings.Join(reversedPath, "."))
+
+			for _, record := range node.records {
+				if !record.Metadata.Protected {
+					continue
+				}
+
+				var existingType uint16
+				var newRR dns.RR
+
+				switch record.Record.Header().Rrtype {
+				case dns.TypeA:
+					existingType = dns.TypeAAAA
+					a := record.Record.(*dns.A)
+					newRR = &dns.AAAA{
+						Hdr:  dns.RR_Header{Name: domain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: a.Hdr.Ttl},
+						AAAA: record.Record.(*dns.A).A,
+					}
+				case dns.TypeAAAA:
+					existingType = dns.TypeA
+					aaaa := record.Record.(*dns.AAAA)
+					newRR = &dns.A{
+						Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: aaaa.Hdr.Ttl},
+						A:   record.Record.(*dns.AAAA).AAAA,
+					}
+				default:
+					continue
+				}
+
+				exists := false
+				for _, r := range node.records {
+					if r.Record.Header().Rrtype == existingType {
+						exists = true
+						break
+					}
+				}
+
+				if !exists {
+					node.records = append(node.records, types.DNSRecord{
+						Record: newRR,
+						Metadata: types.RecordMetadata{
+							ID:         record.Metadata.ID,
+							Protected:  true,
+							Artificial: true,
+						},
+					})
+				}
+			}
+		}
+
+		for label, child := range node.children {
+			walk(child, append(path, label))
+		}
+	}
+
+	walk(Zones.root, []string{})
+}

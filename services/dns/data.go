@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"wired/modules/env"
 	"wired/modules/event"
@@ -19,9 +20,12 @@ import (
 )
 
 var (
-	sf              *snowflake.Snowflake
+	sf *snowflake.Snowflake
+
 	DNSEventChannel = make(chan event.Event)
 	DNSEventBus     = event.NewEventBus("dns")
+
+	zonefileMu sync.Mutex
 )
 
 func init() {
@@ -37,328 +41,184 @@ func init() {
 	}
 }
 
-func loadZonefile() {
-	ZonesMux.Lock()
-	defer ZonesMux.Unlock()
-
-	file, err := os.Open("zonefile.txt")
-	if err != nil {
-		logger.Println("Error opening zone file:", err)
-		return
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		var comment = types.RecordMetadata{}
-		if strings.Contains(line, ";") {
-			err := json.Unmarshal([]byte(strings.Split(line, ";")[1]), &comment)
-			if err != nil {
-				logger.Println("Error unmarshalling comment metadata:", err)
-				continue
-			}
-		}
-
-		rr, err := zoneFileToRecord(line)
-		if err != nil {
-			if err == types.ErrUnusableLine {
-				continue
-			}
-
-			logger.Println("Error parsing zone file line:", err)
-			continue
-		}
-
-		hdr := rr.Header()
-		name := strings.ToLower(hdr.Name)
-		zone := dns.CanonicalName(name)
-		if _, ok := Zones[zone]; !ok {
-			Zones[zone] = []types.DNSRecord{}
-		}
-
-		Zones[zone] = append(Zones[zone], types.DNSRecord{
-			Record:   rr,
-			Metadata: comment,
-		})
-	}
-
-	if err := scanner.Err(); err != nil {
-		logger.Println("Error reading zone file:", err)
-		return
-	}
-
-	createIPCompatibility()
-
-	logger.Println("Loaded zone file successfully")
-}
-
-func createIPCompatibility() {
-	/*
-		go through all zones and check if there are any A records with protected = true,
-		if so check if theres an AAAA record for the same zone too. if not, create one on the fly
-	*/
-
-	for zone, records := range Zones {
-		for _, record := range records {
-			if record.Metadata.Protected {
-				if record.Record.Header().Rrtype == dns.TypeA {
-					// check if there is an AAAA record for the same zone
-					found := false
-					for _, record2 := range records {
-						if record2.Record.Header().Rrtype == dns.TypeAAAA {
-							found = true
-							break
-						}
-					}
-
-					if !found {
-						// create an AAAA record for the same zone
-						rr := &dns.AAAA{
-							Hdr: dns.RR_Header{
-								Name:   zone,
-								Rrtype: dns.TypeAAAA,
-								Class:  dns.ClassINET,
-								Ttl:    0,
-							},
-							AAAA: record.Record.(*dns.A).A,
-						}
-
-						Zones[zone] = append(Zones[zone], types.DNSRecord{
-							Record:   rr,
-							Metadata: record.Metadata,
-						})
-
-						// logger.Printf("Created AAAA record for zone %s\n", zone)
-					}
-				} else if record.Record.Header().Rrtype == dns.TypeAAAA {
-					// check if there is an A record for the same zone
-					found := false
-					for _, record2 := range records {
-						if record2.Record.Header().Rrtype == dns.TypeA {
-							found = true
-							break
-						}
-					}
-
-					if !found {
-						// create an A record for the same zone
-						rr := &dns.A{
-							Hdr: dns.RR_Header{
-								Name:   zone,
-								Rrtype: dns.TypeA,
-								Class:  dns.ClassINET,
-								Ttl:    0,
-							},
-							A: record.Record.(*dns.AAAA).AAAA,
-						}
-
-						Zones[zone] = append(Zones[zone], types.DNSRecord{
-							Record:   rr,
-							Metadata: record.Metadata,
-						})
-
-						// logger.Printf("Created A record for zone %s\n", zone)
-					}
-				}
-			}
-		}
-	}
-}
-
 func GetRecord(id string) (types.DNSRecord, error) {
-	ZonesMux.RLock()
-	defer ZonesMux.RUnlock()
-
-	var foundZone string
-	var foundIndex int = -1
-
-	for zone, records := range Zones {
-		for i, record := range records {
-			if record.Metadata.ID == id {
-				foundZone = zone
-				foundIndex = i
-				break
-			}
-		}
-
-		if foundIndex != -1 {
-			break
-		}
-	}
-
-	if foundIndex == -1 {
+	record, ok := Zones.getByID(id)
+	if !ok {
 		return types.DNSRecord{}, fmt.Errorf("record with ID %s not found", id)
 	}
 
-	return Zones[foundZone][foundIndex], nil
+	return record, nil
 }
 
-func AddRecord(zone string, record types.DNSRecord) (string, error) {
-	ZonesMux.RLock()
-	defer ZonesMux.RUnlock()
+func AddRecord(zone string, record types.DNSRecord) (string, error, bool) {
+	zonefileMu.Lock()
+	defer zonefileMu.Unlock()
 
 	zone = strings.ToLower(zone)
-	if _, ok := Zones[zone]; !ok {
-		Zones[zone] = []types.DNSRecord{}
-	}
-
 	id := sf.GenerateID()
 	record.Metadata.ID = fmt.Sprintf("%d", id)
 
-	Zones[zone] = append(Zones[zone], record)
+	Zones.insert(zone, record)
 
-	logger.Println("Adding record to zone: ", zone)
 	file, err := os.OpenFile("zonefile.txt", os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		logger.Println("Error opening zone file for appending:", err)
-		return "", err
+		return "", err, false
 	}
 	defer file.Close()
 
-	marshalledMetadata, err := json.Marshal(record.Metadata)
+	meta, err := json.Marshal(record.Metadata)
 	if err != nil {
 		logger.Println("Error marshalling metadata:", err)
-		return "", err
+		return "", err, false
 	}
 
 	writer := bufio.NewWriter(file)
-	_, err = writer.WriteString(recordToZoneFile(record.Record) + ";" + string(marshalledMetadata) + "\n")
+	_, err = writer.WriteString(recordToZoneFile(record.Record) + ";" + string(meta) + "\n")
 	if err != nil {
 		logger.Println("Error writing to zone file:", err)
-		return "", err
+		return "", err, false
 	}
-
-	err = writer.Flush()
-	if err != nil {
-		logger.Println("Error flushing writer:", err)
-		return "", err
-	}
+	writer.Flush()
 
 	DNSEventBus.Pub(event.Event{
 		Type:    event.Event_AddRecord,
 		FiredAt: time.Now(),
 		FiredBy: env.GetEnv("NODE_KEY", "node-key"),
-		Data: event_data.AddRecordData{
-			Record: record,
-		},
+		Data:    event_data.AddRecordData{Record: record},
 	})
 
-	return record.Metadata.ID, nil
+	return record.Metadata.ID, nil, true
 }
 
-func RemoveRecord(id string) error {
-	ZonesMux.RLock()
-	defer ZonesMux.RUnlock()
-
-	var foundZone string
-	var foundIndex int = -1
-
-	for zone, records := range Zones {
-		for i, record := range records {
-			if record.Metadata.ID == id {
-				foundZone = zone
-				foundIndex = i
-				break
-			}
-		}
-
-		if foundIndex != -1 {
-			break
-		}
+func RemoveRecord(id string) (error, bool) {
+	ok := Zones.deleteByID(id)
+	if !ok {
+		return fmt.Errorf("record with ID %s not found", id), false
 	}
 
-	if foundIndex == -1 {
-		return fmt.Errorf("record with ID %s not found", id)
-	}
-
-	Zones[foundZone] = append(Zones[foundZone][:foundIndex], Zones[foundZone][foundIndex+1:]...)
+	zonefileMu.Lock()
+	defer zonefileMu.Unlock()
 
 	file, err := os.Open("zonefile.txt")
 	if err != nil {
 		logger.Println("Error opening zone file for reading:", err)
-		return err
+		return err, false
 	}
 	defer file.Close()
 
-	lines := []string{}
+	var lines []string
 	scanner := bufio.NewScanner(file)
-	targetLine := -1
-	lineNumber := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.SplitN(line, ";", 2)
 		if len(parts) > 1 {
-			var metadata types.RecordMetadata
-			if err := json.Unmarshal([]byte(parts[1]), &metadata); err != nil {
-				logger.Println("Error parsing metadata for line", lineNumber, ":", err)
-			} else if metadata.ID == id {
-				targetLine = lineNumber
+			var meta types.RecordMetadata
+			if json.Unmarshal([]byte(parts[1]), &meta) == nil {
+				if meta.ID == id {
+					continue
+				}
 			}
 		}
 
 		lines = append(lines, line)
-		lineNumber++
 	}
-
-	if err := scanner.Err(); err != nil {
-		logger.Println("Error reading zone file:", err)
-		return err
-	}
-
-	if targetLine == -1 {
-		return fmt.Errorf("record with ID %s not found in zone file", id)
-	}
-
-	lines = append(lines[:targetLine], lines[targetLine+1:]...)
 
 	file, err = os.OpenFile("zonefile.txt", os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		logger.Println("Error opening zone file for writing:", err)
-		return err
+		return err, false
 	}
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
 	for _, line := range lines {
-		_, err := writer.WriteString(line + "\n")
-		if err != nil {
-			logger.Println("Error writing to zone file:", err)
-			return err
-		}
+		writer.WriteString(line + "\n")
 	}
-
-	if err := writer.Flush(); err != nil {
-		logger.Println("Error flushing writer:", err)
-		return err
-	}
+	writer.Flush()
 
 	DNSEventBus.Pub(event.Event{
 		Type:    event.Event_RemoveRecord,
 		FiredAt: time.Now(),
 		FiredBy: env.GetEnv("NODE_KEY", "node-key"),
-		Data: event_data.RemoveRecordData{
-			ID: id,
-		},
+		Data:    event_data.RemoveRecordData{ID: id},
 	})
 
-	return nil
+	return nil, true
+}
+
+func (t *dnsTrie) UpdateRecords(domain string, updateFunc func(*types.DNSRecord)) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	labels := domainToLabels(domain)
+	reversedLabels := reverse(labels)
+
+	node := t.root
+	for _, label := range reversedLabels {
+		child, ok := node.children[label]
+		if !ok {
+			return false
+		}
+
+		node = child
+	}
+
+	for i := range node.records {
+		updateFunc(&node.records[i])
+	}
+
+	return true
 }
 
 func ListRecordsByZone(zone string) ([]types.DNSRecord, error) {
-	ZonesMux.RLock()
-	defer ZonesMux.RUnlock()
-
 	zone = strings.ToLower(zone)
-	if _, ok := Zones[zone]; !ok {
-		return nil, fmt.Errorf("zone %s not found", zone)
+	reversedLabels := reverse(domainToLabels(dns.Fqdn(zone)))
+
+	Zones.mu.RLock()
+	defer Zones.mu.RUnlock()
+
+	currentNode := Zones.root
+	for _, label := range reversedLabels {
+		child, ok := currentNode.children[label]
+		if !ok {
+			return nil, fmt.Errorf("zone %s not found", zone)
+		}
+
+		currentNode = child
 	}
 
-	return Zones[zone], nil
+	var records []types.DNSRecord
+	var walk func(*trieNode)
+	walk = func(node *trieNode) {
+		records = append(records, node.records...)
+		for _, child := range node.children {
+			walk(child)
+		}
+	}
+
+	walk(currentNode)
+	return records, nil
 }
 
-// -> only used to read the list for now during non-concurrent access
 func ListRecords() map[string][]types.DNSRecord {
-	return Zones
+	result := make(map[string][]types.DNSRecord)
+
+	var walk func(node *trieNode, path []string)
+	walk = func(node *trieNode, path []string) {
+		if len(node.records) > 0 {
+			domain := strings.Join(reverse(path), ".")
+			result[dns.Fqdn(domain)] = node.records
+		}
+
+		for label, child := range node.children {
+			walk(child, append(path, label))
+		}
+	}
+
+	Zones.mu.RLock()
+	defer Zones.mu.RUnlock()
+	walk(Zones.root, []string{})
+
+	return result
 }

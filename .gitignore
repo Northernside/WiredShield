@@ -39,6 +39,9 @@ node/node
 master/master
 
 *.js
+*.ts
+bun.lock
+sent.json
 Mails
 bun.lockb
 *mails.csv

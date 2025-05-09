@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiredShield - Domain Overview</title>
+    <link rel="stylesheet" href="/dash/css/global.css">
+</head>
+
+<body>
+    <div class="header">
+        <img src="/dash/assets/logo.svg" alt="WiredShield Logo">
+        <h1>WiredShield</h1>
+    </div>
+
+    <div class="domain-grid" id="domainList"></div>
+
+    <div class="footer">
+        <p>protected & managed by <a href="https://github.com/Northernside/WiredShield">WiredShield</a></p>
+    </div>
+
+    <script>
+        (async () => {
+            let domainList = await fetch(`https://as214428.net/dash/api/domains`)
+                .then(response => response.json())
+                .then(data => data);
+
+            const listContainer = document.getElementById("domainList");
+            domainList = domainList.sort((a, b) => {
+                return a.name.localeCompare(b.name);
+            });
+            
+            domainList.forEach(domain => {
+                const domainElement = document.createElement("a");
+                domainElement.className = "domain-card";
+                domainElement.href = `/dash/domain/${domain.name}`;
+                domainElement.innerHTML = `
+                    <h2>${domain.name}</h2>
+                    <p>${domain.records} records<br>${domain.ssl_certs} SSL certificates</p>
+                `;
+                listContainer.appendChild(domainElement);
+            });
+        })();
+    </script>
+</body>
+
+</html>

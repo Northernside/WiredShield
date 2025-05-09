@@ -44,7 +44,8 @@ func dns01Handling(domain, authzURL string) error {
 		return err
 	}
 
-	id, err := wired_dns.AddRecord(domain+".", types.DNSRecord{
+	var id string
+	if id, err, _ = wired_dns.AddRecord(domain, types.DNSRecord{
 		Record: &dns.TXT{
 			Hdr: dns.RR_Header{
 				Name:   "_acme-challenge." + domain + ".",
@@ -58,8 +59,7 @@ func dns01Handling(domain, authzURL string) error {
 			Protected: false,
 			Geo:       false,
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -74,9 +74,10 @@ func dns01Handling(domain, authzURL string) error {
 	}
 
 	defer func() {
-		err := wired_dns.RemoveRecord(id)
-		if err != nil {
-			fmt.Printf("Error removing record: %v\n", err)
+		if err, ok := wired_dns.RemoveRecord(id); ok {
+			logger.Printf("Removed DNS record for %s: %v\n", domain, err)
+		} else {
+			logger.Printf("Failed to remove DNS record for %s: %v\n", domain, err)
 		}
 	}()
 

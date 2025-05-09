@@ -12,10 +12,11 @@ type SSLInfo struct {
 }
 
 type RecordMetadata struct {
-	ID        string `json:"id"`
-	Protected bool   `json:"protected"`
-	Geo       bool   `json:"geo"`
-	SSLInfo   SSLInfo
+	ID         string `json:"id"`
+	Protected  bool   `json:"protected"`
+	Geo        bool   `json:"geo"`
+	Artificial bool   `json:"artificial"`
+	SSLInfo    SSLInfo
 }
 
 type DNSRecord struct {

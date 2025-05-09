@@ -13,6 +13,7 @@ type ErrorPageTemplate struct {
 	Code     int
 	Messages []string
 	Html     []byte
+	Rerender func(code int, messages []string) []byte
 }
 
 var ErrorPages = map[int]ErrorPageTemplate{
@@ -56,8 +57,7 @@ var ErrorPages = map[int]ErrorPageTemplate{
 	603: {
 		Code: 603,
 		Messages: []string{
-			"The website you're trying to reach is currently not able to accept any connections.",
-			"This could occur due to a few different reasons, very likely due to the server being offline.",
+			"You are blocked from accessing this website.",
 		},
 		Html: nil,
 	},
@@ -75,6 +75,23 @@ var ErrorPages = map[int]ErrorPageTemplate{
 			"This could occur due to a few different reasons, very likely due to the server being offline.",
 		},
 		Html: nil,
+	},
+	// Custom
+	700: {
+		Code:     700,
+		Messages: []string{},
+		Html:     nil,
+		Rerender: func(code int, messages []string) []byte {
+			var msgs []string
+			msgs = append(msgs, "The application returned with the following error:")
+			msgs = append(msgs, messages...)
+
+			return renderHtml(ErrorPageTemplate{
+				Code:     code,
+				Messages: msgs,
+				Html:     nil,
+			})
+		},
 	},
 }
 
@@ -101,13 +118,17 @@ func BuildErrorPages() {
 	}
 
 	for _, page := range ErrorPages {
-		copiedBase := make([]byte, errorBaseLength)
-		copy(copiedBase, errorBase)
-
-		copiedBase = bytes.Replace(copiedBase, []byte("{{code}}"), []byte(strconv.Itoa(page.Code)), -1)
-		copiedBase = bytes.Replace(copiedBase, []byte("{{info-lines}}"), []byte("<p>"+strings.Join(page.Messages, "<br>")+"</p>"), -1)
-
-		page.Html = copiedBase
+		page.Html = renderHtml(page)
 		ErrorPages[page.Code] = page
 	}
+}
+
+func renderHtml(page ErrorPageTemplate) []byte {
+	copiedBase := make([]byte, errorBaseLength)
+	copy(copiedBase, errorBase)
+
+	copiedBase = bytes.Replace(copiedBase, []byte("{{code}}"), []byte(strconv.Itoa(page.Code)), -1)
+	copiedBase = bytes.Replace(copiedBase, []byte("{{info-lines}}"), []byte("<p>"+strings.Join(page.Messages, "<br>")+"</p>"), -1)
+
+	return copiedBase
 }

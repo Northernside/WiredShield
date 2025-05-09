@@ -22,6 +22,7 @@ import (
 	"wired/modules/pages"
 	"wired/modules/types"
 	"wired/services/dns"
+	http_internal "wired/services/http/internal"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
@@ -58,6 +59,7 @@ var (
 )
 
 func Start(ctx context.Context) {
+	http_internal.PostStart()
 	loadTargets()
 	initBackends()
 
@@ -70,8 +72,8 @@ func Start(ctx context.Context) {
 			}
 		}
 
-		if strings.HasPrefix(r.URL.Path, "/.wired/") {
-			handleWiredRequest(w, r)
+		if strings.HasPrefix(r.URL.Path, "/dash") && strings.Split(env.GetEnv("ROOT_HOSTS", ""), ",") != nil {
+			http_internal.HandleWiredRequest(w, r)
 			return
 		}
 
@@ -173,16 +175,6 @@ func Start(ctx context.Context) {
 	}
 
 	logger.Println("HTTP(S) servers shut down successfully")
-}
-
-func handleWiredRequest(w http.ResponseWriter, r *http.Request) {
-	switch r.URL.Path {
-	default:
-		w.WriteHeader(http.StatusNotFound)
-		w.Header().Set("Content-Type", "text/html")
-		w.Write(pages.ErrorPages[604].Html)
-		return
-	}
 }
 
 func initBackends() {
@@ -305,15 +297,11 @@ func initBackends() {
 		proxyMap[normalizedHost] = proxy
 
 		// overwrite .Metadata.SSLInfo
-		dns.ZonesMux.Lock()
-		for i, record := range dns.Zones[normalizedHost+"."] {
+		dns.Zones.UpdateRecords(normalizedHost+".", func(record *types.DNSRecord) {
 			record.Metadata.SSLInfo = types.SSLInfo{
 				IssuedAt:  cert.Leaf.NotBefore,
 				ExpiresAt: cert.Leaf.NotAfter,
 			}
-
-			dns.Zones[normalizedHost+"."][i] = record
-		}
-		dns.ZonesMux.Unlock()
+		})
 	}
 }

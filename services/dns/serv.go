@@ -5,22 +5,17 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 	"time"
 	"wired/modules/env"
 	"wired/modules/event"
 	event_data "wired/modules/event/events"
 	"wired/modules/geo"
 	"wired/modules/logger"
-	"wired/modules/types"
 
 	"github.com/miekg/dns"
 )
 
 var (
-	Zones    = make(map[string][]types.DNSRecord)
-	ZonesMux = &sync.RWMutex{}
-
 	udpServer *dns.Server
 	tcpServer *dns.Server
 )
@@ -37,8 +32,6 @@ func init() {
 }
 
 func Start(ctx context.Context) {
-	loadZonefile()
-
 	dns.HandleFunc(".", handleRequest)
 
 	go func() {
@@ -48,6 +41,7 @@ func Start(ctx context.Context) {
 			logger.Fatal("Failed to start DNS (UDP) server: ", err)
 		}
 	}()
+
 	logger.Println("DNS server started on port 53 (UDP)")
 
 	go func() {
@@ -57,6 +51,7 @@ func Start(ctx context.Context) {
 			logger.Fatal("Failed to start DNS (TCP) server: ", err)
 		}
 	}()
+
 	logger.Println("DNS server started on port 53 (TCP)")
 
 	DNSEventBus.Pub(event.Event{
@@ -119,18 +114,9 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	ZonesMux.RLock()
-	defer ZonesMux.RUnlock()
-
 	for _, q := range r.Question {
 		qname := strings.ToLower(q.Name)
 		qtype := q.Qtype
-
-		zone := findZone(qname)
-		if zone == "" {
-			m.SetRcode(r, dns.RcodeRefused)
-			continue
-		}
 
 		var (
 			nameExists    bool
@@ -139,10 +125,16 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			authorityRRs  []dns.RR
 		)
 
-		for _, rr := range Zones[zone] {
+		recs, ok := Zones.get(qname)
+		if !ok {
+			continue
+		}
+
+		for _, rr := range recs {
 			rrName := strings.ToLower(rr.Record.Header().Name)
 			if rrName == qname && rr.Record.Header().Rrtype == qtype {
 				nameExists = true
+				clonedRecord := dns.Copy(rr.Record)
 				if rr.Metadata.Protected {
 					ipVersion := map[bool]int{true: 6, false: 4}[rr.Record.Header().Rrtype == dns.TypeAAAA]
 					loc, err := geo.FindNearestLocation(geo.GeoInfo{
@@ -157,7 +149,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						continue
 					}
 
-					switch record := rr.Record.(type) {
+					switch record := clonedRecord.(type) {
 					case *dns.AAAA:
 						record.AAAA = loc.IP
 					case *dns.A:
@@ -165,7 +157,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 					}
 				}
 
-				answerRecords = append(answerRecords, rr.Record)
+				answerRecords = append(answerRecords, clonedRecord)
 			} else if rr.Record.Header().Rrtype == dns.TypeCNAME {
 				cnameRecords = append(cnameRecords, rr.Record)
 			}
@@ -187,13 +179,13 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 
 				target := dns.CanonicalName(cnameRecord.Target)
-				targetZone := findZone(target)
-				if targetZone == "" {
+				targetRecs, ok := Zones.get(target)
+				if !ok {
 					continue
 				}
 
 				var targetAnswers []dns.RR
-				for _, rr := range Zones[targetZone] {
+				for _, rr := range targetRecs {
 					rrName := strings.ToLower(rr.Record.Header().Name)
 					if rrName == target && (rr.Record.Header().Rrtype == qtype) {
 						clonedRR := dns.Copy(rr.Record)
@@ -248,10 +240,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			} else {
 				// NXDOMAIN, NOERROR
 				if nameExists {
-					authorityRRs = getSOA(zone, false)
+					authorityRRs = getSOA(qname, false)
 				} else {
 					m.SetRcode(r, dns.RcodeNameError)
-					authorityRRs = getSOA(zone, true)
+					authorityRRs = getSOA(qname, true)
 				}
 			}
 		}
@@ -314,23 +306,13 @@ func makeErrorTxt(qname string, text string) *dns.TXT {
 	}
 }
 
-func findZone(qname string) string {
-	qname = dns.CanonicalName(qname)
-	var maxZone string
-	maxLen := 0
-
-	for zone := range Zones {
-		if dns.IsSubDomain(zone, qname) && len(zone) > maxLen {
-			maxLen = len(zone)
-			maxZone = zone
-		}
+func getSOA(zone string, nxdomain bool) []dns.RR {
+	recs, ok := Zones.get(zone)
+	if !ok {
+		return nil
 	}
 
-	return maxZone
-}
-
-func getSOA(zone string, nxdomain bool) []dns.RR {
-	for _, rr := range Zones[zone] {
+	for _, rr := range recs {
 		if soa, ok := rr.Record.(*dns.SOA); ok {
 			soaCopy := *soa
 			soaCopy.Hdr = dns.RR_Header{
