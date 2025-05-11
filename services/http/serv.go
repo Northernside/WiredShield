@@ -20,6 +20,9 @@ import (
 	"wired/modules/exif"
 	"wired/modules/logger"
 	"wired/modules/pages"
+	"wired/modules/postgresql"
+	"wired/modules/types"
+	"wired/services/dns"
 	http_internal "wired/services/http/internal"
 
 	"github.com/quic-go/quic-go"
@@ -303,11 +306,12 @@ func initBackends() {
 		proxyMap[normalizedHost] = proxy
 
 		// overwrite .Metadata.SSLInfo
-		/*wired_dns.Zones.UpdateRecord(backendInfo.recordId, func(record *types.DNSRecord) {
+		var user = postgresql.Users[dns.IdIndex[backendInfo.recordId].Record.Metadata.OwnerID]
+		user.UpdateRecord(backendInfo.recordId, func(record *types.DNSRecord) {
 			record.Metadata.SSLInfo = types.SSLInfo{
 				IssuedAt:  cert.Leaf.NotBefore,
 				ExpiresAt: cert.Leaf.NotAfter,
 			}
-		})*/
+		})
 	}
 }
