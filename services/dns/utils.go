@@ -111,7 +111,7 @@ func createIPCompatibility() {
 				}
 
 				if !exists {
-					node.records = append(node.records, types.DNSRecord{
+					node.records = append(node.records, &types.DNSRecord{
 						Record: newRR,
 						Metadata: types.RecordMetadata{
 							ID:         record.Metadata.ID,

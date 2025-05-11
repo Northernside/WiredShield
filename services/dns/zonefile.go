@@ -44,7 +44,7 @@ func LoadZonefile() {
 		}
 
 		name := strings.ToLower(rr.Header().Name)
-		Zones.insert(name, types.DNSRecord{
+		Zones.insert(name, &types.DNSRecord{
 			Record:   rr,
 			Metadata: comment,
 		})

@@ -49,7 +49,7 @@ func AddRecord(zone string, record types.DNSRecord) (string, error, bool) {
 	id := sf.GenerateID()
 	record.Metadata.ID = fmt.Sprintf("%d", id)
 
-	Zones.insert(zone, record)
+	Zones.insert(zone, &record)
 
 	file, err := os.OpenFile("zonefile.txt", os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -151,7 +151,7 @@ func (trie *dnsTrie) UpdateRecord(id string, updateFunc func(*types.DNSRecord)) 
 	return true
 }
 
-func ListRecordsByZone(zone string) ([]types.DNSRecord, error) {
+func ListRecordsByZone(zone string) ([]*types.DNSRecord, error) {
 	zone = strings.ToLower(zone)
 	reversedLabels := reverse(domainToLabels(dns.Fqdn(zone)))
 
@@ -168,7 +168,7 @@ func ListRecordsByZone(zone string) ([]types.DNSRecord, error) {
 		currentNode = child
 	}
 
-	var records []types.DNSRecord
+	var records []*types.DNSRecord
 	var walk func(*trieNode)
 	walk = func(node *trieNode) {
 		records = append(records, node.records...)
@@ -181,8 +181,8 @@ func ListRecordsByZone(zone string) ([]types.DNSRecord, error) {
 	return records, nil
 }
 
-func ListRecords() map[string][]types.DNSRecord {
-	result := make(map[string][]types.DNSRecord)
+func ListRecords() map[string][]*types.DNSRecord {
+	result := make(map[string][]*types.DNSRecord)
 
 	var walk func(node *trieNode, path []string)
 	walk = func(node *trieNode, path []string) {

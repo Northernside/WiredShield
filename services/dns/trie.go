@@ -14,7 +14,7 @@ var (
 	Zones = &dnsTrie{
 		root: &trieNode{
 			children: make(map[string]*trieNode),
-			records:  []types.DNSRecord{},
+			records:  []*types.DNSRecord{},
 		},
 		idIndex: make(map[string]indexedRecord),
 	}
@@ -22,7 +22,7 @@ var (
 
 type trieNode struct {
 	children map[string]*trieNode
-	records  []types.DNSRecord
+	records  []*types.DNSRecord
 }
 
 type indexedRecord struct {
@@ -38,7 +38,7 @@ type dnsTrie struct {
 	idIndex map[string]indexedRecord
 }
 
-func (trie *dnsTrie) insert(domain string, record types.DNSRecord) {
+func (trie *dnsTrie) insert(domain string, record *types.DNSRecord) {
 	trie.mu.Lock()
 	defer trie.mu.Unlock()
 
@@ -63,14 +63,13 @@ func (trie *dnsTrie) insert(domain string, record types.DNSRecord) {
 
 	id := record.Metadata.ID
 	trie.idIndex[id] = indexedRecord{
-		record: &node.records[len(node.records)-1],
+		record: record,
 		node:   node,
 		index:  len(node.records) - 1,
-		path:   path,
 	}
 }
 
-func (trie *dnsTrie) get(domain string) ([]types.DNSRecord, bool) {
+func (trie *dnsTrie) get(domain string) ([]*types.DNSRecord, bool) {
 	trie.mu.RLock()
 	defer trie.mu.RUnlock()
 
@@ -87,10 +86,11 @@ func (trie *dnsTrie) get(domain string) ([]types.DNSRecord, bool) {
 		node = node.children[label]
 	}
 
-	records := make([]types.DNSRecord, len(node.records))
-	copy(records, node.records)
+	if len(node.records) == 0 {
+		return nil, false
+	}
 
-	return records, true
+	return node.records, true
 }
 
 func (trie *dnsTrie) deleteByID(id string) bool {
@@ -108,7 +108,7 @@ func (trie *dnsTrie) deleteByID(id string) bool {
 	delete(trie.idIndex, id)
 
 	for i := idx; i < len(node.records); i++ {
-		rec := &node.records[i]
+		rec := node.records[i]
 		trie.idIndex[rec.Metadata.ID] = indexedRecord{
 			record: rec,
 			node:   node,

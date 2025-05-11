@@ -262,7 +262,7 @@ tr:last-child td {
 .table-row {
     display: grid;
     grid-template-columns: 80px 1fr 2fr 0.8fr minmax(90px, 0.6fr) 0.4fr;
-    padding: 1rem;
+    padding: 0.5rem 1rem;
     align-items: center;
 }
 
@@ -271,7 +271,6 @@ tr:last-child td {
         grid-template-columns: 1fr;
         padding: 0.5rem;
         position: relative;
-        border-bottom: 1px solid var(--card-border);
     }
 
     .table-row > span {
@@ -315,15 +314,6 @@ tr:last-child td {
         margin: 0 !important;
     }
 
-    .actions-menu {
-        position: absolute;
-        bottom: 0.5rem;
-        right: 0.5rem;
-        border: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-
     .spoiler {
         filter: blur(5px);
         display: inline-block;
@@ -349,6 +339,10 @@ tr:last-child td {
 .table-row {
     border-bottom: 1px solid var(--card-border);
     transition: background 0.3s;
+}
+
+.table-row:last-child {
+    border-bottom: none;
 }
 
 .table-row:hover {
@@ -389,25 +383,10 @@ tr:last-child td {
     opacity: 0.8;
 }
 
-.actions-menu {
+.actions-menu { /* align right */
     display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.actions-menu button {
-    background: none;
-    border: 1px solid var(--accent);
-    color: var(--text);
-    padding: 0.25rem 0.5rem;
-    border-radius: 8px;
-    cursor: pointer !important;
-    white-space: nowrap;
-    transition: all 0.3s;
-}
-
-.actions-menu button:hover {
-    background: var(--card-hover-bg);
+    justify-content: flex-end;
+    gap: 1rem;
 }
 
 .green-filter {
@@ -479,10 +458,6 @@ tr:last-child td {
     text-overflow: ellipsis;
     max-width: 95%;
     position: relative;
-}
-
-.actions-menu button {
-    width: 75px;
 }
 
 @media (max-width: 480px) {
@@ -703,4 +678,18 @@ input[type="text"]:focus {
 
 .spoiler:hover {
     filter: blur(0);
+}
+
+.delete-btn {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.35);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.delete-btn:hover {
+    background: rgba(255, 0, 0, 0.35);
 }
