@@ -3,8 +3,9 @@ package dns
 import (
 	"wired/modules/env"
 	"wired/modules/event"
-	event_data "wired/modules/event/events"
 	"wired/modules/logger"
+
+	event_data "wired/modules/event/events"
 )
 
 func init() {
@@ -29,7 +30,7 @@ func addRecordEventHandler(eventChan <-chan event.Event) {
 			continue
 		}
 
-		AddRecord(data.Record.Record.Header().Name, data.Record)
+		Zones.Insert(data.OwnerID, data.Record)
 	}
 }
 
@@ -49,6 +50,6 @@ func removeRecordEventHandler(eventChan <-chan event.Event) {
 			continue
 		}
 
-		RemoveRecord(data.ID)
+		Zones.Delete(data.OwnerID, data.ID)
 	}
 }

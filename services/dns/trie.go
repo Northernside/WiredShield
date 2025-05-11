@@ -11,13 +11,15 @@ import (
 )
 
 var (
-	Zones = &dnsTrie{
+	ZonesMutex = &sync.RWMutex{}
+	UserZones  = make(map[string]map[string]*trieNode)
+	Zones      = &dnsTrie{
 		root: &trieNode{
 			children: make(map[string]*trieNode),
 			records:  []*types.DNSRecord{},
 		},
-		idIndex: make(map[string]indexedRecord),
 	}
+	IdIndex = make(map[string]*indexedRecord)
 )
 
 type trieNode struct {
@@ -26,29 +28,30 @@ type trieNode struct {
 }
 
 type indexedRecord struct {
-	record *types.DNSRecord
-	node   *trieNode
-	index  int
-	path   []string
+	Record *types.DNSRecord
+	Node   *trieNode
+	Index  int
+	Path   []string
 }
 
 type dnsTrie struct {
-	root    *trieNode
-	mu      sync.RWMutex
-	idIndex map[string]indexedRecord
+	root *trieNode
+	mu   sync.RWMutex
 }
 
-func (trie *dnsTrie) insert(domain string, record *types.DNSRecord) {
+func (trie *dnsTrie) Insert(userId string, record *types.DNSRecord) *trieNode {
 	trie.mu.Lock()
 	defer trie.mu.Unlock()
 
-	labels := domainToLabels(domain)
-	reversedLabels := reverse(labels)
-	node := trie.root
-	var path []string
+	if UserZones[userId] == nil {
+		UserZones[userId] = make(map[string]*trieNode)
+	}
 
-	for _, label := range reversedLabels {
-		path = append(path, label)
+	domain := record.Record.Header().Name
+	labels := reverse(domainToLabels(domain))
+	node := trie.root
+
+	for _, label := range labels {
 		if node.children[label] == nil {
 			node.children[label] = &trieNode{
 				children: make(map[string]*trieNode),
@@ -61,15 +64,17 @@ func (trie *dnsTrie) insert(domain string, record *types.DNSRecord) {
 	record.Record.Header().Name = dns.Fqdn(domain)
 	node.records = append(node.records, record)
 
-	id := record.Metadata.ID
-	trie.idIndex[id] = indexedRecord{
-		record: record,
-		node:   node,
-		index:  len(node.records) - 1,
+	UserZones[userId][domain] = node
+	IdIndex[record.Metadata.ID] = &indexedRecord{
+		Record: record,
+		Node:   node,
+		Index:  len(node.records) - 1,
 	}
+
+	return node
 }
 
-func (trie *dnsTrie) get(domain string) ([]*types.DNSRecord, bool) {
+func (trie *dnsTrie) Get(domain string) ([]*types.DNSRecord, bool) {
 	trie.mu.RLock()
 	defer trie.mu.RUnlock()
 
@@ -93,32 +98,42 @@ func (trie *dnsTrie) get(domain string) ([]*types.DNSRecord, bool) {
 	return node.records, true
 }
 
-func (trie *dnsTrie) deleteByID(id string) bool {
+func (trie *dnsTrie) Delete(userId, recordId string) bool {
 	trie.mu.Lock()
 	defer trie.mu.Unlock()
 
-	indexed, ok := trie.idIndex[id]
+	indexed, ok := IdIndex[recordId]
 	if !ok {
 		return false
 	}
 
-	node := indexed.node
-	idx := indexed.index
+	node := indexed.Node
+	idx := indexed.Index
+
+	if userZones, ok := UserZones[userId]; ok {
+		for domain, n := range userZones {
+			if n == node {
+				delete(userZones, domain)
+				break
+			}
+		}
+	}
+
 	node.records = slices.Delete(node.records, idx, idx+1)
-	delete(trie.idIndex, id)
+	delete(IdIndex, recordId)
 
 	for i := idx; i < len(node.records); i++ {
 		rec := node.records[i]
-		trie.idIndex[rec.Metadata.ID] = indexedRecord{
-			record: rec,
-			node:   node,
-			index:  i,
-			path:   indexed.path,
+		IdIndex[rec.Metadata.ID] = &indexedRecord{
+			Record: rec,
+			Node:   node,
+			Index:  i,
+			Path:   indexed.Path,
 		}
 	}
 
 	curr := trie.root
-	for _, label := range indexed.path {
+	for _, label := range indexed.Path {
 		child := curr.children[label]
 		if len(child.records) == 0 && len(child.children) == 0 {
 			delete(curr.children, label)

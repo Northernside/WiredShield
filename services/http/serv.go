@@ -20,16 +20,19 @@ import (
 	"wired/modules/exif"
 	"wired/modules/logger"
 	"wired/modules/pages"
-	"wired/modules/types"
-	wired_dns "wired/services/dns"
 	http_internal "wired/services/http/internal"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 )
 
+type SSLEntry struct {
+	RecordId string
+	Cert     *tls.Certificate
+}
+
 var (
-	CertMap            = make(map[string]tls.Certificate)
+	CertMap            = make(map[string]*SSLEntry)
 	CertMapLock        = &sync.RWMutex{}
 	proxyMap           = make(map[string]*httputil.ReverseProxy)
 	httpRedirectServer *http.Server
@@ -43,8 +46,8 @@ var (
 				host = h
 			}
 
-			if cert, ok := CertMap[host]; ok {
-				return &cert, nil
+			if SSLEntry, ok := CertMap[host]; ok {
+				return SSLEntry.Cert, nil
 			}
 
 			return nil, fmt.Errorf("no certificate available for %s", host)
@@ -178,7 +181,7 @@ func Start(ctx context.Context) {
 }
 
 func initBackends() {
-	sanCerts := make(map[string]tls.Certificate)
+	sanCerts := make(map[string]*tls.Certificate)
 	sanFiles, _ := filepath.Glob("certs/san_*.crt")
 	for _, certFile := range sanFiles {
 		base := strings.TrimSuffix(filepath.Base(certFile), ".crt")
@@ -196,7 +199,7 @@ func initBackends() {
 
 		if cert.Leaf != nil {
 			for _, dnsName := range cert.Leaf.DNSNames {
-				sanCerts[strings.ToLower(dnsName)] = cert
+				sanCerts[strings.ToLower(dnsName)] = &cert
 			}
 		}
 
@@ -205,15 +208,15 @@ func initBackends() {
 
 	for host, backendInfo := range hosts {
 		normalizedHost := strings.ToLower(strings.TrimSuffix(host, "."))
-		var cert tls.Certificate
-		var err error
+		var cert *tls.Certificate
 
 		if sanCert, exists := sanCerts[normalizedHost]; exists {
 			cert = sanCert
 		} else {
 			certFile := fmt.Sprintf("certs/%s.crt", normalizedHost)
 			keyFile := fmt.Sprintf("certs/%s.key", normalizedHost)
-			cert, err = tls.LoadX509KeyPair(certFile, keyFile)
+			certValue, err := tls.LoadX509KeyPair(certFile, keyFile)
+			cert = &certValue
 			if err != nil {
 				logger.Fatal(fmt.Sprintf("Error loading certificate for %s: %v", normalizedHost, err))
 			}
@@ -223,7 +226,10 @@ func initBackends() {
 			cert.Leaf, _ = x509.ParseCertificate(cert.Certificate[0])
 		}
 
-		CertMap[normalizedHost] = cert
+		CertMap[normalizedHost] = &SSLEntry{
+			RecordId: backendInfo.recordId,
+			Cert:     cert,
+		}
 
 		backendAddr := backendInfo.addr.String()
 		target, _ := url.Parse(fmt.Sprintf("http://%s", backendAddr))
@@ -297,11 +303,11 @@ func initBackends() {
 		proxyMap[normalizedHost] = proxy
 
 		// overwrite .Metadata.SSLInfo
-		wired_dns.Zones.UpdateRecord(backendInfo.recordId, func(record *types.DNSRecord) {
+		/*wired_dns.Zones.UpdateRecord(backendInfo.recordId, func(record *types.DNSRecord) {
 			record.Metadata.SSLInfo = types.SSLInfo{
 				IssuedAt:  cert.Leaf.NotBefore,
 				ExpiresAt: cert.Leaf.NotAfter,
 			}
-		})
+		})*/
 	}
 }

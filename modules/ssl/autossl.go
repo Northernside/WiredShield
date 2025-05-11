@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 	"wired/modules/logger"
 
@@ -30,7 +29,7 @@ func init() {
 	}
 }
 
-func GenerateSANCertificate(domains []string) (time.Time, time.Time, error) {
+func GenerateSANCertificate(domains map[string]string) (time.Time, time.Time, error) {
 	logger.Printf("Generating SAN certificate for %v\n", domains)
 
 	certPEM, keyPEM, err := prepareCertificate(domains)
@@ -38,7 +37,12 @@ func GenerateSANCertificate(domains []string) (time.Time, time.Time, error) {
 		return time.Time{}, time.Time{}, err
 	}
 
-	batchID := generateBatchID(domains)
+	domainList := make([]string, 0, len(domains))
+	for _, domain := range domains {
+		domainList = append(domainList, domain)
+	}
+
+	batchID := generateBatchID(domainList)
 	certFile := fmt.Sprintf("certs/san_%s.crt", batchID)
 	keyFile := fmt.Sprintf("certs/san_%s.key", batchID)
 
@@ -71,19 +75,23 @@ func GenerateSANCertificate(domains []string) (time.Time, time.Time, error) {
 	return cert.NotBefore, cert.NotAfter, nil
 }
 
-func GenerateCertificate(domain string) (time.Time, time.Time, error) {
-	domain = strings.ToLower(domain)
-	logger.Println("Generating SSL certificate for ", domain)
+func GenerateCertificate(domains map[string]string) (time.Time, time.Time, error) {
+	logger.Println("Generating SSL certificate for ", domains)
 
-	certPEM, keyPEM, err := prepareCertificate([]string{domain})
+	certPEM, keyPEM, err := prepareCertificate(domains)
 	if err != nil {
 		logger.Println("Failed to generate certificate: ", err.Error())
 		return time.Time{}, time.Time{}, err
 	}
 
-	// save to certs/<domain>
-	certFile := fmt.Sprintf("certs/%s.crt", domain)
-	keyFile := fmt.Sprintf("certs/%s.key", domain)
+	domainList := make([]string, 0, len(domains))
+	for _, domain := range domains {
+		domainList = append(domainList, domain)
+	}
+
+	batchID := generateBatchID(domainList)
+	certFile := fmt.Sprintf("certs/%s.crt", batchID)
+	keyFile := fmt.Sprintf("certs/%s.key", batchID)
 
 	if _, err := os.Stat("certs"); os.IsNotExist(err) {
 		err := os.Mkdir("certs", 0755)
@@ -125,22 +133,29 @@ func GenerateCertificate(domain string) (time.Time, time.Time, error) {
 	issuedAt := cert.NotBefore
 	renewalTime := expirationTime.Add(-7 * 24 * time.Hour)
 
-	logger.Printf("Certificate for %s expires on %s. Renewal scheduled in %v.\n",
-		domain,
-		expirationTime.Format("2006-01-02 15:04:05"),
-		time.Until(renewalTime).Round(time.Minute),
-	)
+	for _, domain := range domains {
+		logger.Printf("Certificate for %s expires on %s. Renewal scheduled in %v.\n",
+			domain,
+			expirationTime.Format("2006-01-02 15:04:05"),
+			time.Until(renewalTime).Round(time.Minute),
+		)
+	}
 
-	logger.Println("Generated a SSL certificate for ", domain)
+	logger.Println("Generated a SSL certificate for ", domains)
 	return issuedAt, expirationTime, nil
 }
 
-func prepareCertificate(domains []string) ([]byte, []byte, error) {
+func prepareCertificate(domains map[string]string) ([]byte, []byte, error) {
 	if client == nil {
 		return nil, nil, errors.New("failed to get ACME client")
 	}
 
-	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domains...))
+	domainList := make([]string, 0, len(domains))
+	for _, domain := range domains {
+		domainList = append(domainList, domain)
+	}
+
+	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domainList...))
 	if err != nil {
 		return nil, nil, fmt.Errorf("authorization failed: %w", err)
 	}
@@ -152,7 +167,7 @@ func prepareCertificate(domains []string) ([]byte, []byte, error) {
 		}
 
 		domain := authz.Identifier.Value
-		if err := dns01Handling(domain, authzURL); err != nil {
+		if err := dns01Handling(domains, authzURL); err != nil {
 			return nil, nil, fmt.Errorf("DNS challenge failed for %s: %w", domain, err)
 		}
 	}
@@ -167,7 +182,7 @@ func prepareCertificate(domains []string) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	csr, err := createCSR(domains, certKey)
+	csr, err := createCSR(domainList, certKey)
 	if err != nil {
 		return nil, nil, err
 	}

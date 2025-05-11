@@ -22,27 +22,27 @@ func StartRenewalChecker(ctx context.Context) {
 			logger.Println("Stopping SSL renewal checker...")
 			return
 		case <-ticker.C:
-			var domains []string
+			domains := make(map[string]string)
 			logger.Println("Checking for certificates to renew...")
-			for domain, cert := range http.CertMap {
-				if cert.Leaf == nil {
-					if len(cert.Certificate) == 0 {
+			for domain, sslEntry := range http.CertMap {
+				if sslEntry.Cert.Leaf == nil {
+					if len(sslEntry.Cert.Certificate) == 0 {
 						logger.Printf("No certificate data for %s\n", domain)
 						continue
 					}
 
-					leaf, err := x509.ParseCertificate(cert.Certificate[0])
+					leaf, err := x509.ParseCertificate(sslEntry.Cert.Certificate[0])
 					if err != nil {
 						logger.Printf("Error parsing leaf cert for %s: %v\n", domain, err)
 						continue
 					}
 
-					cert.Leaf = leaf
-					http.CertMap[domain] = cert
+					sslEntry.Cert.Leaf = leaf
+					http.CertMap[domain] = sslEntry
 				}
 
-				if time.Until(cert.Leaf.NotAfter) <= 90*24*time.Hour {
-					domains = append(domains, domain)
+				if time.Until(sslEntry.Cert.Leaf.NotAfter) <= 90*24*time.Hour {
+					domains[sslEntry.RecordId] = domain
 				}
 			}
 
@@ -54,9 +54,19 @@ func StartRenewalChecker(ctx context.Context) {
 			}
 
 			batchSize := 100
+			// prepareCertificate(domains) -> domains: map[string]string (recordId -> domain)
 			for i := 0; i < len(domains); i += batchSize {
 				end := min(i+batchSize, len(domains))
-				batch := domains[i:end]
+
+				batch := make(map[string]string)
+				keys := make([]string, 0, len(domains))
+				for k := range domains {
+					keys = append(keys, k)
+				}
+
+				for j := i; j < end; j++ {
+					batch[keys[j]] = domains[keys[j]]
+				}
 
 				certPEM, keyPEM, err := prepareCertificate(batch)
 				if err != nil {
@@ -86,13 +96,19 @@ func StartRenewalChecker(ctx context.Context) {
 
 				http.CertMapLock.Lock()
 				for _, dnsName := range newCert.DNSNames {
-					http.CertMap[dnsName] = tlsCert
+					http.CertMap[dnsName].Cert = &tlsCert
+
 					os.Remove(fmt.Sprintf("certs/%s.crt", dnsName))
 					os.Remove(fmt.Sprintf("certs/%s.key", dnsName))
 				}
 				http.CertMapLock.Unlock()
 
-				batchID := generateBatchID(batch)
+				domainList := make([]string, 0, len(batch))
+				for _, domain := range batch {
+					domainList = append(domainList, domain)
+				}
+
+				batchID := generateBatchID(domainList)
 				certFile := fmt.Sprintf("certs/san_%s.crt", batchID)
 				keyFile := fmt.Sprintf("certs/san_%s.key", batchID)
 				os.WriteFile(certFile, certPEM, 0644)

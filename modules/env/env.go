@@ -25,8 +25,8 @@ func LoadEnvFile() {
 		logger.Fatal("Failed to read .env file:", err)
 	}
 
-	lines := strings.Split(buffer.String(), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(buffer.String(), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.Contains(line, "=") {
 			parts := strings.SplitN(line, "=", 2)

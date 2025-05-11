@@ -8,7 +8,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-func recordToZoneFile(rr dns.RR) string {
+func RecordToZoneFile(rr dns.RR) string {
 	hdr := rr.Header()
 	name := hdr.Name
 	ttl := hdr.Ttl

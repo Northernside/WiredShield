@@ -16,6 +16,7 @@ type RecordMetadata struct {
 	Protected  bool   `json:"protected"`
 	Geo        bool   `json:"geo"`
 	Artificial bool   `json:"artificial"`
+	OwnerID    string `json:"owner_id"`
 	SSLInfo    SSLInfo
 }
 

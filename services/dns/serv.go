@@ -125,7 +125,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			authorityRRs  []dns.RR
 		)
 
-		recs, ok := Zones.get(qname)
+		recs, ok := Zones.Get(qname)
 		if !ok {
 			continue
 		}
@@ -179,7 +179,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 
 				target := dns.CanonicalName(cnameRecord.Target)
-				targetRecs, ok := Zones.get(target)
+				targetRecs, ok := Zones.Get(target)
 				if !ok {
 					continue
 				}
@@ -307,7 +307,7 @@ func makeErrorTxt(qname string, text string) *dns.TXT {
 }
 
 func getSOA(zone string, nxdomain bool) []dns.RR {
-	recs, ok := Zones.get(zone)
+	recs, ok := Zones.Get(zone)
 	if !ok {
 		return nil
 	}

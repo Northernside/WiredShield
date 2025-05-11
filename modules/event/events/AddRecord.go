@@ -5,5 +5,6 @@ import (
 )
 
 type AddRecordData struct {
-	Record types.DNSRecord
+	OwnerID string
+	Record  *types.DNSRecord
 }

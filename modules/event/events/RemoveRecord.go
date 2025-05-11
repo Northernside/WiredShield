@@ -1,5 +1,6 @@
 package event_data
 
 type RemoveRecordData struct {
-	ID string
+	OwnerID string
+	ID      string
 }

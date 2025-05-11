@@ -17,10 +17,6 @@ var (
 	MarshalledPublicKey []byte
 )
 
-func init() {
-	env.LoadEnvFile()
-}
-
 func InitKeys() {
 	nodeName := env.GetEnv("NODE_KEY", "master")
 	privateKeyFileName := "keys/" + nodeName + "-private.pem"

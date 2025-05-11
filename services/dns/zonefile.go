@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
+	"sync"
 	"time"
 	"wired/modules/env"
 	"wired/modules/event"
@@ -13,46 +14,82 @@ import (
 	"wired/modules/types"
 )
 
+var (
+	ZonefileMu = &sync.Mutex{}
+)
+
+var zoneMeta struct {
+	Owner string `json:"owner"`
+}
+
 func LoadZonefile() {
+	logger.Println("Loading zone file...")
 	file, err := os.Open("zonefile.txt")
 	if err != nil {
-		logger.Println("Error opening zone file:", err)
-		return
+		logger.Fatal("Error opening zone file:", err)
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
+	var currentOwner string
 
-		var comment types.RecordMetadata
-		if strings.Contains(line, ";") {
-			err := json.Unmarshal([]byte(strings.Split(line, ";")[1]), &comment)
-			if err != nil {
-				logger.Println("Error unmarshalling comment metadata:", err)
-				continue
-			}
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
 		}
 
-		rr, err := zoneFileToRecord(line)
+		if strings.HasPrefix(line, ";") {
+			err := json.Unmarshal([]byte(strings.TrimPrefix(line, "; ")), &zoneMeta)
+			if err != nil {
+				logger.Println("Error parsing zone metadata:", err)
+				continue
+			}
+
+			currentOwner = zoneMeta.Owner
+			continue
+		}
+
+		parts := strings.SplitN(line, ";", 2)
+		dnsPart := strings.TrimSpace(parts[0])
+		if dnsPart == "" {
+			continue
+		}
+
+		rr, err := zoneFileToRecord(dnsPart)
 		if err != nil {
 			if err == types.ErrUnusableLine {
 				continue
 			}
+
 			logger.Println("Error parsing zone file line:", err)
 			continue
 		}
 
-		name := strings.ToLower(rr.Header().Name)
-		Zones.insert(name, &types.DNSRecord{
-			Record:   rr,
-			Metadata: comment,
-		})
+		if currentOwner == "" {
+			logger.Println("Skipping record with no owner context:", dnsPart)
+			continue
+		}
+
+		var metadata types.RecordMetadata
+		if len(parts) > 1 {
+			err := json.Unmarshal([]byte(strings.TrimSpace(parts[1])), &metadata)
+			if err != nil {
+				logger.Println("Error parsing record metadata:", err)
+			}
+		}
+
+		Zones.Insert(
+			currentOwner,
+			&types.DNSRecord{
+				Record:   rr,
+				Metadata: metadata,
+			},
+		)
 	}
 
 	if err := scanner.Err(); err != nil {
-		logger.Println("Error reading zone file:", err)
-		return
+		logger.Fatal("Error reading zone file:", err)
 	}
 
 	createIPCompatibility()

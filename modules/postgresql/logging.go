@@ -1,4 +1,4 @@
-package psql_data
+package postgresql
 
 import (
 	"encoding/json"
