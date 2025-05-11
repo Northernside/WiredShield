@@ -10,7 +10,7 @@ import (
 	api_auth_discord "wired/services/http/internal/routes/api/auth/discord"
 	api_auth_discord_callback "wired/services/http/internal/routes/api/auth/discord/callback"
 	api_domains "wired/services/http/internal/routes/api/domains"
-	api_domains_records "wired/services/http/internal/routes/api/domains/records.go"
+	api_domains_records "wired/services/http/internal/routes/api/domains/records"
 )
 
 type Route struct {

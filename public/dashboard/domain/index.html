@@ -9,13 +9,19 @@
 </head>
 
 <body>
-    <div class="header">
+    <a href="/dash" class="header">
         <img src="/dash/assets/logo.svg" alt="WiredShield Logo">
         <h1>WiredShield</h1>
-    </div>
+    </a>
 
     <div class="content">
-        <button class="add-btn" onclick="openAddRecordModal()">Add Record</button>
+        <div class="header-bar">
+            <div class="header-title">
+                <h2>Domain Management</h2>
+                <h3 id="domain-name"></h3>
+            </div>
+            <button class="add-btn" onclick="openAddRecordModal()">Add Record</button>
+        </div>
         <div class="records-table">
             <div class="table-header">
                 <span>Type</span>
@@ -27,23 +33,34 @@
             </div>
             <div id="record-list"></div>
         </div>
+        <div class="ssl-section">
+            <h2 class="section-title">SSL Certificates</h2>
+            <div class="ssl-grid" id="ssl-cert-list">
+            </div>
+        </div>
     </div>
 
     <div id="addRecordModal">
         <div class="modal-content">
             <h2>Add DNS Record</h2>
-            <select id="recordType" onchange="generateRecordFields()">
-                <option value="A">A</option>
-                <option value="AAAA">AAAA</option>
-                <option value="CNAME">CNAME</option>
-                <option value="TXT">TXT</option>
-                <option value="MX">MX</option>
-                <option value="NS">NS</option>
-                <option value="SOA">SOA</option>
-                <option value="CAA">CAA</option>
-                <option value="SRV">SRV</option>
-            </select>
+
+            <div class="input-group">
+                <label class="input-label" for="recordType">Record Type</label>
+                <select id="recordType" onchange="generateRecordFields()">
+                    <option value="A">A</option>
+                    <option value="AAAA">AAAA</option>
+                    <option value="CNAME">CNAME</option>
+                    <option value="TXT">TXT</option>
+                    <option value="MX">MX</option>
+                    <option value="NS">NS</option>
+                    <option value="SOA">SOA</option>
+                    <option value="CAA">CAA</option>
+                    <option value="SRV">SRV</option>
+                </select>
+            </div>
+
             <div id="recordFields"></div>
+
             <div class="modal-actions">
                 <button onclick="saveRecord()">Save</button>
                 <button onclick="closeAddRecordModal()">Cancel</button>
@@ -68,13 +85,6 @@
 
         const domain = window.location.pathname.split("/").pop();
 
-        function fetchRecords() {
-            fetch(`https://as214428.net/dash/api/domains/records?domain=${domain}`)
-                .then((response) => response.json())
-                .then((data) => displayRecords(data))
-                .catch((error) => console.error("Error fetching records:", error));
-        }
-
         function groupRecordsByType(records) {
             return records.reduce((groups, record) => {
                 const { type } = record;
@@ -85,6 +95,7 @@
         }
 
         function displayRecords(records) {
+            document.getElementById("domain-name").innerText = `${domain} - ${records.length} records`;
             const container = document.getElementById("record-list");
             container.innerHTML = "";
 
@@ -106,7 +117,7 @@
                 row.innerHTML = `
                     <span data-label="Type">${RR_TYPE_MAP[record.Hdr?.Rrtype] || record.Hdr?.Rrtype}</span>
                     <span data-label="Name">${record.Hdr?.Name || ""}</span>
-                    <span data-label="Content">${getRecordContent(record)}</span>
+                    <span data-label="Content">${getRecordContent(record, meta)}</span>
                     <span data-label="Protected">
                         <div class="protected-status">
                             ${meta.protected ?
@@ -116,7 +127,7 @@
                     </span>
                     <span data-label="TTL">${record.Hdr?.Ttl}</span>
                     <div class="actions-menu">
-                        <button onclick="deleteRecord("${record.Hdr?.id}")" style="color:var(--danger)">Delete</button>
+                        <button onclick="deleteRecord('${meta.id}', event)" style="color:var(--danger)">Delete</button>
                     </div>
                 `;
 
@@ -130,7 +141,7 @@
                             ${meta.id}
                         </div>
                     </div>
-                    ${getAdditionalDetails(record)}
+                    ${getAdditionalDetails(record, meta)}
                 `;
 
                 row.appendChild(details);
@@ -150,12 +161,12 @@
             });
         }
 
-        function getAdditionalDetails(record) {
+        function getAdditionalDetails(record, meta) {
             for (const [key, value] of Object.entries(record)) {
                 if (key !== "Hdr") {
                     return `<div class="detail-row">
                         <div class="detail-label">${key}:</div>
-                        <div style="cursor: pointer;" onclick="copyToClipboard('${value}')">
+                        <div style="cursor: pointer;" onclick="copyToClipboard('${value}')" ${(key === "A" || key === "AAAA") && meta.protected ? `class="spoiler"` : ""}>
                             ${value}
                         </div>
                     </div>`;
@@ -163,10 +174,10 @@
             }
         }
 
-        function getRecordContent(record) {
+        function getRecordContent(record, meta) {
             switch (RR_TYPE_MAP[record.Hdr?.Rrtype] || record.Hdr?.Rrtype) {
-                case "A": return record.A || "";
-                case "AAAA": return record.AAAA || "";
+                case "A": return `<span ${meta.protected ? `class="spoiler"` : ""}>${record.A || ""}</span>`;
+                case "AAAA": return `<span ${meta.protected ? `class="spoiler"` : ""}>${record.AAAA || ""}</span>`;
                 case "CNAME": return record.Target || "";
                 case "TXT": return record.Txt || "";
                 case "MX": return `${record.Mx || ""} ${record.Preference || ""}`;
@@ -228,33 +239,42 @@
 
             (fieldConfig[recordType] || []).forEach((field) => {
                 const fieldDiv = document.createElement("div");
-                const label = document.createElement("label");
-                label.textContent = `${field}:`;
-                fieldDiv.appendChild(label);
+                fieldDiv.className = "input-group";
 
-                let input;
                 if (field !== "Protected") {
-                    input = document.createElement("input");
+                    const label = document.createElement("label");
+                    label.className = "input-label";
+                    label.textContent = field;
+                    fieldDiv.appendChild(label);
+
+                    const input = document.createElement("input");
                     input.type = "text";
                     input.id = `field-${field}`;
+                    input.autocomplete = "off";
+                    input.autocapitalize = "none";
+                    input.spellcheck = "false";
+
+                    if (field === "Name") input.value = domain;
+                    if (field === "TTL") input.value = "3600";
+                    if (field === "Refresh") input.value = "3600";
+                    if (field === "Retry") input.value = "600";
+                    if (field === "Expire") input.value = "604800";
+
                     fieldDiv.appendChild(input);
                 } else {
-                    input = document.createElement("input");
-                    input.type = "checkbox";
-                    input.id = `field-${field}`;
-                    fieldDiv.appendChild(input);
-                }
+                    const checkboxLabel = document.createElement("label");
+                    checkboxLabel.className = "checkbox-label";
 
-                if (field === "Name") {
-                    input.value = domain;
-                } else if (field === "Refresh") {
-                    input.value = "3600";
-                } else if (field === "Retry") {
-                    input.value = "600";
-                } else if (field === "Expire") {
-                    input.value = "604800";
-                } else if (field === "TTL") {
-                    input.value = "3600";
+                    const input = document.createElement("input");
+                    input.type = "checkbox";
+                    input.id = "field-Protected";
+
+                    const labelText = document.createElement("span");
+                    labelText.textContent = "Protected";
+
+                    checkboxLabel.appendChild(input);
+                    checkboxLabel.appendChild(labelText);
+                    fieldDiv.appendChild(checkboxLabel);
                 }
 
                 recordFieldsContainer.appendChild(fieldDiv);
@@ -296,7 +316,16 @@
                 });
         }
 
-        function deleteRecord(id) {
+        function deleteRecord(id, event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            if (!confirm("Are you sure you want to delete this record?")) {
+                return;
+            }
+
             fetch(`https://as214428.net/dash/api/domains/records/${id}?domain=${domain}`, {
                 method: "DELETE"
             })
@@ -304,6 +333,113 @@
                 .then((data) => fetchRecords())
                 .catch((error) => alert("Error deleting record:", error));
         }
+
+        function displaySSLCerts(records) {
+            const container = document.getElementById("ssl-cert-list");
+            container.innerHTML = "";
+
+            const certs = records.filter(record => {
+                return record.Metadata.SSLInfo &&
+                    record.Metadata.SSLInfo.IssuedAt !== "0001-01-01T00:00:00Z";
+            }).map(record => {
+                return {
+                    ...record,
+                    issuedAt: record.Metadata.SSLInfo.IssuedAt,
+                    expiresAt: record.Metadata.SSLInfo.ExpiresAt
+                };
+            });
+
+            certs.sort((a, b) => {
+                const aDate = new Date(a.Metadata.SSLInfo.ExpiresAt);
+                const bDate = new Date(b.Metadata.SSLInfo.ExpiresAt);
+                return aDate - bDate;
+            });
+
+            certs.forEach(cert => {
+                const card = document.createElement("div");
+                card.className = "ssl-card";
+
+                const now = new Date();
+                const issuedDate = new Date(cert.issuedAt);
+                const expiresDate = new Date(cert.expiresAt);
+                const totalDays = Math.ceil((expiresDate - issuedDate) / (1000 * 60 * 60 * 24));
+                const daysLeft = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
+                const progressPercent = Math.max(0, Math.min(100, 100 - (daysLeft / totalDays * 100)));
+
+                let status = "active";
+                if (daysLeft < 30) status = "expiring";
+                if (daysLeft < 0) status = "expired";
+
+                const formattedIssued = issuedDate.toLocaleDateString('en-US', {
+                    year: "numeric", month: "short", day: "numeric"
+                });
+
+                const formattedExpires = expiresDate.toLocaleDateString('en-US', {
+                    year: "numeric", month: "short", day: "numeric"
+                });
+
+                card.innerHTML = `
+                    <div class="ssl-card-header">
+                        <div class="ssl-card-title">${cert.Record.Hdr.Name}</div>
+                        <div class="ssl-status ${status}">
+                            ${status === "active" ? "Active" : status === "expiring" ? "Expiring Soon" : "Expired"}
+                        </div>
+                    </div>
+                    
+                    <div class="ssl-progress">
+                        <div class="ssl-progress-bar" style="width: ${progressPercent}%"></div>
+                    </div>
+                    
+                    <div class="ssl-details">
+                        <div class="ssl-detail-item">
+                            <span class="ssl-detail-label">Issued On</span>
+                            <span>${formattedIssued}</span>
+                        </div>
+                        <div class="ssl-detail-item">
+                            <span class="ssl-detail-label">Expires On</span>
+                            <span>${formattedExpires}</span>
+                        </div>
+                        <div class="ssl-detail-item">
+                            <span class="ssl-detail-label">Valid For</span>
+                            <span>${totalDays} days</span>
+                        </div>
+                        <div class="ssl-detail-item">
+                            <span class="ssl-detail-label">Status</span>
+                            <span>${daysLeft > 0 ? `${daysLeft} days remaining` : "Expired"}</span>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            if (container.children.length === 0) {
+                container.innerHTML = `
+                    <div class="no-certs" style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--accent);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="opacity: 0.5; margin-bottom: 1rem;">
+                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <p>No SSL certificates found for this domain</p>
+                    </div>
+                `;
+            }
+        }
+
+        function fetchRecords() {
+            fetch(`https://as214428.net/dash/api/domains/records?domain=${domain}`)
+                .then((response) => response.json())
+                .then((data) => {
+                    displayRecords(data);
+                    displaySSLCerts(data);
+                })
+                .catch((error) => console.error("Error fetching records:", error));
+        }
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                closeAddRecordModal();
+            }
+        });
 
         fetchRecords();
     </script>

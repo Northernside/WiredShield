@@ -9,10 +9,10 @@
 </head>
 
 <body>
-    <div class="header">
+    <a href="/dash" class="header">
         <img src="/dash/assets/logo.svg" alt="WiredShield Logo">
         <h1>WiredShield</h1>
-    </div>
+    </a>
 
     <div class="domain-grid" id="domainList"></div>
 
@@ -30,7 +30,7 @@
             domainList = domainList.sort((a, b) => {
                 return a.name.localeCompare(b.name);
             });
-            
+
             domainList.forEach(domain => {
                 const domainElement = document.createElement("a");
                 domainElement.className = "domain-card";

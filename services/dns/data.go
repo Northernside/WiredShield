@@ -138,27 +138,16 @@ func RemoveRecord(id string) (error, bool) {
 	return nil, true
 }
 
-func (t *dnsTrie) UpdateRecords(domain string, updateFunc func(*types.DNSRecord)) bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (trie *dnsTrie) UpdateRecord(id string, updateFunc func(*types.DNSRecord)) bool {
+	trie.mu.Lock()
+	defer trie.mu.Unlock()
 
-	labels := domainToLabels(domain)
-	reversedLabels := reverse(labels)
-
-	node := t.root
-	for _, label := range reversedLabels {
-		child, ok := node.children[label]
-		if !ok {
-			return false
-		}
-
-		node = child
+	indexed, ok := trie.idIndex[id]
+	if !ok {
+		return false
 	}
 
-	for i := range node.records {
-		updateFunc(&node.records[i])
-	}
-
+	updateFunc(indexed.record)
 	return true
 }
 

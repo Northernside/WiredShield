@@ -7,8 +7,13 @@ import (
 	"github.com/miekg/dns"
 )
 
+type backendInfo struct {
+	recordId string
+	addr     net.Addr
+}
+
 var (
-	hosts = make(map[string]net.Addr)
+	hosts = make(map[string]backendInfo)
 )
 
 func loadTargets() {
@@ -26,7 +31,10 @@ func loadTargets() {
 							Port: 80,
 						}
 
-						hosts[r.Header().Name] = addr
+						hosts[r.Header().Name] = backendInfo{
+							recordId: record.Metadata.ID,
+							addr:     addr,
+						}
 					}
 				case *dns.AAAA:
 					ip := net.ParseIP(r.AAAA.String())
@@ -36,7 +44,10 @@ func loadTargets() {
 							Port: 80,
 						}
 
-						hosts[r.Header().Name] = addr
+						hosts[r.Header().Name] = backendInfo{
+							recordId: record.Metadata.ID,
+							addr:     addr,
+						}
 					}
 				}
 			}

@@ -60,15 +60,14 @@ func CleanPNG(r io.Reader, w io.Writer) error {
 		switch string(chunkType) {
 		case "eXIf", "iTXt", "tEXt", "zTXt":
 			continue
-		default:
-			w.Write(lengthBytes)
-			w.Write(chunkType)
-			w.Write(chunkData)
-			w.Write(crc)
 		}
 
 		// PNG end chunk
 		if string(chunkType) == "IEND" {
+			w.Write(lengthBytes)
+			w.Write(chunkType)
+			w.Write(chunkData)
+			w.Write(crc)
 			return nil
 		}
 	}

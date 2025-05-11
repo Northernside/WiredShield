@@ -44,9 +44,12 @@ func CleanJPEG(r io.Reader, w io.Writer) error {
 
 		// no segment length for SOF, SOS, EOI
 		if marker[1] == 0xDA || marker[1] == 0xD9 {
-			w.Write(marker)
-			io.Copy(w, br)
-			return nil
+			if _, err := w.Write(marker); err != nil {
+				return err
+			}
+
+			_, err := io.Copy(w, br)
+			return err
 		}
 
 		// read segment length
@@ -62,7 +65,9 @@ func CleanJPEG(r io.Reader, w io.Writer) error {
 		}
 
 		if marker[1] == 0xE1 {
-			continue
+			if len(segData) >= 6 && string(segData[:6]) == "Exif\x00\x00" { // confirm EXIF header
+				continue
+			}
 		}
 
 		w.Write(marker)

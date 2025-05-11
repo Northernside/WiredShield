@@ -24,7 +24,6 @@ import (
 	wired_dns "wired/services/dns"
 	http_internal "wired/services/http/internal"
 
-	"github.com/miekg/dns"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -204,7 +203,7 @@ func initBackends() {
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
-	for host, addr := range hosts {
+	for host, backendInfo := range hosts {
 		normalizedHost := strings.ToLower(strings.TrimSuffix(host, "."))
 		var cert tls.Certificate
 		var err error
@@ -226,7 +225,7 @@ func initBackends() {
 
 		CertMap[normalizedHost] = cert
 
-		backendAddr := addr.String()
+		backendAddr := backendInfo.addr.String()
 		target, _ := url.Parse(fmt.Sprintf("http://%s", backendAddr))
 		proxy := httputil.NewSingleHostReverseProxy(target)
 		proxy.ErrorLog = log.New(&errorFilter{}, "", 0)
@@ -298,7 +297,7 @@ func initBackends() {
 		proxyMap[normalizedHost] = proxy
 
 		// overwrite .Metadata.SSLInfo
-		wired_dns.Zones.UpdateRecords(dns.Fqdn(normalizedHost), func(record *types.DNSRecord) {
+		wired_dns.Zones.UpdateRecord(backendInfo.recordId, func(record *types.DNSRecord) {
 			record.Metadata.SSLInfo = types.SSLInfo{
 				IssuedAt:  cert.Leaf.NotBefore,
 				ExpiresAt: cert.Leaf.NotAfter,

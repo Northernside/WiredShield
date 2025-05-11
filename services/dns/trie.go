@@ -16,6 +16,7 @@ var (
 			children: make(map[string]*trieNode),
 			records:  []types.DNSRecord{},
 		},
+		idIndex: make(map[string]indexedRecord),
 	}
 )
 
@@ -24,9 +25,17 @@ type trieNode struct {
 	records  []types.DNSRecord
 }
 
+type indexedRecord struct {
+	record *types.DNSRecord
+	node   *trieNode
+	index  int
+	path   []string
+}
+
 type dnsTrie struct {
-	root *trieNode
-	mu   sync.RWMutex
+	root    *trieNode
+	mu      sync.RWMutex
+	idIndex map[string]indexedRecord
 }
 
 func (trie *dnsTrie) insert(domain string, record types.DNSRecord) {
@@ -36,7 +45,10 @@ func (trie *dnsTrie) insert(domain string, record types.DNSRecord) {
 	labels := domainToLabels(domain)
 	reversedLabels := reverse(labels)
 	node := trie.root
+	var path []string
+
 	for _, label := range reversedLabels {
+		path = append(path, label)
 		if node.children[label] == nil {
 			node.children[label] = &trieNode{
 				children: make(map[string]*trieNode),
@@ -48,6 +60,14 @@ func (trie *dnsTrie) insert(domain string, record types.DNSRecord) {
 
 	record.Record.Header().Name = dns.Fqdn(domain)
 	node.records = append(node.records, record)
+
+	id := record.Metadata.ID
+	trie.idIndex[id] = indexedRecord{
+		record: &node.records[len(node.records)-1],
+		node:   node,
+		index:  len(node.records) - 1,
+		path:   path,
+	}
 }
 
 func (trie *dnsTrie) get(domain string) ([]types.DNSRecord, bool) {
@@ -73,80 +93,42 @@ func (trie *dnsTrie) get(domain string) ([]types.DNSRecord, bool) {
 	return records, true
 }
 
-func (trie *dnsTrie) walkTrieByID(id string, action func(node *trieNode, path []string, index int) (done bool)) {
-	var walk func(node *trieNode, path []string) bool
-	walk = func(node *trieNode, path []string) bool {
-		for i, record := range node.records {
-			if record.Metadata.ID == id {
-				return action(node, path, i)
-			}
-		}
-
-		for label, child := range node.children {
-			if walk(child, append(path, label)) {
-				return true
-			}
-		}
-
-		return false
-	}
-
-	walk(trie.root, []string{})
-}
-
-func (trie *dnsTrie) getByID(id string) (types.DNSRecord, bool) {
-	trie.mu.RLock()
-	defer trie.mu.RUnlock()
-
-	var found types.DNSRecord
-	var ok bool
-
-	trie.walkTrieByID(id, func(node *trieNode, path []string, index int) bool {
-		found = node.records[index]
-		ok = true
-		return true
-	})
-
-	return found, ok
-}
-
 func (trie *dnsTrie) deleteByID(id string) bool {
 	trie.mu.Lock()
 	defer trie.mu.Unlock()
 
-	var deleted bool
-	var cleanupPath []struct {
-		node  *trieNode
-		label string
+	indexed, ok := trie.idIndex[id]
+	if !ok {
+		return false
 	}
 
-	trie.walkTrieByID(id, func(node *trieNode, path []string, index int) bool {
-		node.records = slices.Delete(node.records, index, index+1)
-		deleted = true
+	node := indexed.node
+	idx := indexed.index
+	node.records = slices.Delete(node.records, idx, idx+1)
+	delete(trie.idIndex, id)
 
-		n := trie.root
-		for _, label := range path {
-			cleanupPath = append(cleanupPath, struct {
-				node  *trieNode
-				label string
-			}{node: n, label: label})
-
-			n = n.children[label]
+	for i := idx; i < len(node.records); i++ {
+		rec := &node.records[i]
+		trie.idIndex[rec.Metadata.ID] = indexedRecord{
+			record: rec,
+			node:   node,
+			index:  i,
+			path:   indexed.path,
 		}
+	}
 
-		return true
-	})
-
-	for i := len(cleanupPath) - 1; i >= 0; i-- {
-		parent := cleanupPath[i].node
-		label := cleanupPath[i].label
-		child := parent.children[label]
+	curr := trie.root
+	for _, label := range indexed.path {
+		child := curr.children[label]
 		if len(child.records) == 0 && len(child.children) == 0 {
-			delete(parent.children, label)
+			delete(curr.children, label)
+			break
 		}
+
+		curr = child
 	}
 
-	return deleted
+	return true
 }
 
 func reverse(s []string) []string {

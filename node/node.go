@@ -30,6 +30,9 @@ import (
 	protocol_handler "wired/node/protocol"
 	wired_dns "wired/services/dns"
 	"wired/services/http"
+
+	httpp "net/http"
+	_ "net/http/pprof"
 )
 
 //go:embed version.txt
@@ -44,6 +47,10 @@ func init() {
 }
 
 func main() {
+	go func() {
+		httpp.ListenAndServe("localhost:6060", nil)
+	}()
+
 	if len(os.Args) > 1 && os.Args[1] == "install" {
 		systemdInstall()
 		return
