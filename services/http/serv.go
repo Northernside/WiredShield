@@ -20,8 +20,6 @@ import (
 	"wired/modules/exif"
 	"wired/modules/logger"
 	"wired/modules/pages"
-	"wired/modules/postgresql"
-	"wired/modules/types"
 	"wired/services/dns"
 	http_internal "wired/services/http/internal"
 
@@ -66,8 +64,8 @@ var (
 
 func Start(ctx context.Context) {
 	http_internal.PostStart()
-	loadTargets()
-	initBackends()
+	loadProtectedHosts()
+	initReverseProxies()
 
 	rootHosts := strings.Split(env.GetEnv("ROOT_HOSTS", ""), ",")
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -183,7 +181,7 @@ func Start(ctx context.Context) {
 	logger.Println("HTTP(S) servers shut down successfully")
 }
 
-func initBackends() {
+func initReverseProxies() {
 	sanCerts := make(map[string]*tls.Certificate)
 	sanFiles, _ := filepath.Glob("certs/san_*.crt")
 	for _, certFile := range sanFiles {
@@ -209,7 +207,7 @@ func initBackends() {
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
-	for host, backendInfo := range hosts {
+	for host, backendInfo := range protectedHosts {
 		normalizedHost := strings.ToLower(strings.TrimSuffix(host, "."))
 		var cert *tls.Certificate
 
@@ -305,13 +303,19 @@ func initBackends() {
 
 		proxyMap[normalizedHost] = proxy
 
-		// overwrite .Metadata.SSLInfo
-		var user = postgresql.Users[dns.IdIndex[backendInfo.recordId].Record.Metadata.OwnerID]
-		user.UpdateRecord(backendInfo.recordId, func(record *types.DNSRecord) {
-			record.Metadata.SSLInfo = types.SSLInfo{
-				IssuedAt:  cert.Leaf.NotBefore,
-				ExpiresAt: cert.Leaf.NotAfter,
-			}
-		})
+		indexedRecord := dns.ZoneIndexId[backendInfo.recordId]
+		if indexedRecord == nil {
+			logger.Println("Record not found for host: ", host)
+			continue
+		}
+
+		mutex, ok := dns.ZoneFileMutexes[indexedRecord.Domain]
+		if ok {
+			mutex.Lock()
+			defer mutex.Unlock()
+		}
+
+		indexedRecord.Record.Metadata.SSLInfo.IssuedAt = cert.Leaf.NotBefore
+		indexedRecord.Record.Metadata.SSLInfo.ExpiresAt = cert.Leaf.NotAfter
 	}
 }

@@ -52,81 +52,52 @@ func RecordToZoneFile(rr dns.RR) string {
 	}
 }
 
-func zoneFileToRecord(zoneLine string) (dns.RR, error) {
-	if strings.HasPrefix(zoneLine, ";") || strings.TrimSpace(zoneLine) == "" {
-		return nil, types.ErrUnusableLine
-	}
+func CreateIPCompatibility() {
+	for id, records := range DomainRecordIndexId {
+		if records == nil {
+			continue
+		}
 
-	rr, err := dns.NewRR(zoneLine)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse record: %v", err)
-	}
-
-	return rr, nil
-}
-
-func createIPCompatibility() {
-	Zones.mu.Lock()
-	defer Zones.mu.Unlock()
-
-	var walk func(node *trieNode, path []string)
-	walk = func(node *trieNode, path []string) {
-		if len(node.records) > 0 {
-			reversedPath := reverse(path)
-			domain := dns.Fqdn(strings.Join(reversedPath, "."))
-
-			for _, record := range node.records {
-				if !record.Metadata.Protected {
-					continue
-				}
-
-				var existingType uint16
-				var newRR dns.RR
-
-				switch record.Record.Header().Rrtype {
-				case dns.TypeA:
-					existingType = dns.TypeAAAA
-					a := record.Record.(*dns.A)
-					newRR = &dns.AAAA{
-						Hdr:  dns.RR_Header{Name: domain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: a.Hdr.Ttl},
-						AAAA: record.Record.(*dns.A).A,
-					}
-				case dns.TypeAAAA:
-					existingType = dns.TypeA
-					aaaa := record.Record.(*dns.AAAA)
-					newRR = &dns.A{
-						Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: aaaa.Hdr.Ttl},
-						A:   record.Record.(*dns.AAAA).AAAA,
-					}
-				default:
-					continue
-				}
-
-				exists := false
-				for _, r := range node.records {
-					if r.Record.Header().Rrtype == existingType {
-						exists = true
-						break
-					}
-				}
-
-				if !exists {
-					node.records = append(node.records, &types.DNSRecord{
-						Record: newRR,
-						Metadata: types.RecordMetadata{
-							ID:         record.Metadata.ID,
-							Protected:  true,
-							Artificial: true,
-						},
-					})
-				}
+		for _, record := range records {
+			if record == nil || !record.Metadata.Protected {
+				continue
 			}
-		}
 
-		for label, child := range node.children {
-			walk(child, append(path, label))
+			var existingType uint16
+			var newRR dns.RR
+
+			switch record.RR.Header().Rrtype {
+			case dns.TypeA:
+				existingType = dns.TypeAAAA
+				a := record.RR.(*dns.A)
+				newRR = &dns.AAAA{
+					Hdr:  dns.RR_Header{Name: a.Header().Name, Rrtype: existingType, Class: a.Header().Class, Ttl: a.Header().Ttl},
+					AAAA: record.RR.(*dns.A).A,
+				}
+			case dns.TypeAAAA:
+				existingType = dns.TypeA
+				aaaa := record.RR.(*dns.AAAA)
+				newRR = &dns.A{
+					Hdr: dns.RR_Header{Name: aaaa.Header().Name, Rrtype: existingType, Class: aaaa.Header().Class, Ttl: aaaa.Header().Ttl},
+					A:   record.RR.(*dns.AAAA).AAAA,
+				}
+			default:
+				continue
+			}
+
+			InsertRecord(&DomainData{
+				Id:     id,
+				Domain: DomainIndexId[id].Domain,
+				Owner:  DomainIndexId[id].Owner,
+			}, &types.DNSRecord{
+				Metadata: types.RecordMetadata{
+					Id:        "",
+					Protected: true,
+					IPCompat:  true,
+					SSLInfo:   types.SSLInfo{},
+				},
+				RR: newRR,
+			})
 		}
 	}
-
-	walk(Zones.root, []string{})
 }

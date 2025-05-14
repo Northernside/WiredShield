@@ -7,48 +7,31 @@ import (
 	"github.com/miekg/dns"
 )
 
-type backendInfo struct {
+type protectedBackend struct {
 	recordId string
 	addr     net.Addr
 }
 
 var (
-	hosts = make(map[string]backendInfo)
+	protectedHosts = make(map[string]protectedBackend)
 )
 
-func loadTargets() {
-	zones := wired_dns.ListRecords()
+func loadProtectedHosts() {
+	records := wired_dns.GetAllRecords()
+	for _, record := range records {
+		if record.Metadata.Protected {
+			var ip net.IP
+			switch r := record.RR.(type) {
+			case *dns.A:
+				ip = net.ParseIP(r.A.String())
+			case *dns.AAAA:
+				ip = net.ParseIP(r.AAAA.String())
+			}
 
-	for _, zone := range zones {
-		for _, record := range zone {
-			if record.Metadata.Protected {
-				switch r := record.Record.(type) {
-				case *dns.A:
-					ip := net.ParseIP(r.A.String())
-					if ip != nil {
-						addr := &net.TCPAddr{
-							IP:   ip,
-							Port: 80,
-						}
-
-						hosts[r.Header().Name] = backendInfo{
-							recordId: record.Metadata.ID,
-							addr:     addr,
-						}
-					}
-				case *dns.AAAA:
-					ip := net.ParseIP(r.AAAA.String())
-					if ip != nil {
-						addr := &net.TCPAddr{
-							IP:   ip,
-							Port: 80,
-						}
-
-						hosts[r.Header().Name] = backendInfo{
-							recordId: record.Metadata.ID,
-							addr:     addr,
-						}
-					}
+			if ip != nil {
+				protectedHosts[record.RR.Header().Name] = protectedBackend{
+					recordId: record.Metadata.Id,
+					addr:     &net.TCPAddr{IP: ip, Port: 80},
 				}
 			}
 		}

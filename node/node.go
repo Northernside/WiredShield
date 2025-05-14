@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -23,6 +24,7 @@ import (
 	packet "wired/modules/packets"
 	"wired/modules/pages"
 	"wired/modules/pgp"
+	"wired/modules/postgresql"
 	"wired/modules/protocol"
 	"wired/modules/ssl"
 	"wired/modules/types"
@@ -69,7 +71,15 @@ func main() {
 		cancel()
 	}()
 
+	// wired_dns.SplitZonefile("zonefile.txt")
 	wired_dns.LoadZonefile()
+	wired_dns.CreateIPCompatibility()
+
+	err := postgresql.Manager.InitDB("users")
+	if err != nil {
+		log.Fatal("Failed to connect to users DB: ", err)
+	}
+
 	wired_dns.DNSEventBus.Sub(event.Event_DNSDataBuilt, wired_dns.DNSEventChannel, func() { wired_dns.Start(ctx) })
 	wired_dns.DNSEventBus.Sub(event.Event_DNSServiceInitialized, wired_dns.DNSEventChannel, func() { dnsInitHandler(ctx, wired_dns.DNSEventChannel) })
 
@@ -204,6 +214,7 @@ func dnsInitHandler(ctx context.Context, eventChan <-chan event.Event) {
 		}
 
 		// convertSingleCertToSAN()
+		logger.Println("DNS service initialized")
 		go http.Start(ctx)
 		go ssl.StartRenewalChecker(ctx)
 	}

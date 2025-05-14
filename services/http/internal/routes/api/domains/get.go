@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"wired/services/dns"
+	wired_dns "wired/services/dns"
 )
 
 type DomainStats struct {
@@ -14,48 +14,40 @@ type DomainStats struct {
 }
 
 func Get(w http.ResponseWriter, r *http.Request) {
-	records := dns.ListRecords()
+	userId := r.Header.Get("Wired-User-Id")
+	domainStats := make([]DomainStats, 0)
 
-	domainStats := map[string]*DomainStats{}
-	for zone, recordList := range records {
-		parts := strings.Split(strings.TrimSuffix(zone, "."), ".")
-		if len(parts) < 2 {
-			continue
-		}
-
-		sld := strings.Join(parts[len(parts)-2:], ".")
-		if _, exists := domainStats[sld]; !exists {
-			domainStats[sld] = &DomainStats{Name: sld}
-		}
-
-		recordAmount := len(recordList)
-		for _, record := range recordList {
-			if record.Metadata.Artificial {
-				recordAmount--
+	domains := wired_dns.UserDomainIndexId[userId]
+	for _, domain := range domains {
+		records := wired_dns.DomainRecordIndexId[domain.Id]
+		sslCerts := 0
+		recordsCount := 0
+		for i := range records {
+			if records[i].Metadata.IPCompat {
 				continue
 			}
 
-			if record.Metadata.Protected {
-				domainStats[sld].SSLCerts++
+			if !records[i].Metadata.SSLInfo.IssuedAt.IsZero() {
+				sslCerts++
 			}
+
+			recordsCount++
 		}
 
-		domainStats[sld].Records += recordAmount
+		domainStats = append(domainStats, DomainStats{
+			Name:     strings.TrimSuffix(domain.Domain, "."),
+			Records:  recordsCount,
+			SSLCerts: sslCerts,
+		})
 	}
 
-	var domains []DomainStats
-	for _, stats := range domainStats {
-		domains = append(domains, *stats)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	marshal, err := json.Marshal(domains)
+	marshal, err := json.Marshal(domainStats)
 	if err != nil {
 		http.Error(w, "Failed to marshal domains", http.StatusInternalServerError)
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(marshal)
 }

@@ -11,6 +11,7 @@ import (
 	event_data "wired/modules/event/events"
 	"wired/modules/geo"
 	"wired/modules/logger"
+	"wired/modules/types"
 
 	"github.com/miekg/dns"
 )
@@ -125,18 +126,14 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			authorityRRs  []dns.RR
 		)
 
-		recs, ok := Zones.Get(qname)
-		if !ok {
-			continue
-		}
-
-		for _, rr := range recs {
-			rrName := strings.ToLower(rr.Record.Header().Name)
-			if rrName == qname && rr.Record.Header().Rrtype == qtype {
+		zoneRecords := findZone(qname)
+		for _, record := range zoneRecords {
+			rrName := strings.ToLower(record.RR.Header().Name)
+			if rrName == qname && record.RR.Header().Rrtype == qtype {
 				nameExists = true
-				clonedRecord := dns.Copy(rr.Record)
-				if rr.Metadata.Protected {
-					ipVersion := map[bool]int{true: 6, false: 4}[rr.Record.Header().Rrtype == dns.TypeAAAA]
+				clonedRecord := dns.Copy(record.RR)
+				if record.Metadata.Protected {
+					ipVersion := map[bool]int{true: 6, false: 4}[record.RR.Header().Rrtype == dns.TypeAAAA]
 					loc, err := geo.FindNearestLocation(geo.GeoInfo{
 						IP:         userIP,
 						MMLocation: userLoc,
@@ -149,17 +146,19 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 						continue
 					}
 
-					switch record := clonedRecord.(type) {
+					switch cRecord := clonedRecord.(type) {
 					case *dns.AAAA:
-						record.AAAA = loc.IP
+						cRecord.AAAA = loc.IP
 					case *dns.A:
-						record.A = loc.IP
+						cRecord.A = loc.IP
+
+						//logger.Println(record
 					}
 				}
 
 				answerRecords = append(answerRecords, clonedRecord)
-			} else if rr.Record.Header().Rrtype == dns.TypeCNAME {
-				cnameRecords = append(cnameRecords, rr.Record)
+			} else if record.RR.Header().Rrtype == dns.TypeCNAME {
+				cnameRecords = append(cnameRecords, record.RR)
 			}
 		}
 
@@ -179,44 +178,39 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 				}
 
 				target := dns.CanonicalName(cnameRecord.Target)
-				targetRecs, ok := Zones.Get(target)
-				if !ok {
+				targetRecs := findZone(target)
+				if len(targetRecs) == 0 {
 					continue
 				}
 
 				var targetAnswers []dns.RR
-				for _, rr := range targetRecs {
-					rrName := strings.ToLower(rr.Record.Header().Name)
-					if rrName == target && (rr.Record.Header().Rrtype == qtype) {
-						clonedRR := dns.Copy(rr.Record)
-						if rr.Metadata.Protected {
-							switch cloned := clonedRR.(type) {
-							case *dns.A:
-								loc, err := geo.FindNearestLocation(geo.GeoInfo{
-									IP:         userIP,
-									MMLocation: userLoc,
-								}, 4)
-								if err != nil {
-									logger.Println("Error finding nearest location for target A record:", err)
-									continue
-								}
+				for _, record := range targetRecs {
+					rrName := strings.ToLower(record.RR.Header().Name)
+					if rrName == target && (record.RR.Header().Rrtype == qtype) {
+						clonedRecord := dns.Copy(record.RR)
+						if record.Metadata.Protected {
+							ipVersion := map[bool]int{true: 6, false: 4}[record.RR.Header().Rrtype == dns.TypeAAAA]
+							loc, err := geo.FindNearestLocation(geo.GeoInfo{
+								IP:         userIP,
+								MMLocation: userLoc,
+							}, ipVersion)
 
-								cloned.A = loc.IP
+							if err != nil {
+								logger.Printf("Error finding nearest location for IPv%s %s: %v\n", ipVersion, userIP, err)
+								logger.Println("userLoc: ", userLoc)
+								m.Extra = append(m.Extra, makeErrorTxt(qname, err.Error()))
+								continue
+							}
+
+							switch record := clonedRecord.(type) {
 							case *dns.AAAA:
-								loc, err := geo.FindNearestLocation(geo.GeoInfo{
-									IP:         userIP,
-									MMLocation: userLoc,
-								}, 6)
-								if err != nil {
-									logger.Println("Error finding nearest location for target AAAA record:", err)
-									continue
-								}
-
-								cloned.AAAA = loc.IP
+								record.AAAA = loc.IP
+							case *dns.A:
+								record.A = loc.IP
 							}
 						}
 
-						targetAnswers = append(targetAnswers, clonedRR)
+						targetAnswers = append(targetAnswers, clonedRecord)
 					}
 				}
 
@@ -307,13 +301,13 @@ func makeErrorTxt(qname string, text string) *dns.TXT {
 }
 
 func getSOA(zone string, nxdomain bool) []dns.RR {
-	recs, ok := Zones.Get(zone)
-	if !ok {
+	recs := findZone(zone)
+	if len(recs) == 0 {
 		return nil
 	}
 
-	for _, rr := range recs {
-		if soa, ok := rr.Record.(*dns.SOA); ok {
+	for _, record := range recs {
+		if soa, ok := record.RR.(*dns.SOA); ok {
 			soaCopy := *soa
 			soaCopy.Hdr = dns.RR_Header{
 				Name:   soa.Hdr.Name,
@@ -324,10 +318,8 @@ func getSOA(zone string, nxdomain bool) []dns.RR {
 
 			if nxdomain {
 				soaCopy.Hdr.Ttl = soaCopy.Minttl
-			} else {
-				if soaCopy.Hdr.Ttl > soaCopy.Minttl {
-					soaCopy.Hdr.Ttl = soaCopy.Minttl
-				}
+			} else if soaCopy.Hdr.Ttl > soaCopy.Minttl {
+				soaCopy.Hdr.Ttl = soaCopy.Minttl
 			}
 
 			return []dns.RR{&soaCopy}
@@ -335,4 +327,8 @@ func getSOA(zone string, nxdomain bool) []dns.RR {
 	}
 
 	return nil
+}
+
+func findZone(qname string) []*types.DNSRecord {
+	return HeaderNameIndex[qname]
 }

@@ -22,7 +22,7 @@ func StartRenewalChecker(ctx context.Context) {
 			logger.Println("Stopping SSL renewal checker...")
 			return
 		case <-ticker.C:
-			domains := make(map[string]string)
+			domains := []string{}
 			logger.Println("Checking for certificates to renew...")
 			for domain, sslEntry := range http.CertMap {
 				if sslEntry.Cert.Leaf == nil {
@@ -42,7 +42,7 @@ func StartRenewalChecker(ctx context.Context) {
 				}
 
 				if time.Until(sslEntry.Cert.Leaf.NotAfter) <= 90*24*time.Hour {
-					domains[sslEntry.RecordId] = domain
+					domains = append(domains, domain)
 				}
 			}
 
@@ -54,19 +54,14 @@ func StartRenewalChecker(ctx context.Context) {
 			}
 
 			batchSize := 100
-			// prepareCertificate(domains) -> domains: map[string]string (recordId -> domain)
 			for i := 0; i < len(domains); i += batchSize {
-				end := min(i+batchSize, len(domains))
-
-				batch := make(map[string]string)
-				keys := make([]string, 0, len(domains))
-				for k := range domains {
-					keys = append(keys, k)
+				end := i + batchSize
+				if end > len(domains) {
+					end = len(domains)
 				}
 
-				for j := i; j < end; j++ {
-					batch[keys[j]] = domains[keys[j]]
-				}
+				batch := domains[i:end]
+				logger.Printf("Renewing batch %d-%d: %s\n", i, end, batch)
 
 				certPEM, keyPEM, err := prepareCertificate(batch)
 				if err != nil {

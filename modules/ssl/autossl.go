@@ -29,7 +29,7 @@ func init() {
 	}
 }
 
-func GenerateSANCertificate(domains map[string]string) (time.Time, time.Time, error) {
+func GenerateSANCertificate(domains []string) (time.Time, time.Time, error) {
 	logger.Printf("Generating SAN certificate for %v\n", domains)
 
 	certPEM, keyPEM, err := prepareCertificate(domains)
@@ -75,7 +75,7 @@ func GenerateSANCertificate(domains map[string]string) (time.Time, time.Time, er
 	return cert.NotBefore, cert.NotAfter, nil
 }
 
-func GenerateCertificate(domains map[string]string) (time.Time, time.Time, error) {
+func GenerateCertificate(domains []string) (time.Time, time.Time, error) {
 	logger.Println("Generating SSL certificate for ", domains)
 
 	certPEM, keyPEM, err := prepareCertificate(domains)
@@ -145,17 +145,12 @@ func GenerateCertificate(domains map[string]string) (time.Time, time.Time, error
 	return issuedAt, expirationTime, nil
 }
 
-func prepareCertificate(domains map[string]string) ([]byte, []byte, error) {
+func prepareCertificate(domains []string) ([]byte, []byte, error) {
 	if client == nil {
 		return nil, nil, errors.New("failed to get ACME client")
 	}
 
-	domainList := make([]string, 0, len(domains))
-	for _, domain := range domains {
-		domainList = append(domainList, domain)
-	}
-
-	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domainList...))
+	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domains...))
 	if err != nil {
 		return nil, nil, fmt.Errorf("authorization failed: %w", err)
 	}
@@ -182,7 +177,7 @@ func prepareCertificate(domains map[string]string) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	csr, err := createCSR(domainList, certKey)
+	csr, err := createCSR(domains, certKey)
 	if err != nil {
 		return nil, nil, err
 	}

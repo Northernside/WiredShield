@@ -3,31 +3,46 @@ package postgresql
 import (
 	"context"
 	"fmt"
+	"sync"
 	"wired/modules/env"
 	"wired/modules/logger"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-var (
-	PsqlConn *pgxpool.Pool
-)
+type DBManager struct {
+	mu   sync.RWMutex
+	pool map[string]*pgxpool.Pool
+}
 
-func Init() {
-	var err error
+var Manager = &DBManager{
+	pool: make(map[string]*pgxpool.Pool),
+}
+
+func (dbManager *DBManager) InitDB(name string) error {
+	dbManager.mu.Lock()
+	defer dbManager.mu.Unlock()
+
 	connString := fmt.Sprintf(
 		"postgres://%s:%s@%s:5432/%s?sslmode=disable",
 		env.GetEnv("PSQL_USER", "wiredshield"),
 		env.GetEnv("PSQL_PASSWORD", ""),
-		env.GetEnv("PSQL_ADDR", "45.157.11.82"),
-		env.GetEnv("PSQL_DB", "reverseproxy"),
+		env.GetEnv("PSQL_ADDR", "2.56.244.12"),
+		name,
 	)
 
-	PsqlConn, err = pgxpool.Connect(context.Background(), connString)
+	pool, err := pgxpool.Connect(context.Background(), connString)
 	if err != nil {
-		logger.Fatal("Unable to connect to database: ", err)
-		return
+		return fmt.Errorf("init db %s failed: %w", name, err)
 	}
 
-	logger.Println("Connected to PostgreSQL")
+	dbManager.pool[name] = pool
+	logger.Println("Connected to DB: ", name)
+	return nil
+}
+
+func (dbManager *DBManager) GetPool(name string) *pgxpool.Pool {
+	dbManager.mu.RLock()
+	defer dbManager.mu.RUnlock()
+	return dbManager.pool[name]
 }

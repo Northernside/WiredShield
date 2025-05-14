@@ -3,15 +3,16 @@ package dns
 import (
 	"wired/modules/env"
 	"wired/modules/event"
-	"wired/modules/logger"
-
 	event_data "wired/modules/event/events"
+	"wired/modules/logger"
+	"wired/modules/postgresql"
+	"wired/modules/types"
 )
 
 func init() {
 	eventChan := make(chan event.Event)
-	DNSEventBus.Sub(1, eventChan, func() { addRecordEventHandler(eventChan) })
-	DNSEventBus.Sub(2, eventChan, func() { removeRecordEventHandler(eventChan) })
+	DNSEventBus.Sub(event.Event_AddRecord, eventChan, func() { addRecordEventHandler(eventChan) })
+	DNSEventBus.Sub(event.Event_RemoveRecord, eventChan, func() { removeRecordEventHandler(eventChan) })
 }
 
 func addRecordEventHandler(eventChan <-chan event.Event) {
@@ -30,7 +31,24 @@ func addRecordEventHandler(eventChan <-chan event.Event) {
 			continue
 		}
 
-		Zones.Insert(data.OwnerID, data.Record)
+		owner := postgresql.Users[data.OwnerId]
+		if owner == nil {
+			postgresql.Users[data.OwnerId] = &types.User{
+				Id: data.OwnerId,
+			}
+		}
+
+		err := postgresql.GetUser(owner)
+		if err != nil {
+			logger.Println("Failed to get user: ", err)
+			continue
+		}
+
+		_, err = CreateRecord(owner, data.DomainId, data.Record)
+		if err != nil {
+			logger.Println("Failed to create record: ", err)
+			continue
+		}
 	}
 }
 
@@ -50,6 +68,23 @@ func removeRecordEventHandler(eventChan <-chan event.Event) {
 			continue
 		}
 
-		Zones.Delete(data.OwnerID, data.ID)
+		owner := postgresql.Users[data.OwnerId]
+		if owner == nil {
+			postgresql.Users[data.OwnerId] = &types.User{
+				Id: data.OwnerId,
+			}
+		}
+
+		err := postgresql.GetUser(owner)
+		if err != nil {
+			logger.Println("Failed to get user: ", err)
+			continue
+		}
+
+		err = DeleteRecord(owner, data.Id)
+		if err != nil {
+			logger.Println("Failed to delete record: ", err)
+			continue
+		}
 	}
 }

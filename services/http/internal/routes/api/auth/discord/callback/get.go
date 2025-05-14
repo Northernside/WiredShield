@@ -11,6 +11,8 @@ import (
 	"wired/modules/jwt"
 	"wired/modules/logger"
 	"wired/modules/pages"
+	"wired/modules/postgresql"
+	"wired/modules/types"
 )
 
 type tokenResponse struct {
@@ -18,10 +20,6 @@ type tokenResponse struct {
 	TokenType   string `json:"token_type"`
 	ExpiresIn   int    `json:"expires_in"`
 	Scope       string `json:"scope"`
-}
-
-type user struct {
-	ID string `json:"id"`
 }
 
 func Get(w http.ResponseWriter, r *http.Request) {
@@ -41,24 +39,21 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	req, err := http.NewRequest(http.MethodPost, "https://discord.com/api/v8/oauth2/token", bytes.NewBufferString(body))
 	if err != nil {
 		logger.Println("Failed to create request: ", err)
-		errorHtml(w, http.StatusInternalServerError, []string{"Failed to create request", err.Error()})
+		errorHtml(w, http.StatusInternalServerError, []string{"Failed to create request:", err.Error()})
 		return
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logger.Println("Failed to exchange code for token: ", err)
-		errorHtml(w, http.StatusInternalServerError, []string{"Failed to exchange code for token", err.Error()})
+		errorHtml(w, http.StatusInternalServerError, []string{"(2) Failed to exchange code for token: ", err.Error(), "", fmt.Sprintf("Status Code: %d", resp.StatusCode)})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		logger.Println("Failed to exchange code for token: ", string(bodyBytes))
-		errorHtml(w, http.StatusInternalServerError, []string{"Failed to exchange code for token", string(bodyBytes)})
+		errorHtml(w, http.StatusInternalServerError, []string{"(2) Failed to exchange code for token: ", string(bodyBytes), "", fmt.Sprintf("Status Code: %d", resp.StatusCode)})
 		return
 	}
 
@@ -70,7 +65,7 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, err = http.NewRequest(http.MethodGet, "https://discord.com/api/v8/users/@me", nil)
+	req, err = http.NewRequest(http.MethodGet, "https://discord.com/api/v9/users/@me", nil)
 	if err != nil {
 		logger.Println("Failed to create request: ", err)
 		errorHtml(w, http.StatusInternalServerError, []string{"Failed to create request", err.Error()})
@@ -78,7 +73,7 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Authorization", token.TokenType+" "+token.AccessToken)
 
-	resp, err = client.Do(req)
+	resp, err = http.DefaultClient.Do(req)
 	if err != nil {
 		logger.Println("Failed to get user info: ", err)
 		errorHtml(w, http.StatusInternalServerError, []string{"Failed to get user info", err.Error()})
@@ -93,18 +88,25 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := user{}
-	err = json.NewDecoder(resp.Body).Decode(&user)
+	account := &types.User{}
+	err = json.NewDecoder(resp.Body).Decode(account)
 	if err != nil {
 		logger.Println("Failed to decode user info: ", err)
 		errorHtml(w, http.StatusInternalServerError, []string{"Failed to decode user info", err.Error()})
 		return
 	}
 
-	jwtToken, err := jwt.CreateToken(user.ID)
+	jwtToken, err := jwt.CreateToken(account.Id)
 	if err != nil {
 		logger.Println("Failed to create JWT token: ", err)
 		errorHtml(w, http.StatusInternalServerError, []string{"Failed to create JWT token", err.Error()})
+		return
+	}
+
+	err = postgresql.CreateOrUpdateUser(account)
+	if err != nil {
+		logger.Println("Failed to create or update user: ", err)
+		errorHtml(w, http.StatusInternalServerError, []string{"Failed to create or update user", err.Error()})
 		return
 	}
 

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"wired/modules/env"
+	"wired/modules/jwt"
 	"wired/modules/pages"
 	api_auth "wired/services/http/internal/routes/api/auth"
 	api_auth_discord "wired/services/http/internal/routes/api/auth/discord"
@@ -14,8 +15,9 @@ import (
 )
 
 type Route struct {
-	Method string
-	Path   string
+	AuthLevel int
+	Method    string
+	Path      string
 }
 
 var (
@@ -32,11 +34,11 @@ func PostStart() {
 	}
 
 	funcRoutes = map[Route]func(http.ResponseWriter, *http.Request){
-		{Method: http.MethodGet, Path: "/dash/api/auth"}:                  api_auth.Get,
-		{Method: http.MethodGet, Path: "/dash/api/auth/discord"}:          api_auth_discord.Get,
-		{Method: http.MethodGet, Path: "/dash/api/auth/discord/callback"}: api_auth_discord_callback.Get,
-		{Method: http.MethodGet, Path: "/dash/api/domains"}:               api_domains.Get,
-		{Method: http.MethodGet, Path: "/dash/api/domains/records"}:       api_domains_records.Get,
+		{AuthLevel: 0, Method: http.MethodGet, Path: "/dash/api/auth"}:                  api_auth.Get,
+		{AuthLevel: 0, Method: http.MethodGet, Path: "/dash/api/auth/discord"}:          api_auth_discord.Get,
+		{AuthLevel: 0, Method: http.MethodGet, Path: "/dash/api/auth/discord/callback"}: api_auth_discord_callback.Get,
+		{AuthLevel: 1, Method: http.MethodGet, Path: "/dash/api/domains"}:               api_domains.Get,
+		{AuthLevel: 2, Method: http.MethodGet, Path: "/dash/api/domains/records"}:       api_domains_records.Get,
 	}
 
 	assetRoutes := []struct {
@@ -52,7 +54,7 @@ func PostStart() {
 		prefix, dir := route.prefix, route.dir
 		fileServer := http.FileServer(http.Dir(filepath.Join(dashboardDir, dir)))
 
-		funcRoutes[Route{Method: http.MethodGet, Path: prefix + "*"}] = func(w http.ResponseWriter, r *http.Request) {
+		funcRoutes[Route{AuthLevel: 0, Method: http.MethodGet, Path: prefix + "*"}] = func(w http.ResponseWriter, r *http.Request) {
 			http.StripPrefix(prefix, fileServer).ServeHTTP(w, r)
 		}
 	}
@@ -72,7 +74,34 @@ func HandleWiredRequest(w http.ResponseWriter, r *http.Request) {
 	for route, handler := range funcRoutes {
 		match, _ := filepath.Match(route.Path, r.URL.Path)
 		if route.Method == r.Method && match {
-			handler(w, r)
+			var eligible bool = route.AuthLevel == 0
+			if route.AuthLevel > 0 {
+				cookie, err := r.Cookie("token")
+				if err != nil {
+					w.Header().Set("Content-Type", "text/html")
+					w.WriteHeader(http.StatusUnauthorized)
+					w.Write(pages.ErrorPages[603].Html)
+					return
+				}
+
+				claims, err := jwt.ValidateToken(cookie.Value)
+				if err != nil {
+					http.Error(w, "Invalid token", http.StatusUnauthorized)
+					return
+				}
+
+				for _, id := range api_auth.WhitelistedIds {
+					if id == claims["discord_id"] {
+						eligible = true
+						r.Header.Set("Wired-User-Id", claims["discord_id"].(string))
+					}
+				}
+			}
+
+			if eligible {
+				handler(w, r)
+			}
+
 			return
 		}
 	}

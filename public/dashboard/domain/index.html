@@ -69,7 +69,103 @@
     </div>
     <div id="overlay" onclick="closeAddRecordModal()"></div>
 
+    <div id="customDialogOverlay" class="dialog-overlay" style="display: none;">
+        <div class="dialog-box">
+            <div class="dialog-header">
+                <h3 id="dialogTitle"></h3>
+            </div>
+            <div class="dialog-content">
+                <p id="dialogMessage"></p>
+                <input type="text" id="dialogInput" class="dialog-input" style="display: none;">
+            </div>
+            <div class="dialog-actions">
+                <button id="dialogCancel" class="dialog-btn secondary" style="display: none;">Cancel</button>
+                <button id="dialogConfirm" class="dialog-btn primary">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let dialogResolve = null;
+
+        function showDialog(type, title, message, defaultValue, buttonOptions = {}) {
+            const overlay = document.getElementById("customDialogOverlay");
+            const titleEl = document.getElementById("dialogTitle");
+            const messageEl = document.getElementById("dialogMessage");
+            const inputEl = document.getElementById("dialogInput");
+            const cancelBtn = document.getElementById("dialogCancel");
+            const confirmBtn = document.getElementById("dialogConfirm");
+
+            if (cancelBtn) {
+                cancelBtn.textContent = buttonOptions.cancel?.text || "Cancel";
+                cancelBtn.style.backgroundColor = buttonOptions.cancel?.color || null;
+            }
+
+            if (confirmBtn) {
+                confirmBtn.textContent = buttonOptions.confirm?.text || "OK";
+                confirmBtn.style.backgroundColor = buttonOptions.confirm?.color || null;
+            }
+
+            inputEl.style.display = "none";
+            inputEl.value = "";
+            cancelBtn.style.display = "none";
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            if (type === "prompt") {
+                inputEl.style.display = "block";
+                inputEl.value = defaultValue || "";
+                inputEl.focus();
+                cancelBtn.style.display = "inline-block";
+            } else if (type === "confirm") {
+                cancelBtn.style.display = "inline-block";
+            }
+
+            overlay.style.display = "flex";
+
+            return new Promise((resolve) => {
+                dialogResolve = resolve;
+            });
+        }
+
+        function closeDialog(result) {
+            const overlay = document.getElementById("customDialogOverlay");
+            overlay.style.display = "none";
+            if (dialogResolve) {
+                dialogResolve(result);
+                dialogResolve = null;
+            }
+        }
+
+        document.getElementById("dialogConfirm").addEventListener("click", () => {
+            const inputEl = document.getElementById("dialogInput");
+            closeDialog(inputEl.style.display === "block" ? inputEl.value : true);
+        });
+
+        document.getElementById("dialogCancel").addEventListener("click", () => {
+            const inputEl = document.getElementById("dialogInput");
+            closeDialog(inputEl.style.display === "block" ? null : false);
+        });
+
+        document.getElementById("customDialogOverlay").addEventListener("click", (e) => {
+            if (e.target === document.getElementById("customDialogOverlay")) {
+                closeDialog(null);
+            }
+        });
+
+        window.alert = (title, message) => {
+            return showDialog("alert", title, message, null);
+        }
+
+        window.confirm = (title, message, buttonOptions = { cancel: { text: "Cancel", color: "none" }, confirm: { text: "OK", color: "var(--primary)" } }) => {
+            return showDialog("confirm", title, message, null, buttonOptions);
+        }
+
+        window.prompt = (message, defaultValue = "", title = "Prompt") => {
+            return showDialog("prompt", title, message, defaultValue, "Cancel", "OK");
+        }
+
         const RR_TYPE_MAP = {
             1: "A",
             2: "NS",
@@ -102,15 +198,15 @@
             records.sort((a, b) => { // sort by .protected first, then by type, then alphabetically
                 if (a.Metadata.protected && !b.Metadata.protected) return -1;
                 if (!a.Metadata.protected && b.Metadata.protected) return 1;
-                if (a.Record.Hdr.Rrtype < b.Record.Hdr.Rrtype) return -1;
-                if (a.Record.Hdr.Rrtype > b.Record.Hdr.Rrtype) return 1;
-                return a.Record.Hdr.Name.localeCompare(b.Record.Hdr.Name);
+                if (a.RR.Hdr.Rrtype < b.RR.Hdr.Rrtype) return -1;
+                if (a.RR.Hdr.Rrtype > b.RR.Hdr.Rrtype) return 1;
+                return a.RR.Hdr.Name.localeCompare(b.RR.Hdr.Name);
             });
 
             records.forEach(record => {
                 const meta = record.Metadata;
                 if (meta.artificial) return;
-                record = record.Record;
+                record = record.RR;
                 const row = document.createElement("div");
                 row.className = "table-row";
 
@@ -127,7 +223,7 @@
                     </span>
                     <span data-label="TTL">${record.Hdr?.Ttl}</span>
                     <div class="actions-menu">
-                        <button onclick="deleteRecord('${meta.id}', event)" class="delete-btn">Delete</button>
+                        <button onclick="(async () => { await deleteRecord('${meta.id}', event) })()" class="delete-btn">Delete</button>
                     </div>
                 `;
 
@@ -155,7 +251,7 @@
 
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
-                alert("Text copied to clipboard!");
+                alert("Content copied to clipboard!", "Copied content: " + text);
             }).catch((error) => {
                 console.error("Error copying text: ", error);
             });
@@ -247,20 +343,53 @@
                     label.textContent = field;
                     fieldDiv.appendChild(label);
 
-                    const input = document.createElement("input");
-                    input.type = "text";
-                    input.id = `field-${field}`;
-                    input.autocomplete = "off";
-                    input.autocapitalize = "none";
-                    input.spellcheck = "false";
+                    let input;
+                    if (field === "Name") {
+                        const inputDiv = document.createElement("div");
+                        inputDiv.className = "input-name";
 
-                    if (field === "Name") input.value = domain;
-                    if (field === "TTL") input.value = "3600";
+                        input = document.createElement("input");
+                        input.type = "text";
+                        input.id = `field-${field}`;
+                        input.autocomplete = "off";
+                        input.autocapitalize = "none";
+                        input.spellcheck = "false";
+
+                        inputDiv.appendChild(input);
+
+                        const domainLabel = document.createElement("span");
+                        domainLabel.className = "domain-label";
+                        domainLabel.textContent = `.${domain}`;
+
+                        inputDiv.appendChild(domainLabel);
+                        fieldDiv.appendChild(inputDiv);
+                    } else {
+                        input = document.createElement("input");
+                        input.type = "text";
+                        input.id = `field-${field}`;
+                        input.autocomplete = "off";
+                        input.autocapitalize = "none";
+                        input.spellcheck = "false";
+                        fieldDiv.appendChild(input);
+                    }
+
+
+                    if (field === "TTL") {
+                        input.value = "3600";
+                        let min = 0, max = 604800;
+                        input.addEventListener("input", (e) => {
+                            e.target.value = e.target.value.replace(/[^0-9]/g, "");
+
+                            if (e.target.value < min) e.target.value = min;
+                            if (e.target.value > max) e.target.value = max;
+                            if (e.target.value === "") e.target.value = 3600;
+                        });
+
+
+                    }
                     if (field === "Refresh") input.value = "3600";
                     if (field === "Retry") input.value = "600";
                     if (field === "Expire") input.value = "604800";
-
-                    fieldDiv.appendChild(input);
                 } else {
                     const checkboxLabel = document.createElement("label");
                     checkboxLabel.className = "checkbox-label";
@@ -305,33 +434,78 @@
                 },
                 body: JSON.stringify(record)
             })
-                .then((response) => response.text())
+                .then((response) => {
+                    if (!response.ok) {
+                        switch (response.status) {
+                            case 400:
+                                alert("Invalid input", "Please check your input and try again.");
+                                break;
+                            case 403:
+                                alert("Permission denied", "You do not have permission to add this record.");
+                                break;
+                            case 500:
+                                alert("Server error", "An error occurred while saving the record. Please try again later.");
+                                break;
+                            default:
+                                alert("Error saving record", `An unknown error occurred. Please try again. Error code: ${response.status}`);
+                                break;
+                        }
+                    }
+
+                    return response.text()
+                })
                 .then(async (data) => {
-                    closeAddRecordModal();
-                    await new Promise((resolve) => setTimeout(resolve, 150));
-                    fetchRecords();
+                    try {
+                        const parsedData = JSON.parse(data);
+                        closeAddRecordModal();
+                        await new Promise((resolve) => setTimeout(resolve, 150));
+                        fetchRecords();
+                    } catch (e) { }
                 })
                 .catch((error) => {
-                    alert(`Error saving record: ${error}`);
+                    alert("Error saving record", error);
                 });
         }
 
-        function deleteRecord(id, event) {
+        async function deleteRecord(id, event) {
             if (event) {
                 event.preventDefault();
                 event.stopPropagation();
             }
 
-            if (!confirm("Are you sure you want to delete this record?")) {
-                return;
-            }
+            const confirmDelete = await confirm("Confirm deletion", "Are you sure you want to delete this record?", {
+                cancel: { text: "Cancel", color: "none" },
+                confirm: { text: "Delete", color: "var(--danger)" }
+            });
+            if (!confirmDelete) return;
 
             fetch(`https://as214428.net/dash/api/domains/records/${id}?domain=${domain}`, {
                 method: "DELETE"
             })
-                .then((response) => response.text())
+                .then((response) => {
+                    if (!response.ok) {
+                        switch (response.status) {
+                            case 404:
+                                alert("Record not found", "The record you are trying to delete does not exist.");
+                                break;
+                            case 403:
+                                alert("Permission denied", "You do not have permission to delete this record.");
+                                break;
+                            case 500:
+                                alert("Server error", "An error occurred while deleting the record. Please try again later.");
+                                break;
+                            default:
+                                alert("Error deleting record", `An unknown error occurred. Please try again. Error code: ${response.status}`);
+                                break;
+                        }
+                    }
+
+                    return response.text();
+                })
                 .then((data) => fetchRecords())
-                .catch((error) => alert("Error deleting record:", error));
+                .catch((error) => {
+                    alert("Error deleting record", error);
+                });
         }
 
         function displaySSLCerts(records) {
@@ -343,7 +517,7 @@
                     record.Metadata.SSLInfo.IssuedAt !== "0001-01-01T00:00:00Z";
             }).map(record => {
                 return {
-                    ...record,
+                    ...record.RR,
                     issuedAt: record.Metadata.SSLInfo.IssuedAt,
                     expiresAt: record.Metadata.SSLInfo.ExpiresAt
                 };
@@ -380,7 +554,7 @@
 
                 card.innerHTML = `
                     <div class="ssl-card-header">
-                        <div class="ssl-card-title">${cert.Record.Hdr.Name}</div>
+                        <div class="ssl-card-title">${cert.Hdr.Name}</div>
                         <div class="ssl-status ${status}">
                             ${status === "active" ? "Active" : status === "expiring" ? "Expiring Soon" : "Expired"}
                         </div>

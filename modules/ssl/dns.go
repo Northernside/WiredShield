@@ -7,15 +7,15 @@ import (
 	"wired/modules/postgresql"
 	"wired/modules/types"
 
-	wired_dns "wired/services/dns"
-
 	"github.com/miekg/dns"
+
+	wired_dns "wired/services/dns"
 
 	"golang.org/x/crypto/acme"
 )
 
-func dns01Handling(domains map[string]string, authzURL string) error {
-	for recordId, domain := range domains {
+func dns01Handling(domains []string, authzURL string) error {
+	for _, domain := range domains {
 		authz, err := client.GetAuthorization(ctx, authzURL)
 		if err != nil {
 			return err
@@ -48,23 +48,42 @@ func dns01Handling(domains map[string]string, authzURL string) error {
 		}
 
 		var id string
-		var user = postgresql.Users[wired_dns.IdIndex[recordId].Record.Metadata.OwnerID]
+		var owner *types.User
 
-		if id, err, _ = user.AddRecord(dns.Fqdn(domain), &types.DNSRecord{
-			Record: &dns.TXT{
-				Hdr: dns.RR_Header{
-					Name:   dns.Fqdn("_acme-challenge." + domain),
-					Rrtype: dns.TypeTXT,
-					Class:  dns.ClassINET,
-					Ttl:    3600,
-				},
+		postgresql.UsersMu.RLock()
+		defer func() {
+			err := wired_dns.DeleteRecord(owner, id)
+			if err != nil {
+				return
+			}
+
+			postgresql.UsersMu.RUnlock()
+		}()
+
+		owner = postgresql.Users[wired_dns.DomainDataIndexName[domain].Owner]
+		if owner == nil {
+			postgresql.Users[wired_dns.DomainDataIndexName[domain].Owner] = &types.User{
+				Id: wired_dns.DomainDataIndexName[domain].Owner,
+			}
+		}
+
+		err = postgresql.GetUser(owner)
+		if err != nil {
+			return err
+		}
+
+		id, err = wired_dns.CreateRecord(owner, wired_dns.DomainDataIndexName[domain].Id, &types.DNSRecord{
+			RR: &dns.TXT{
+				Hdr: dns.RR_Header{Name: dns.Fqdn("_acme-challenge." + domain), Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 3600},
 				Txt: []string{challengeText},
 			},
 			Metadata: types.RecordMetadata{
 				Protected: false,
 				Geo:       false,
 			},
-		}); err != nil {
+		})
+
+		if err != nil {
 			return err
 		}
 
@@ -77,14 +96,6 @@ func dns01Handling(domains map[string]string, authzURL string) error {
 		if err != nil {
 			return err
 		}
-
-		defer func() {
-			if err, ok := user.RemoveRecord(id); ok {
-				logger.Printf("Removed DNS record for %s: %v\n", domain, err)
-			} else {
-				logger.Printf("Failed to remove DNS record for %s: %v\n", domain, err)
-			}
-		}()
 	}
 
 	return nil

@@ -10,13 +10,13 @@
 
     --table-header-bg: #0c0c0c;
 
-    --card-bg: #050505;
-    --card-hover-bg: #0a0a0a;
-    --card-border: #121212;
+    --card-bg: #090909;
+    --card-hover-bg: #121212;
+    --card-border: #191919;
 
-    --modal-bg: #050505;
-    --modal-border: #1a1a1a;
-    --modal-input-bg: #141414;
+    --modal-bg: #090909;
+    --modal-border: #191919;
+    --modal-input-bg: #101010;
     --checkbox-bg: #050505;
     --checkbox-border: #1a1a1a;
 
@@ -176,6 +176,32 @@ tr:last-child td {
     display: none;
 }
 
+.input-name {
+    display: flex;
+    flex-direction: row;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+}
+
+.input-name input {
+    width: 100%;
+    border: 0px !important;
+    border-radius: 0px !important;
+    background: none !important;
+}
+
+.input-name:has(input:focus) {
+    background: var(--modal-input-bg);
+}
+
+.domain-label {
+    background: none;
+    color: var(--accent);
+    padding: 0 0.5rem 0 0;
+    display: flex;
+    align-items: center;
+}
+
 #overlay {
     position: fixed;
     top: 0;
@@ -183,7 +209,7 @@ tr:last-child td {
     width: 100%;
     height: 100%;
     background: var(--overlay);
-    backdrop-filter: blur(5px);
+    backdrop-filter: blur(2px);
     z-index: 999;
     display: none;
 }
@@ -273,7 +299,7 @@ tr:last-child td {
         position: relative;
     }
 
-    .table-row > span {
+    .table-row>span {
         display: block;
         position: relative;
         padding-left: 4.5rem;
@@ -281,7 +307,7 @@ tr:last-child td {
         font-size: 0.875rem;
     }
 
-    .table-row > span::before {
+    .table-row>span::before {
         content: attr(data-label);
         position: absolute;
         left: 0;
@@ -291,12 +317,20 @@ tr:last-child td {
         filter: none !important;
     }
 
-    .table-row > span:nth-child(1)::before { content: "Type"; }
-    .table-row > span:nth-child(2)::before { content: "Name"; }
-    .table-row > span:nth-child(3)::before { content: "Content"; }
+    .table-row>span:nth-child(1)::before {
+        content: "Type";
+    }
 
-    .table-row > span:nth-child(4),
-    .table-row > span:nth-child(5),
+    .table-row>span:nth-child(2)::before {
+        content: "Name";
+    }
+
+    .table-row>span:nth-child(3)::before {
+        content: "Content";
+    }
+
+    .table-row>span:nth-child(4),
+    .table-row>span:nth-child(5),
     .protected-status span:not(.cloud-icon) {
         display: none !important;
     }
@@ -318,7 +352,7 @@ tr:last-child td {
         filter: blur(5px);
         display: inline-block;
     }
-    
+
     .spoiler:hover {
         filter: blur(0);
     }
@@ -383,7 +417,8 @@ tr:last-child td {
     opacity: 0.8;
 }
 
-.actions-menu { /* align right */
+.actions-menu {
+    /* align right */
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
@@ -552,12 +587,13 @@ input[type="checkbox"]:checked::after {
 
 select,
 input[type="text"] {
-    outline: 1px solid var(--card-border);
+    transition: all 0.2s;
+    outline: none;
 }
 
 select:focus,
 input[type="text"]:focus {
-    outline: 1px solid var(--primary);
+    background: var(--modal-input-bg);
 }
 
 .ssl-section {
@@ -692,4 +728,101 @@ input[type="text"]:focus {
 
 .delete-btn:hover {
     background: rgba(255, 0, 0, 0.35);
+}
+
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--overlay);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+}
+
+.dialog-box {
+    background: var(--modal-bg);
+    border: 1px solid var(--modal-border);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    padding: 1.5rem;
+    animation: dialogEnter 0.2s ease-out;
+}
+
+@keyframes dialogEnter {
+    from {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.dialog-header {
+    margin-bottom: 1rem;
+}
+
+.dialog-header h3 {
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+.dialog-content {
+    margin-bottom: 1.5rem;
+}
+
+.dialog-content p {
+    color: var(--accent);
+    line-height: 1.4;
+}
+
+.dialog-input {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: var(--modal-input-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    color: var(--text);
+}
+
+.dialog-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.dialog-btn {
+    padding: 0.5rem 1.25rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.dialog-btn.primary {
+    background: var(--primary);
+    color: white;
+}
+
+.dialog-btn.secondary {
+    background: none;
+    border: 1px solid var(--accent);
+    color: var(--text);
+}
+
+.dialog-btn:hover {
+    opacity: 0.85;
+}
+
+.dialog-btn.secondary:hover {
+    background: var(--card-hover-bg);
 }

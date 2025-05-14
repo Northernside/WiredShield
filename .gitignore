@@ -27,6 +27,8 @@ go.work.sum
 *.pem
 
 zonefile.txt
+zonefile_*.txt
+zonefiles/
 
 *.mmdb
 
